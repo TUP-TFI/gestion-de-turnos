@@ -213,7 +213,7 @@ Registro de las citas o reservas del sistema. Es un **snapshot inmutable de lo p
 
 Sin el snapshot, la duración del turno saldría de `service.durationMinutes`, que **es editable**. Si un negocio tiene 20 turnos de "Corte" reservados a 30 minutos y el admin edita el servicio a 60, esos 20 turnos cambiarían de duración de forma retroactiva y pasarían a superponerse entre sí: la agenda se rompe sin que nadie haya tocado un turno. Con el snapshot, editar el catálogo solo afecta a las reservas futuras. El mismo argumento aplica a `price`: el turno conserva el valor al que se pactó.
 
-`endDateTime` se persiste (no se calcula al vuelo) porque es lo que permite validar superposiciones por rango con un índice y con la constraint de exclusión descrita en [esquema-bd.md](esquema-bd.md). Lo escribe la capa de servicio en cada alta y en cada reprogramación.
+`endDateTime` se persiste (no se calcula al vuelo) porque es lo que permite validar superposiciones por rango con un índice y con la constraint de exclusión descrita en [esquema-bd.md](esquema-bd.md), y porque es el corte que usa el job de cierre para pasar un turno a `COMPLETED` ([regla 34](../negocio/reglas-negocio.md)). Lo escribe la capa de servicio en cada alta y en cada reprogramación.
 
 ### Por qué `companyId` está en `Appointment` si es deducible de `Service`
 
@@ -233,7 +233,7 @@ Con tres FK independientes, nada impediría un turno de la empresa A apuntando a
           ┌──────────────┼──────────────┐
           │              │              │
    reprogramación   job programado   cancelación
-   (mismo registro,  (startDateTime   (cliente o admin)
+   (mismo registro,  (endDateTime     (cliente o admin)
     sigue PENDING,    ya pasó)              │
     +1 reschedule)         │                ▼
           │                ▼          ┌──────────────┐

@@ -8,7 +8,7 @@ API REST del sistema de gestión de turnos. Java + Spring Boot + PostgreSQL.
 
 > ⏳ *A completar cuando exista el proyecto.*
 
-- Requisitos: JDK (versión a definir), Maven/Gradle (a definir), PostgreSQL.
+- Requisitos: JDK (versión a definir), **Maven**, PostgreSQL.
 - Variables de entorno: documentar en un `.env.example` versionado. El `.env` real nunca se commitea.
 - Comando de arranque local.
 - Comando de tests.
@@ -184,7 +184,9 @@ El DDL de referencia está en [esquema-bd.md](../docs/tecnologias/esquema-bd.md)
 
 > ⚠️ Estos cuatro puntos dependen de constraints específicas de PostgreSQL que **H2 no soporta**. Si se quiere cubrirlos, la elección es **Testcontainers**, no H2.
 
-**Pendiente:** confirmar Testcontainers y definir si se exige una cobertura mínima en CI.
+**Decidido: Testcontainers** (`postgres:16`), por los cuatro puntos de arriba. Los tests que los cubren son US-07.3 (lock pesimista) y T-12.4 (los otros tres).
+
+**Pendiente:** definir si se exige una cobertura mínima en CI.
 
 ## Seeds y datos de prueba
 
@@ -196,9 +198,9 @@ Necesarios para levantar el entorno con un superadmin, la fila de `platform_sett
 
 ## Pendiente de definir
 
-- Maven o Gradle.
-- Formatter y linter (Spotless, Checkstyle) integrados en CI.
-- Manejo centralizado de errores (`@RestControllerAdvice`) y formato del cuerpo de error, incluyendo el mapeo de `ConstraintViolationException` a HTTP 409.
+- Versión del JDK.
+- Formatter y linter (Spotless, Checkstyle), para sumar al workflow de CI que monta T-01.4.
+- Formato exacto del cuerpo de error que devuelve el `@RestControllerAdvice` de US-03.10.
 - Documentación de la API (Swagger / OpenAPI).
 - Proveedor de la API de WhatsApp Business.
 - Storage externo para los logos de empresa (`company.logoUrl`).

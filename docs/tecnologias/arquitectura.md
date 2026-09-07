@@ -124,7 +124,7 @@ Persistir cada envío es lo que hace posible reintentar sin duplicar — crític
 
 | Job | Qué hace | Frecuencia orientativa |
 | :--- | :--- | :--- |
-| Cierre de turnos | Pasa a `COMPLETED` los turnos `PENDING` cuyo `startDateTime` ya pasó | cada 15 min |
+| Cierre de turnos | Pasa a `COMPLETED` los turnos `PENDING` cuyo `endDateTime` ya pasó | cada 15 min |
 | Reintento de notificaciones | Reprocesa las `notification` en `PENDING`/`FAILED` | cada 5 min |
 | Purga de tokens | Elimina los `user_token` vencidos y ya usados | diaria |
 

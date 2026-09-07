@@ -194,7 +194,7 @@ La página pública (`plataforma.com/{slug}`) es visible sin login: cualquiera v
 
 ### 7.5 Mis turnos, cancelación y reprogramación
 
-"Mis turnos" es una tabla simple: fecha, servicio, empresa, estado. No hay una sección de historial aparte — un job programado pasa los turnos a `COMPLETED` automáticamente una vez que su horario ya pasó (los `CANCELLED` quedan como están), y la tabla se ordena/filtra por estado; los `COMPLETED` cumplen la función de historial.
+"Mis turnos" es una tabla simple: fecha, servicio, empresa, estado. No hay una sección de historial aparte — un job programado pasa los turnos a `COMPLETED` automáticamente una vez que terminaron, es decir cuando su `endDateTime` ya pasó (los `CANCELLED` quedan como están), y la tabla se ordena/filtra por estado; los `COMPLETED` cumplen la función de historial.
 
 - **Cancelar:** disponible hasta el plazo configurado antes del turno (inicialmente 3 horas). El turno pasa a estado `CANCELLED` y se muestra en gris, sin acción de reactivación desde ahí. Queda registrado quién canceló y cuándo.
 - **Reprogramar:** dentro del mismo plazo, el cliente elige un nuevo horario disponible; se actualiza el mismo registro de turno (no se crea uno nuevo), guardando la fecha anterior y sumando uno a su contador de reprogramaciones. **El turno sigue en estado `PENDING`.**

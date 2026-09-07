@@ -8,7 +8,7 @@ Interfaz del sistema de gestión de turnos. React + TypeScript + Vite.
 
 > ⏳ *A completar cuando exista el proyecto.*
 
-- Requisitos: Node (versión a definir), gestor de paquetes (npm/pnpm, a definir).
+- Requisitos: Node (versión a definir), gestor de paquetes (npm/pnpm, a definir), **Tailwind** para estilos.
 - Variables de entorno: documentar en un `.env.example` versionado (`VITE_API_URL`, etc.). El `.env` real nunca se commitea.
 - Comandos: desarrollo, build, tests.
 
@@ -54,7 +54,7 @@ Component  ──►  Hook  ──►  api/  ──►  Backend
 | Capa | Responsabilidad | Qué NO hace |
 | :--- | :--- | :--- |
 | **Component / Page** | Renderizar e interactuar con el usuario. | No llama al backend. No contiene reglas de negocio. |
-| **Hook** | Estado, orquestación y consumo de `api/`. | No arma URLs ni headers a mano. |
+| **Hook** | Estado, orquestación y consumo de `api/`, con **TanStack Query**. | No arma URLs ni headers a mano. |
 | **`api/`** | Llamadas HTTP, tipado de request/response, manejo de errores. | No conoce React ni componentes. |
 
 Reglas duras:
@@ -83,18 +83,18 @@ Reglas duras:
 - Conversión y formato de fechas.
 - Habilitado/deshabilitado de cancelar y reprogramar según el plazo.
 
-**E2E** — recorridos completos sobre la aplicación real. Los dos flujos que sí o sí conviene cubrir:
+**E2E** — recorridos completos sobre la aplicación real, con **Playwright**. Los dos flujos que sí o sí conviene cubrir:
 
-1. Cliente reserva un turno desde la página pública de una empresa.
-2. Admin cancela un turno desde su turnero.
+1. Cliente reserva un turno desde la página pública de una empresa (T-12.1).
+2. Admin cancela un turno desde su turnero (T-12.2).
 
-**Pendiente:** elegir la herramienta (Playwright o Cypress) y definir si corre en CI o solo local.
+**Pendiente:** definir si los E2E corren en CI o solo en local — los unitarios sí corren en cada PR (T-01.4).
 
 ## Pendiente de definir
 
-- Gestor de estado del servidor (React Query / SWR / fetch propio en hooks).
-- Librería de estilos o de componentes (Tailwind, MUI, CSS Modules).
-- Manejo de rutas protegidas por rol.
-- Cómo se aplica la personalización por empresa (logo y color primario) en la página pública.
-- ESLint + Prettier integrados en CI.
-- Componente de búsqueda/autocomplete de clientes para el turnero manual del admin (elegir entre cliente con cuenta o carga manual).
+- Librería de componentes, si hiciera falta alguna además de Tailwind.
+- Versión de Node y gestor de paquetes (npm/pnpm).
+- ESLint + Prettier, para sumar al workflow de CI que monta T-01.4.
+- Si los E2E corren en CI o solo en local.
+
+Tres puntos que estaban acá ya dejaron de ser decisiones abiertas y pasaron a ser trabajo planificado en `tareas.md`: las rutas protegidas por rol (US-03.3), la personalización por empresa (US-05.7 la carga, US-06.1 la aplica) y el autocomplete de clientes del turnero manual (US-09.4, US-09.7).
