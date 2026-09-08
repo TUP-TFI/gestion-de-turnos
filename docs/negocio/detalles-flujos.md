@@ -68,6 +68,7 @@ Una pantalla con tres campos, que el superadmin edita y quedan vigentes de inmed
 | Anticipación mínima para reservar | 30 minutos |
 | Plazo máximo de cancelación/reprogramación | 3 horas |
 | Máximo de reprogramaciones por turno | 2 |
+| Máximo de anticipación para reservar |  *A definir (en días)* |
 
 Están en base de datos (`PlatformSettings`, tabla de una sola fila) y no en el archivo de configuración del backend, justamente porque están documentados como ajustables: si vivieran en el `application.yml`, ajustarlos implicaría un redeploy. Cambiarlos no afecta retroactivamente a los turnos ya reservados; rige sobre las validaciones de las operaciones posteriores.
 
@@ -114,7 +115,7 @@ La plantilla semanal resuelve el caso habitual, pero no alcanza para las fechas 
 
 **Regla de precedencia:** si existe una excepción para una fecha, **reemplaza por completo** la configuración semanal de ese día. No se combinan ni se restan: o rige la excepción, o rige la plantilla. Es la regla más simple de explicar y la más previsible para el admin.
 
-Igual que al editar horarios, cargar una excepción no cancela turnos ya reservados en esa fecha: el sistema informa cuántos quedan fuera y el admin decide.
+Igual que al editar horarios, cargar una excepción no cancela turnos ya reservados en esa fecha: el sistema informa cuántos quedan fuera y el admin decide. La fecha de la excepción debe ser hoy o posterior — el sistema no permite cargar excepciones para fechas pasadas.
 
 #### Cálculo de disponibilidad, con ejemplo concreto
 
