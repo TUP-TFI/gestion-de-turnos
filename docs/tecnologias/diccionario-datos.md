@@ -29,6 +29,7 @@ Parámetros de negocio configurables a nivel **global de la plataforma**, editab
 | `cancellationDeadlineHours` | `Int` | Not Null, Default `3`, `> 0` | Plazo máximo para que el cliente cancele o reprograme ([regla 16](../negocio/reglas-negocio.md)). |
 | `maxRescheduleCount` | `Int` | Not Null, Default `2`, `>= 0` | Cantidad máxima de reprogramaciones permitidas por turno ([regla 18](../negocio/reglas-negocio.md)). |
 | `updatedAt` | `Instant` | Not Null | Última modificación. |
+| `maxBookingAdvanceDays` | `Int` | Not Null, `> 0` | Máxima anticipación en días para reservar un turno. |
 
 > 💡 **Por qué una tabla y no un `application.yml`:** los tres valores están documentados como *ajustables*. Si viven en el archivo de configuración, ajustarlos implica redeploy. En una tabla, el superadmin los edita desde su panel.
 
@@ -181,6 +182,8 @@ Excepciones puntuales al calendario, **por fecha concreta**: feriados, vacacione
 
 > 📌 Igual que al editar `BusinessHours`, cargar una excepción **no cancela** turnos ya reservados en esa fecha: el sistema informa cuántos quedan fuera y el admin decide ([regla 27](../negocio/reglas-negocio.md)).
 
+> 📌 `exceptionDate` debe ser igual o posterior a la fecha actual, calculada en `company.timezone`. Esta validación vive en la capa de service, no como `CHECK` en la base, porque la regla depende de la zona horaria de la empresa (otra tabla), y un `CHECK` no puede resolver eso por sí solo.
+
 ---
 
 ## 📅 Entidad: `Appointment`
@@ -298,6 +301,7 @@ APPOINTMENT ||--o{ NOTIFICATION : origina
         Int minBookingNoticeMinutes
         Int cancellationDeadlineHours
         Int maxRescheduleCount
+        Int maxBookingAdvanceDays
         Instant updatedAt
     }
 
