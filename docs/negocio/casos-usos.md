@@ -58,12 +58,12 @@ El superadmin reactiva una empresa previamente desactivada. Vuelve a estado `ACT
 ### UC12 - Cargar una excepción de calendario
 **Actor:** Admin de empresa
 
-El admin carga una fecha concreta como excepción a su horario habitual: un feriado o día de vacaciones (cerrado todo el día), o una jornada con horario especial (abre en un rango distinto al de esa plantilla semanal). La excepción reemplaza por completo la configuración de ese día: a partir de ahí el sistema no ofrece ningún horario para esa fecha, o solo los del rango especial. Igual que en UC10, si ya había turnos reservados en esa fecha, el sistema informa cuántos quedan fuera pero no los cancela: el admin decide si los cancela a mano.
+El admin carga una fecha concreta como excepción a su horario habitual: un feriado o día de vacaciones (cerrado todo el día), o una jornada con horario especial (abre en un rango distinto al de esa plantilla semanal). La fecha debe ser hoy o posterior; no se pueden cargar excepciones para fechas ya pasadas. La excepción reemplaza por completo la configuración de ese día: a partir de ahí el sistema no ofrece ningún horario para esa fecha, o solo los del rango especial. Igual que en UC10, si ya había turnos reservados en esa fecha, el sistema informa cuántos quedan fuera pero no los cancela: el admin decide si los cancela a mano.
 
 ### UC13 - Ajustar los parámetros globales de la plataforma
 **Actor:** Superadmin
 
-Desde su panel, el superadmin modifica la anticipación mínima para reservar, el plazo máximo de cancelación/reprogramación o el máximo de reprogramaciones por turno. Los nuevos valores rigen de inmediato para todas las empresas, sin necesidad de redeploy. No afectan retroactivamente a los turnos ya reservados: solo a las validaciones de las operaciones que se hagan a partir de ese momento.
+Desde su panel, el superadmin modifica la anticipación mínima para reservar, el plazo máximo de cancelación/reprogramación, el máximo de reprogramaciones por turno, o el máximo de anticipación para reservar. Los nuevos valores rigen de inmediato para todas las empresas, sin necesidad de redeploy. No afectan retroactivamente a los turnos ya reservados: solo a las validaciones de las operaciones que se hagan a partir de ese momento.
 
 ### UC14 - Recuperar la contraseña
 **Actor:** Admin de empresa / Cliente

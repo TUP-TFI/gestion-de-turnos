@@ -29,12 +29,14 @@ CREATE TABLE platform_settings (
   min_booking_notice_minutes    integer      NOT NULL DEFAULT 30,
   cancellation_deadline_hours   integer      NOT NULL DEFAULT 3,
   max_reschedule_count          integer      NOT NULL DEFAULT 2,
+  max_booking_advance_days      integer      NOT NULL DEFAULT 90, -- ⚠️ valor a confirmar
   updated_at                    timestamptz  NOT NULL DEFAULT now(),
 
   CONSTRAINT chk_settings_singleton    CHECK (id = 1),
   CONSTRAINT chk_settings_notice       CHECK (min_booking_notice_minutes > 0),
   CONSTRAINT chk_settings_deadline     CHECK (cancellation_deadline_hours > 0),
-  CONSTRAINT chk_settings_reschedule   CHECK (max_reschedule_count >= 0)
+  CONSTRAINT chk_settings_reschedule   CHECK (max_reschedule_count >= 0),
+  CONSTRAINT chk_settings_advance      CHECK (max_booking_advance_days > 0)
 );
 
 -- La fila única se inserta en la misma migración: la aplicación nunca la crea.
@@ -219,6 +221,7 @@ CREATE TABLE schedule_exception (
 
 CREATE INDEX idx_exception_company_date ON schedule_exception (company_id, exception_date);
 ```
+> ⚠️ **`exception_date` no se valida con un `CHECK` en la base** porque la regla depende de `company.timezone` (el "hoy" varía según la zona horaria de cada empresa), y un `CHECK` no puede consultar otra tabla para resolver ese valor. La validación de "no fechas pasadas" se hace en la capa de service del backend, donde sí hay acceso al `timezone` de la empresa.
 
 ### 2.8 `appointment`
 
@@ -410,6 +413,7 @@ Table platform_settings {
   min_booking_notice_minutes  integer     [not null, default: 30]
   cancellation_deadline_hours integer     [not null, default: 3]
   max_reschedule_count        integer     [not null, default: 2]
+  max_booking_advance_days   integer     [not null, note: 'Valor a confirmar']
   updated_at                  timestamptz [not null]
   Note: 'Parámetros de negocio globales, editables por el SUPERADMIN.'
 }

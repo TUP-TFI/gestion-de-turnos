@@ -25,11 +25,12 @@
 | Anticipación mínima para reservar | 30 minutos | Regla 14 |
 | Plazo máximo de cancelación/reprogramación | 3 horas | Regla 16 |
 | Máximo de reprogramaciones por turno | 2 | Regla 18 |
+| Máximo de anticipación para reservar | *A definir (en días)* | Regla 15 |
 
 ### Disponibilidad y concurrencia
 13. Un turno reservado no puede superponerse con otro del mismo negocio en la misma franja horaria (validado por rango, no por horario exacto, dado que los servicios tienen duración variable).
 14. La validación de superposición y el guardado del turno ocurren dentro de una misma transacción con lock pesimista. La fila que se bloquea es la de la **empresa** (`SELECT ... FOR UPDATE` sobre `company`), porque el turno a crear todavía no existe y no hay fila propia que bloquear; eso serializa las reservas de ese negocio sin afectar a los demás. Como respaldo, la base declara una constraint de exclusión que impide la superposición aunque el código falle.
-15. No se puede reservar un turno con menos de la anticipación mínima configurada sobre el horario elegido, ni en horarios ya pasados.
+15. No se puede reservar un turno con menos de la anticipación mínima configurada sobre el horario elegido, ni en horarios ya pasados. Tampoco se puede reservar con más de la anticipación máxima configurada (`maxBookingAdvanceDays`, en `PlatformSettings`), para evitar reservas a un plazo irrazonablemente largo.
 
 ### Cancelación y reprogramación
 16. El cliente puede cancelar o reprogramar su turno hasta el plazo configurado antes del mismo. Pasado ese plazo, debe contactar al negocio por fuera del sistema; el admin puede cancelar ese turno desde su turnero sin restricción horaria, liberando el horario para otra persona.
@@ -46,7 +47,7 @@
 23. Desactivar un servicio con turnos futuros asociados no cancela esos turnos: dejan de ofrecerse a nuevas reservas, pero los ya reservados se mantienen y se atienden con normalidad. Cancelarlos, si el admin lo decide, es una acción manual aparte.
 24. El turno guarda una **copia del precio y la duración** del servicio al momento de reservarse. Editar un servicio afecta solo a las reservas futuras: sin esa copia, cambiar la duración de un servicio modificaría retroactivamente todos los turnos ya reservados y los haría superponerse entre sí.
 25. La configuración de horarios admite **varias franjas por día** (jornada partida, ej. 09:00–13:00 y 16:00–20:00), siempre que no se superpongan entre sí. Un día sin ninguna franja cargada significa que la empresa no atiende ese día.
-26. Además de la plantilla semanal, cada admin puede cargar **excepciones por fecha concreta** (feriados, vacaciones, jornadas con horario especial). Una excepción **reemplaza por completo** la configuración semanal de esa fecha: no se combinan.
+26. Además de la plantilla semanal, cada admin puede cargar **excepciones por fecha concreta** (feriados, vacaciones, jornadas con horario especial). Una excepción **reemplaza por completo** la configuración semanal de esa fecha: no se combinan. La fecha de la excepción (`exceptionDate`) debe ser igual o posterior a la fecha actual, calculada en `company.timezone`; no se pueden cargar excepciones para fechas pasadas.
 27. Editar la configuración de horarios, o cargar una excepción, no afecta a los turnos ya reservados que queden fuera del nuevo rango: se mantienen igual, y el sistema solo avisa al admin de cuántos turnos quedan en esa situación.
 
 ### Notificaciones

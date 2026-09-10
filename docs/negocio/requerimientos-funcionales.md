@@ -5,7 +5,7 @@
 - CRUD de empresas (alta, consulta, edición, desactivación — nunca eliminación física).
 - Alta de empresa: formulario único que crea en la misma transacción la `Company` (estado `ACTIVE`) y el `User` admin asociado (estado `PENDING_ACTIVATION`), generando el slug de la URL pública —validado contra la lista de slugs reservados— y disparando el link de activación por WhatsApp.
 - Reenviar el link de activación si el admin no lo usó a tiempo (invalidando el anterior).
-- **Configurar los parámetros globales de la plataforma:** anticipación mínima para reservar, plazo máximo de cancelación/reprogramación y máximo de reprogramaciones por turno. Se editan desde el panel, sin necesidad de redeploy.
+- **Configurar los parámetros globales de la plataforma:** anticipación mínima para reservar, plazo máximo de cancelación/reprogramación, máximo de reprogramaciones por turno y máximo de anticipación para reservar. Se editan desde el panel, sin necesidad de redeploy.
 - Ver dashboard general de la plataforma (empresas activas/inactivas, altas por mes, ranking de empresas por cantidad de turnos generados, distribución por rubro).
 - Ver la página pública de cualquier empresa (botón "Ver página pública"), sin poder reservar con esa sesión.
 
