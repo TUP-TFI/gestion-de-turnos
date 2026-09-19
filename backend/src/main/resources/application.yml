@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: turnos
+  profiles:
+    # Sin SPRING_PROFILES_ACTIVE se usa dev; Render define prod
+    default: dev
+  jpa:
+    hibernate:
+      # El esquema lo define Flyway; Hibernate solo lo verifica
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          # Instantes siempre en UTC, sin importar la zona del proceso
+          time_zone: UTC
+
+server:
+  # Render inyecta PORT; en local se usa 8080
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Render usa /actuator/health como health check
+        include: health
+  endpoint:
+    health:
+      show-details: never

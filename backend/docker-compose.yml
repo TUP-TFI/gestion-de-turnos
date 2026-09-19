@@ -1,0 +1,16 @@
+# Base local para el perfil dev. Mismos valores que los defaults de application-dev.yml.
+services:
+  postgres:
+    image: postgres:16
+    container_name: turnos-postgres
+    environment:
+      POSTGRES_DB: turnos
+      POSTGRES_USER: turnos
+      POSTGRES_PASSWORD: turnos
+    ports:
+      - "5432:5432"
+    volumes:
+      - turnos-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  turnos-postgres-data:

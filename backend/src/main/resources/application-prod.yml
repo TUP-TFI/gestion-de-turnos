@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    # Sin valores por defecto: si falta una variable, la app no arranca
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      # Free tier de Neon y Render: pocas conexiones
+      maximum-pool-size: 5

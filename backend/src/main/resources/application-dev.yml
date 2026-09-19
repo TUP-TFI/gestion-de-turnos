@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    # Defaults = docker-compose.yml. Se pueden pisar con variables de entorno
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/turnos}
+    username: ${DB_USERNAME:turnos}
+    password: ${DB_PASSWORD:turnos}
+  jpa:
+    show-sql: true
