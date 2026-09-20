@@ -1,4 +1,7 @@
 spring:
+  config:
+    # Carga backend/.env si existe (corrida local con perfil prod). En Render no existe y se ignora
+    import: optional:file:.env[.properties]
   datasource:
     # Sin valores por defecto: si falta una variable, la app no arranca
     url: ${DB_URL}

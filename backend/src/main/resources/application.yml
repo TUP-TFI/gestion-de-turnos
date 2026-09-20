@@ -5,6 +5,8 @@ spring:
     # Sin SPRING_PROFILES_ACTIVE se usa dev; Render define prod
     default: dev
   jpa:
+    # La sesion de JPA se cierra al salir del service (regla de capas del README)
+    open-in-view: false
     hibernate:
       # El esquema lo define Flyway; Hibernate solo lo verifica
       ddl-auto: validate
