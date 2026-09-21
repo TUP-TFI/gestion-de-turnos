@@ -1,0 +1,8 @@
+target/
+.git/
+.gitignore
+.gitattributes
+.idea/
+.env
+README.md
+docker-compose.yml

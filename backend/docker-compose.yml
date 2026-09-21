@@ -1,0 +1,18 @@
+# Base local para el perfil dev. Mismos valores que los defaults de application-dev.yml.
+# Puerto 5433 para no chocar con otro PostgreSQL en el 5432.
+services:
+  postgres:
+    image: postgres:18
+    container_name: turnos-postgres
+    environment:
+      POSTGRES_DB: turnos
+      POSTGRES_USER: turnos
+      POSTGRES_PASSWORD: turnos
+    ports:
+      - "5433:5432"
+    volumes:
+      # postgres:18 guarda los datos bajo /var/lib/postgresql
+      - turnos-postgres-data:/var/lib/postgresql
+
+volumes:
+  turnos-postgres-data:

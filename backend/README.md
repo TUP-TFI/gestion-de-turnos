@@ -6,12 +6,77 @@ API REST del sistema de gestión de turnos. Java + Spring Boot + PostgreSQL.
 
 ## Puesta en marcha
 
-> ⏳ *A completar cuando exista el proyecto.*
+Requisitos: **JDK 21** y **Docker**. Maven no hace falta: el proyecto usa el wrapper `./mvnw`.
 
-- Requisitos: JDK (versión a definir), **Maven**, PostgreSQL.
-- Variables de entorno: documentar en un `.env.example` versionado. El `.env` real nunca se commitea.
-- Comando de arranque local.
-- Comando de tests.
+```bash
+# 1. Levantar PostgreSQL 18 en el puerto 5433
+docker compose up -d
+
+# 2. Arrancar la API (perfil dev por defecto)
+./mvnw spring-boot:run
+
+# 3. Verificar
+curl http://localhost:8080/ping             # {"status":"ok"}
+curl http://localhost:8080/actuator/health  # {"status":"UP"}
+```
+
+Tests: `./mvnw test`. Necesitan la base levantada.
+
+Para frenar la base: `docker compose down` (los datos quedan en el volumen; `-v` los borra).
+
+### Variables de entorno
+
+El perfil `dev` trae valores por defecto que coinciden con el `docker-compose.yml`, así que en local no hay que definir nada. Las variables solo son obligatorias en el perfil `prod`, y están documentadas en [`.env.example`](.env.example). El `.env` real nunca se commitea.
+
+| Variable | Perfil | Descripción |
+| :--- | :--- | :--- |
+| `SPRING_PROFILES_ACTIVE` | ambos | `dev` (default) o `prod`. |
+| `DB_URL` | prod | URL JDBC de la base. En Neon, el host **directo** (sin `-pooler`): Flyway necesita locks de sesión. |
+| `DB_USERNAME` | prod | Usuario de la base. |
+| `DB_PASSWORD` | prod | Contraseña de la base. |
+| `PORT` | prod | Puerto HTTP. Lo inyecta Render; en local vale 8080. |
+
+Para correr en local contra la base de producción, creá un `backend/.env` con esas variables: el perfil `prod` lo importa si existe (`spring.config.import: optional:file:.env[.properties]`).
+
+```bash
+./mvnw spring-boot:run                              # base local, ignora el .env
+SPRING_PROFILES_ACTIVE=prod ./mvnw spring-boot:run  # base de Neon, lee el .env
+```
+
+> ⚠️ Apuntar a producción desde local aplica las migraciones de Flyway sobre los datos reales. Para experimentar conviene crear una branch en Neon y apuntar el `.env` ahí.
+
+### Perfiles
+
+| Perfil | Base | Notas |
+| :--- | :--- | :--- |
+| `dev` | `localhost:5433` (docker-compose) | `show-sql: true`. Es el default si no se define `SPRING_PROFILES_ACTIVE`. |
+| `prod` | Neon, por variables de entorno | Sin defaults: si falta una variable, la app no arranca. Pool de Hikari limitado a 5 conexiones por el free tier. |
+
+## Deploy
+
+La API se despliega en **Render** (free tier) contra una base **Neon**, ambos en la región Ohio.
+
+- URL: https://gestion-de-turnos-api.onrender.com
+- Java no es un runtime nativo de Render, así que el deploy usa el [`Dockerfile`](Dockerfile): etapa de build con `eclipse-temurin:21-jdk` + `./mvnw`, y runtime con `eclipse-temurin:21-jre-alpine`.
+- El contenedor corre con `TZ=UTC` y `-Duser.timezone=UTC`, y con `-XX:MaxRAMPercentage=75` por los 512 MB de la instancia.
+
+Configuración del servicio en Render:
+
+| Campo | Valor |
+| :--- | :--- |
+| Language | Docker |
+| Root Directory | `backend` |
+| Dockerfile Path | `./Dockerfile` |
+| Health Check Path | `/actuator/health` |
+| Auto-Deploy | On Commit |
+
+Probar la imagen antes de subirla:
+
+```bash
+docker build -t turnos-backend:test .
+```
+
+> ⚠️ El free tier duerme el servicio tras 15 minutos sin tráfico y el arranque en frío tarda alrededor de 2 minutos. Conviene despertarlo antes de una demo.
 
 ## Estructura de paquetes
 
@@ -184,7 +249,7 @@ El DDL de referencia está en [esquema-bd.md](../docs/tecnologias/esquema-bd.md)
 
 > ⚠️ Estos cuatro puntos dependen de constraints específicas de PostgreSQL que **H2 no soporta**. Si se quiere cubrirlos, la elección es **Testcontainers**, no H2.
 
-**Decidido: Testcontainers** (`postgres:16`), por los cuatro puntos de arriba. Los tests que los cubren son US-07.3 (lock pesimista) y T-12.4 (los otros tres).
+**Decidido: Testcontainers** (`postgres:18`, la misma versión que Neon y que el `docker-compose.yml`), por los cuatro puntos de arriba. Los tests que los cubren son US-07.3 (lock pesimista) y T-12.4 (los otros tres).
 
 **Pendiente:** definir si se exige una cobertura mínima en CI.
 
@@ -198,7 +263,6 @@ Necesarios para levantar el entorno con un superadmin, la fila de `platform_sett
 
 ## Pendiente de definir
 
-- Versión del JDK.
 - Formatter y linter (Spotless, Checkstyle), para sumar al workflow de CI que monta T-01.4.
 - Formato exacto del cuerpo de error que devuelve el `@RestControllerAdvice` de US-03.10.
 - Documentación de la API (Swagger / OpenAPI).
