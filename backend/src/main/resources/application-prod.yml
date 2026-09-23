@@ -10,3 +10,7 @@ spring:
     hikari:
       # Free tier de Neon y Render: pocas conexiones
       maximum-pool-size: 5
+
+cors:
+  # Sin valor por defecto: si falta la variable, la app no arranca
+  allowed-origins: ${CORS_ALLOWED_ORIGINS}

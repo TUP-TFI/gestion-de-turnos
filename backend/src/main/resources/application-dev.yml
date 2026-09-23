@@ -6,3 +6,7 @@ spring:
     password: ${DB_PASSWORD:turnos}
   jpa:
     show-sql: true
+
+cors:
+  # Servidor de Vite en local. Como el resto del perfil dev, no exige variables
+  allowed-origins: http://localhost:5173

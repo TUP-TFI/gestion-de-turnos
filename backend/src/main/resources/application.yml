@@ -29,3 +29,6 @@ management:
   endpoint:
     health:
       show-details: never
+
+# Los origenes permitidos por CORS (cors.allowed-origins) los define cada perfil:
+# dev usa el Vite local y prod lee la variable CORS_ALLOWED_ORIGINS.

@@ -30,13 +30,16 @@ El perfil `dev` trae valores por defecto que coinciden con el `docker-compose.ym
 
 | Variable | Perfil | Descripción |
 | :--- | :--- | :--- |
-| `SPRING_PROFILES_ACTIVE` | ambos | `dev` (default) o `prod`. |
+| `SPRING_PROFILES_ACTIVE` | ambos | `dev` (default) o `prod`. Va en el comando, no en el `.env`: ese archivo lo importa el perfil `prod`, que para leerlo ya tiene que estar activo. |
 | `DB_URL` | prod | URL JDBC de la base. En Neon, el host **directo** (sin `-pooler`): Flyway necesita locks de sesión. |
 | `DB_USERNAME` | prod | Usuario de la base. |
 | `DB_PASSWORD` | prod | Contraseña de la base. |
 | `PORT` | prod | Puerto HTTP. Lo inyecta Render; en local vale 8080. |
+| `CORS_ALLOWED_ORIGINS` | prod | Origenes que el backend acepta por CORS, separados por coma. Esquema + host, sin path. |
 
 Para correr en local contra la base de producción, creá un `backend/.env` con esas variables: el perfil `prod` lo importa si existe (`spring.config.import: optional:file:.env[.properties]`).
+
+El [`.env.example`](.env.example) trae dos bloques de base, uno activo y el otro comentado: **A** apunta a Neon y **B** al Postgres de `docker-compose`. El bloque B sirve para probar que el perfil `prod` está bien armado sin tocar los datos reales.
 
 ```bash
 ./mvnw spring-boot:run                              # base local, ignora el .env
@@ -77,6 +80,21 @@ docker build -t turnos-backend:test .
 ```
 
 > ⚠️ El free tier duerme el servicio tras 15 minutos sin tráfico y el arranque en frío tarda alrededor de 2 minutos. Conviene despertarlo antes de una demo.
+
+### CORS
+
+El frontend corre en otro dominio que la API, así que el navegador bloquea las respuestas salvo que el backend las autorice. [`CorsConfig`](src/main/java/com/grupo140/turnos/config/CorsConfig.java) habilita los métodos REST sobre `/**` para los origenes de `cors.allowed-origins`.
+
+| Perfil | Origen permitido |
+| :--- | :--- |
+| `dev` | `http://localhost:5173` (Vite), fijo en `application-dev.yml`. |
+| `prod` | Lo que valga `CORS_ALLOWED_ORIGINS`. En Render: `https://gestion-de-turnos-eight.vercel.app`. |
+
+El valor es un origen (`https://host`): esquema, host y puerto, sin path, porque es lo que el navegador manda en el header `Origin`. La barra final Spring la ignora al comparar, pero un path sí rompe el match y la request queda bloqueada.
+
+Los preview deploys de Vercel usan un subdominio distinto por rama, así que no entran en esta lista.
+
+> 💬 Cuando se sume `spring-security` (T-04), el filtro de seguridad corre antes que el MVC y hay que activarle CORS aparte con `http.cors(Customizer.withDefaults())`, que reusa esta misma configuración.
 
 ## Estructura de paquetes
 
