@@ -49,7 +49,9 @@ Java + Spring Boot (backend), React + TypeScript (frontend), PostgreSQL. Detalle
 
 ## 5. Estado del proyecto
 
-En etapa de documentación y diseño previo al desarrollo. `backend/` y `frontend/` todavía no tienen código.
+**En desarrollo** — setup inicial terminado (documentación, esqueleto de backend y frontend, despliegue).
+
+Esta línea se actualiza solo al cerrar un hito. Para el detalle de lo que se está haciendo ahora, ver el historial de commits y los pull requests abiertos.
 
 ## 6. Equipo
 
@@ -57,3 +59,17 @@ En etapa de documentación y diseño previo al desarrollo. `backend/` y `fronten
 
 - Giorda, Brunella de Lourdes
 - Guzmán Olariaga, Facundo Nicolás
+
+## 7. Repositorio
+
+El repositorio vivía en `github.com/NicoGuzmanTUP/gestion-de-turnos` y fue transferido a la organización `TUP-TFI` el 14/09/2026. La URL actual es:
+
+https://github.com/TUP-TFI/gestion-de-turnos
+
+GitHub redirige automáticamente la URL anterior, así que los enlaces viejos siguen funcionando. Aun así, conviene actualizar el remote local:
+
+```bash
+git remote set-url origin https://github.com/TUP-TFI/gestion-de-turnos.git
+```
+
+**Motivo del cambio:** en un repositorio de cuenta personal, las integraciones de despliegue (Vercel y similares) solo puede instalarlas el dueño de la cuenta. Al estar bajo una organización, cada integrante conecta su propia plataforma de despliegue sobre el mismo repositorio: frontend y backend se despliegan por separado desde cuentas distintas.
