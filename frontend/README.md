@@ -6,11 +6,47 @@ Interfaz del sistema de gestión de turnos. React + TypeScript + Vite.
 
 ## Puesta en marcha
 
-> ⏳ *A completar cuando exista el proyecto.*
+Requisitos: **Node** (se desarrolla con la v24) y **npm**. Los estilos usan **Tailwind**.
 
-- Requisitos: Node (versión a definir), gestor de paquetes (npm/pnpm, a definir), **Tailwind** para estilos.
-- Variables de entorno: documentar en un `.env.example` versionado (`VITE_API_URL`, etc.). El `.env` real nunca se commitea.
-- Comandos: desarrollo, build, tests.
+```bash
+# 1. Instalar dependencias
+npm install
+
+# 2. Crear el .env a partir de la plantilla (en PowerShell: Copy-Item .env.example .env)
+cp .env.example .env
+
+# 3. Levantar el servidor de desarrollo en http://localhost:5173
+npm run dev
+```
+
+| Comando | Qué hace |
+| :--- | :--- |
+| `npm run dev` | Servidor de desarrollo. |
+| `npm run build` | Chequeo de tipos (`tsc -b`) y build de producción en `dist/`. |
+| `npm run lint` | ESLint sobre todo el proyecto. |
+| `npm run preview` | Sirve el build de producción en local. |
+
+Tests: todavía no hay ninguna herramienta instalada (ver [Testing](#testing)).
+
+### Variables de entorno
+
+Se documentan en [`.env.example`](.env.example). El `.env` real nunca se commitea.
+
+| Variable | Descripción |
+| :--- | :--- |
+| `VITE_API_URL` | URL base de la API, sin barra final. Local: `http://localhost:8080`. Producción: `https://gestion-de-turnos-api.onrender.com`. |
+
+- Vite lee el `.env` solo al arrancar: si lo cambiás, reiniciá `npm run dev`.
+- Toda variable `VITE_*` queda dentro del JS que baja el navegador, así que **nunca va un secreto ahí**.
+- Para desarrollar conviene correr también el backend en local (ver el [README del backend](../backend/README.md)): el backend desplegado solo acepta pedidos del dominio de producción (ver [Deploy](#deploy)), y desde `localhost` el navegador los bloquea por CORS.
+
+## Deploy
+
+El frontend se despliega en **Vercel**, conectado al repositorio: cada push a `main` actualiza producción y cada rama genera un *preview* con su propia URL.
+
+- Producción: https://gestion-de-turnos-eight.vercel.app (el sufijo `-eight` lo asigna Vercel solo).
+- `VITE_API_URL` está cargada en Vercel (Settings → Environment Variables) para Production, Preview y Development. Vite la incorpora en el build, así que **al cambiarla hay que redeployar**.
+- ⚠️ El backend solo permite CORS desde el dominio de producción. Los previews de cada rama tienen otra URL y quedan bloqueados, por lo que la conexión con la API se prueba en producción o corriendo todo en local.
 
 ## Las tres áreas de la aplicación
 
@@ -26,7 +62,7 @@ Los dos primeros comparten el login del panel de sistema; la página pública ti
 
 ## Estructura de carpetas
 
-> 💬 **Propuesta a confirmar entre ambos antes de escribir el primer componente.**
+Las carpetas que todavía están vacías tienen un `.gitkeep` para que Git las conserve; se borra al agregar el primer archivo.
 
 ```
 src/
@@ -57,6 +93,8 @@ Component  ──►  Hook  ──►  api/  ──►  Backend
 | **Hook** | Estado, orquestación y consumo de `api/`, con **TanStack Query**. | No arma URLs ni headers a mano. |
 | **`api/`** | Llamadas HTTP, tipado de request/response, manejo de errores. | No conoce React ni componentes. |
 
+> Hoy hay un único ejemplo de la cadena: `App.tsx` → `hooks/usePing.ts` → `api/ping.ts` (T-01.3). Ese hook usa `useState`/`useEffect` porque es un solo llamado sin caché; TanStack Query se instala con el primer hook que consuma datos reales del dominio.
+
 Reglas duras:
 
 - ❌ Nada de `fetch`/`axios` suelto dentro de un componente.
@@ -74,7 +112,7 @@ Reglas duras:
 
 ## Testing
 
-> ⏳ *Herramientas a confirmar; la estrategia ya está definida.*
+> ⏳ *Herramientas a confirmar; la estrategia ya está definida. Hoy no hay ninguna instalada: ni Vitest ni Playwright figuran en `package.json`.*
 
 **Unitarios / de componente** — Vitest + Testing Library. Foco en lo que tiene lógica real, no en renderizar todo:
 
@@ -93,8 +131,8 @@ Reglas duras:
 ## Pendiente de definir
 
 - Librería de componentes, si hiciera falta alguna además de Tailwind.
-- Versión de Node y gestor de paquetes (npm/pnpm).
-- ESLint + Prettier, para sumar al workflow de CI que monta T-01.4.
+- Versión de Node a fijar (el gestor es npm, según `package-lock.json`).
+- Prettier, para sumar al workflow de CI. ESLint ya está configurado (`npm run lint`).
 - Si los E2E corren en CI o solo en local.
 
 Tres puntos que estaban acá ya dejaron de ser decisiones abiertas y pasaron a ser trabajo planificado en `tareas.md`: las rutas protegidas por rol (US-03.3), la personalización por empresa (US-05.7 la carga, US-06.1 la aplica) y el autocomplete de clientes del turnero manual (US-09.4, US-09.7).
