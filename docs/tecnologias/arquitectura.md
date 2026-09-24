@@ -8,7 +8,7 @@ A continuación se detallan las herramientas, marcos de trabajo e infraestructur
 | :--- | :--- | :--- |
 | **Backend** | **Java + Spring Boot** | Stack ya utilizado en la cursada; ecosistema robusto y maduro para autenticación (`Spring Security` + `JWT`), manejo de transacciones y validaciones de negocio. |
 | **Frontend** | **React + TypeScript (Vite)** | Arquitectura basada en componentes reutilizables (ideal para las páginas públicas de cada empresa); tipado fuerte para modelar las entidades del dominio de forma segura. |
-| **Base de Datos** | **PostgreSQL** *(ej. Neon)* | Motor relacional idóneo por las relaciones estrictas entre empresas, servicios, usuarios y turnos. Aporta además tres cosas que el modelo usa explícitamente: índices únicos parciales, constraints `CHECK` y constraints de **exclusión** sobre rangos temporales. |
+| **Base de Datos** | **PostgreSQL** *(Neon)* | Motor relacional idóneo por las relaciones estrictas entre empresas, servicios, usuarios y turnos. Aporta además tres cosas que el modelo usa explícitamente: índices únicos parciales, constraints `CHECK` y constraints de **exclusión** sobre rangos temporales. |
 | **ORM** | **Spring Data JPA / Hibernate** | Abstracción para el manejo de entidades y soporte de *locking* pesimista para evitar carreras de condición (*race conditions*) en reservas concurrentes. |
 | **Migraciones** | **Flyway** | El esquema es la fuente de verdad y se versiona en SQL (`V<n>__<descripcion>.sql`). Ver justificación abajo. |
 | **Autenticación** | **JWT (Spring Security)** | Dos JWT *stateless* independientes: uno para el panel de sistema (`SUPERADMIN` / `COMPANY_ADMIN`) y uno por sesión de cliente, atado a una `companyId` puntual. |
