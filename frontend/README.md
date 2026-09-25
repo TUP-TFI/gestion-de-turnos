@@ -6,7 +6,7 @@ Interfaz del sistema de gestión de turnos. React + TypeScript + Vite.
 
 ## Puesta en marcha
 
-Requisitos: **Node** (se desarrolla con la v24) y **npm**. Los estilos usan **Tailwind**.
+Requisitos: **Node 24** (fijado en `engines` del `package.json`) y **npm**. Los estilos usan **Tailwind**.
 
 ```bash
 # 1. Instalar dependencias
@@ -47,6 +47,10 @@ El frontend se despliega en **Vercel**, conectado al repositorio: cada push a `m
 - Producción: https://gestion-de-turnos-eight.vercel.app (el sufijo `-eight` lo asigna Vercel solo).
 - `VITE_API_URL` está cargada en Vercel (Settings → Environment Variables) para Production, Preview y Development. Vite la incorpora en el build, así que **al cambiarla hay que redeployar**.
 - ⚠️ El backend solo permite CORS desde el dominio de producción. Los previews de cada rama tienen otra URL y quedan bloqueados, por lo que la conexión con la API se prueba en producción o corriendo todo en local.
+
+## CI
+
+Cada PR contra `main` corre el workflow [`frontend.yml`](../.github/workflows/frontend.yml) en GitHub Actions: `npm ci`, `npm run lint` y `npm run build`, con la versión de Node de `engines`. Si alguno falla, el check **Frontend (lint + build)** queda en rojo en el PR. Antes de pushear conviene correr los mismos comandos en local.
 
 ## Las tres áreas de la aplicación
 
@@ -126,12 +130,11 @@ Reglas duras:
 1. Cliente reserva un turno desde la página pública de una empresa (T-12.1).
 2. Admin cancela un turno desde su turnero (T-12.2).
 
-**Pendiente:** definir si los E2E corren en CI o solo en local — los unitarios sí corren en cada PR (T-01.4).
+**Pendiente:** definir si los E2E corren en CI o solo en local. Los unitarios se suman al workflow de [CI](#ci) cuando se instale Vitest.
 
 ## Pendiente de definir
 
 - Librería de componentes, si hiciera falta alguna además de Tailwind.
-- Versión de Node a fijar (el gestor es npm, según `package-lock.json`).
 - Prettier, para sumar al workflow de CI. ESLint ya está configurado (`npm run lint`).
 - Si los E2E corren en CI o solo en local.
 
