@@ -2,6 +2,7 @@ package com.grupo140.turnos.user;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -34,6 +35,23 @@ public class UserService {
             return Optional.empty();
         }
         return users.stream().findFirst().map(UserService::toCredentials);
+    }
+
+    /**
+     * Define la contraseña de una cuenta {@code PENDING_ACTIVATION} y la deja {@code ACTIVE} (US-03.4).
+     *
+     * @return {@code false} si el usuario no existe o ya no está pendiente de activación.
+     */
+    @Transactional
+    public boolean activate(UUID userId, String passwordHash) {
+        return userRepository
+                .findByIdAndStatus(userId, UserStatus.PENDING_ACTIVATION)
+                .map(user -> {
+                    user.setPassword(passwordHash);
+                    user.setStatus(UserStatus.ACTIVE);
+                    return true;
+                })
+                .orElse(false);
     }
 
     private static PanelUserCredentials toCredentials(User user) {

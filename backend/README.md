@@ -101,13 +101,15 @@ Los preview deploys de Vercel usan un subdominio distinto por rama, así que no 
 
 La API es stateless: cada request lleva `Authorization: Bearer <jwt>`. El token lo emite `POST /api/auth/login` (HS256, vence a las 8 h) y trae `sub` (id del usuario), `role` y `companyId` (ausente para el superadmin).
 
+El admin recién creado activa su cuenta con `POST /api/auth/activate` y el body `{ "token": "...", "password": "..." }`, donde `token` es el valor en claro del link. La contraseña va de 8 a 72 caracteres (72 es el tope de BCrypt). Responde `204` sin JWT: después de activar, el usuario entra por el login.
+
 ### Rutas por prefijo
 
 La autorización se define por prefijo en `SecurityConfig`. Los endpoints nuevos tienen que respetarlo:
 
 | Prefijo | Acceso |
 | :--- | :--- |
-| `/ping`, `/actuator/health`, `POST /api/auth/login`, `/api/public/**` | Sin sesión |
+| `/ping`, `/actuator/health`, `POST /api/auth/login`, `POST /api/auth/activate`, `/api/public/**` | Sin sesión |
 | `/api/superadmin/**` | Solo `SUPERADMIN` |
 | `/api/company/**` | Solo `COMPANY_ADMIN` |
 | `/api/client/**` | Solo `CLIENT` |
@@ -122,6 +124,8 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | `INVALID_CREDENTIALS` | 401 | Email o contraseña incorrectos, o usuario inactivo |
 | `ACCOUNT_NOT_ACTIVATED` | 403 | La cuenta todavía no definió contraseña |
 | `COMPANY_INACTIVE` | 403 | La empresa del admin está desactivada |
+| `INVALID_ACTIVATION_TOKEN` | 400 | El token de activación no existe, ya se usó o la cuenta ya no está pendiente |
+| `ACTIVATION_TOKEN_EXPIRED` | 400 | El token de activación venció: hay que pedir el reenvío al superadmin |
 | `UNAUTHORIZED` | 401 | Falta el token o es inválido |
 | `FORBIDDEN` | 403 | El rol no alcanza para la ruta |
 | `VALIDATION_ERROR` | 400 | Body inválido |
@@ -273,6 +277,8 @@ Optional<Appointment> findById(UUID id);
 ```
 
 El `companyId` sale del JWT de la sesión, nunca del request. Es más verboso que un filtro implícito, pero es imposible de olvidar sin que el código deje de compilar.
+
+> 💬 **Única excepción:** `UserRepository.findByIdAndStatus(id, status)`, que usa la activación de cuenta. Ahí no hay sesión: el token del link prueba la identidad del usuario, y el filtro por `PENDING_ACTIVATION` acota la búsqueda a cuentas pendientes.
 
 Un controller recibe la sesión como parámetro `SessionUser` y le pasa su `companyId` al service:
 

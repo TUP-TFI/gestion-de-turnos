@@ -21,6 +21,10 @@ public interface UserRepository extends Repository<User, UUID> {
 
     Optional<User> findByIdAndCompanyId(UUID id, UUID companyId);
 
+    // Única búsqueda por id sin companyId: la usa la activación (US-03.4), donde el token del link ya
+    // prueba la identidad del usuario. Filtrar por estado acota el acceso a cuentas pendientes.
+    Optional<User> findByIdAndStatus(UUID id, UserStatus status);
+
     @Query("select u from User u where lower(u.email) = lower(:email) and u.companyId = :companyId")
     Optional<User> findByEmailAndCompanyId(@Param("email") String email, @Param("companyId") UUID companyId);
 
