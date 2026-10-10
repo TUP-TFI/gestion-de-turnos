@@ -28,7 +28,7 @@ class JwtServiceTest {
             new JwtService(securityConfig.jwtEncoder(PROPERTIES), PROPERTIES, Clock.fixed(now, ZoneOffset.UTC));
 
     @Test
-    void tokenTraeSubRoleCompanyIdYVencimiento() {
+    void tokenContainsSubRoleCompanyIdAndExpiration() {
         UUID userId = UUID.randomUUID();
         UUID companyId = UUID.randomUUID();
 
@@ -43,7 +43,7 @@ class JwtServiceTest {
     }
 
     @Test
-    void superadminNoLlevaCompanyId() {
+    void superadminTokenHasNoCompanyId() {
         Jwt jwt = decoder.decode(jwtService.issue(UUID.randomUUID(), "SUPERADMIN", null));
 
         assertThat(jwt.hasClaim("companyId")).isFalse();

@@ -197,7 +197,7 @@ Controller  ──►  Service  ──►  Repository
 | Capa | Responsabilidad | Qué NO hace |
 | :--- | :--- | :--- |
 | **Controller** | Solo HTTP: recibir el request, validar formato, mapear DTOs, devolver códigos de estado. | No contiene lógica de negocio. |
-| **Service** | Reglas de negocio y transacciones (`@Transactional`). Único lugar donde vive la lógica. | No conoce nada de HTTP (ni `HttpServletRequest`, ni códigos de estado). |
+| **Service** | Reglas de negocio y transacciones (`@Transactional`). Único lugar donde vive la lógica. | No arma respuestas HTTP ni toca `HttpServletRequest`. Solo indica el status de un error de negocio al lanzar `ApiException`. |
 | **Repository** | Acceso a datos. | No contiene lógica de negocio. |
 
 Reglas duras:

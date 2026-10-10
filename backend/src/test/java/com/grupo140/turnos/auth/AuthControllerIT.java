@@ -1,5 +1,6 @@
 package com.grupo140.turnos.auth;
 
+import static com.grupo140.turnos.seed.DevDataSeeder.DEV_PASSWORD;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -26,14 +27,12 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 @Import(TestcontainersConfiguration.class)
 class AuthControllerIT {
 
-    private static final String PASSWORD = "Turnos.dev.2026";
-
     @Autowired
     private MockMvc mockMvc;
 
     @Test
-    void superadminIniciaSesionSinCompanyId() throws Exception {
-        mockMvc.perform(login("superadmin@example.com", PASSWORD))
+    void superadminLoginReturnsNullCompanyId() throws Exception {
+        mockMvc.perform(login("superadmin@example.com", DEV_PASSWORD))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
                 .andExpect(jsonPath("$.user.role").value("SUPERADMIN"))
@@ -41,8 +40,8 @@ class AuthControllerIT {
     }
 
     @Test
-    void adminIniciaSesionConCompanyId() throws Exception {
-        mockMvc.perform(login("admin@example.com", PASSWORD))
+    void companyAdminLoginReturnsCompanyId() throws Exception {
+        mockMvc.perform(login("admin@example.com", DEV_PASSWORD))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
                 .andExpect(jsonPath("$.user.role").value("COMPANY_ADMIN"))
@@ -50,21 +49,21 @@ class AuthControllerIT {
     }
 
     @Test
-    void contraseñaIncorrecta() throws Exception {
+    void wrongPasswordReturns401() throws Exception {
         mockMvc.perform(login("admin@example.com", "incorrecta"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
     }
 
     @Test
-    void cuentaPendienteDeActivacion() throws Exception {
-        mockMvc.perform(login("admin.pendiente@example.com", PASSWORD))
+    void pendingActivationAccountReturns403() throws Exception {
+        mockMvc.perform(login("admin.pendiente@example.com", DEV_PASSWORD))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVATED"));
     }
 
     @Test
-    void bodyInvalido() throws Exception {
+    void invalidBodyReturns400() throws Exception {
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"no-es-un-email\",\"password\":\"\"}"))
@@ -73,14 +72,14 @@ class AuthControllerIT {
     }
 
     @Test
-    void meSinTokenEs401() throws Exception {
+    void meWithoutTokenReturns401() throws Exception {
         mockMvc.perform(get("/api/auth/me"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
     }
 
     @Test
-    void meConTokenDevuelveLaSesion() throws Exception {
+    void meWithTokenReturnsSession() throws Exception {
         mockMvc.perform(get("/api/auth/me").header("Authorization", "Bearer " + tokenOf("admin@example.com")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("COMPANY_ADMIN"))
@@ -89,21 +88,21 @@ class AuthControllerIT {
     }
 
     @Test
-    void tokenDeAdminContraRutaDeSuperadminEs403() throws Exception {
+    void adminTokenOnSuperadminRouteReturns403() throws Exception {
         mockMvc.perform(get("/api/superadmin/x").header("Authorization", "Bearer " + tokenOf("admin@example.com")))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
     @Test
-    void tokenDeSuperadminPasaLaSeguridadYLaRutaNoExiste() throws Exception {
+    void superadminTokenPassesSecurityAndUnknownRouteReturns404() throws Exception {
         mockMvc.perform(get("/api/superadmin/x").header("Authorization", "Bearer " + tokenOf("superadmin@example.com")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("NOT_FOUND"));
     }
 
     @Test
-    void preflightDesdeElFrontendDevuelveHeaderCors() throws Exception {
+    void preflightFromFrontendReturnsCorsHeader() throws Exception {
         mockMvc.perform(options("/api/auth/login")
                         .header("Origin", "http://localhost:5173")
                         .header("Access-Control-Request-Method", "POST")
@@ -113,7 +112,7 @@ class AuthControllerIT {
     }
 
     private String tokenOf(String email) throws Exception {
-        String body = mockMvc.perform(login(email, PASSWORD))
+        String body = mockMvc.perform(login(email, DEV_PASSWORD))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()

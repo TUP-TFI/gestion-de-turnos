@@ -50,7 +50,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void superadminLoginOkSinCompanyId() {
+    void superadminLoginSucceedsWithoutCompanyId() {
         PanelUserCredentials user = user(UserRole.SUPERADMIN, null, UserStatus.ACTIVE, PASSWORD);
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.of(user));
         when(jwtService.issue(user.id(), "SUPERADMIN", null)).thenReturn("token");
@@ -64,7 +64,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void adminLoginOkConCompanyId() {
+    void companyAdminLoginSucceedsWithCompanyId() {
         UUID companyId = UUID.randomUUID();
         PanelUserCredentials user = user(UserRole.COMPANY_ADMIN, companyId, UserStatus.ACTIVE, PASSWORD);
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.of(user));
@@ -78,7 +78,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void emailInexistenteEsCredencialesInvalidas() {
+    void unknownEmailIsInvalidCredentials() {
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.empty());
 
         assertError(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS");
@@ -86,7 +86,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void contraseñaIncorrectaEsCredencialesInvalidas() {
+    void wrongPasswordIsInvalidCredentials() {
         PanelUserCredentials user = user(UserRole.SUPERADMIN, null, UserStatus.ACTIVE, "otra-contraseña");
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.of(user));
 
@@ -94,7 +94,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void cuentaPendienteDeActivacion() {
+    void pendingActivationAccountIsRejected() {
         PanelUserCredentials user =
                 user(UserRole.COMPANY_ADMIN, UUID.randomUUID(), UserStatus.PENDING_ACTIVATION, null);
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.of(user));
@@ -103,7 +103,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void usuarioInactivoEsCredencialesInvalidas() {
+    void inactiveUserIsInvalidCredentials() {
         PanelUserCredentials user = user(UserRole.COMPANY_ADMIN, UUID.randomUUID(), UserStatus.INACTIVE, PASSWORD);
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.of(user));
 
@@ -111,7 +111,7 @@ class AuthServiceTest {
     }
 
     @Test
-    void empresaInactiva() {
+    void inactiveCompanyIsRejected() {
         UUID companyId = UUID.randomUUID();
         PanelUserCredentials user = user(UserRole.COMPANY_ADMIN, companyId, UserStatus.ACTIVE, PASSWORD);
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.of(user));
