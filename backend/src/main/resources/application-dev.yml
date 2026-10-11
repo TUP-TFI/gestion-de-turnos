@@ -10,3 +10,8 @@ spring:
 cors:
   # Servidor de Vite en local. Como el resto del perfil dev, no exige variables
   allowed-origins: http://localhost:5173
+
+app:
+  jwt:
+    # Solo dev: valor publico, no sirve para nada real. Minimo 32 bytes (HS256)
+    secret: dev-only-secret-turnos-jwt-0123456789-abcdef

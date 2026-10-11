@@ -36,6 +36,7 @@ El perfil `dev` trae valores por defecto que coinciden con el `docker-compose.ym
 | `DB_PASSWORD` | prod | Contraseña de la base. |
 | `PORT` | prod | Puerto HTTP. Lo inyecta Render; en local vale 8080. |
 | `CORS_ALLOWED_ORIGINS` | prod | Origenes que el backend acepta por CORS, separados por coma. Esquema + host, sin path. |
+| `JWT_SECRET` | prod | Secreto con el que se firma el JWT de sesión (HS256). Al menos 32 bytes; si es más corto, la app no arranca. En dev hay un valor fijo. |
 
 Para correr en local contra la base de producción, creá un `backend/.env` con esas variables: el perfil `prod` lo importa si existe (`spring.config.import: optional:file:.env[.properties]`).
 
@@ -94,7 +95,48 @@ El valor es un origen (`https://host`): esquema, host y puerto, sin path, porque
 
 Los preview deploys de Vercel usan un subdominio distinto por rama, así que no entran en esta lista.
 
-> 💬 Cuando se sume `spring-security` (T-04), el filtro de seguridad corre antes que el MVC y hay que activarle CORS aparte con `http.cors(Customizer.withDefaults())`, que reusa esta misma configuración.
+> 💬 El filtro de seguridad corre antes que el MVC, así que `SecurityConfig` activa CORS aparte con `http.cors(Customizer.withDefaults())`, que reusa esta misma configuración.
+
+## Seguridad y sesión
+
+La API es stateless: cada request lleva `Authorization: Bearer <jwt>`. El token lo emite `POST /api/auth/login` (HS256, vence a las 8 h) y trae `sub` (id del usuario), `role` y `companyId` (ausente para el superadmin).
+
+El admin recién creado activa su cuenta con `POST /api/auth/activate` y el body `{ "token": "...", "password": "..." }`, donde `token` es el valor en claro del link. La contraseña va de 8 a 72 caracteres (72 es el tope de BCrypt). Responde `204` sin JWT: después de activar, el usuario entra por el login.
+
+### Rutas por prefijo
+
+La autorización se define por prefijo en `SecurityConfig`. Los endpoints nuevos tienen que respetarlo:
+
+| Prefijo | Acceso |
+| :--- | :--- |
+| `/ping`, `/actuator/health`, `POST /api/auth/login`, `POST /api/auth/activate`, `/api/public/**` | Sin sesión |
+| `/api/superadmin/**` | Solo `SUPERADMIN` |
+| `/api/company/**` | Solo `COMPANY_ADMIN` |
+| `/api/client/**` | Solo `CLIENT` |
+| Cualquier otra | Autenticado (ej. `GET /api/auth/me`) |
+
+### Formato de error
+
+Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. El `code` es estable y el frontend decide según él; el `message` está en español.
+
+| Código | Status | Cuándo |
+| :--- | :--- | :--- |
+| `INVALID_CREDENTIALS` | 401 | Email o contraseña incorrectos, o usuario inactivo |
+| `ACCOUNT_NOT_ACTIVATED` | 403 | La cuenta todavía no definió contraseña |
+| `COMPANY_INACTIVE` | 403 | La empresa del admin está desactivada |
+| `INVALID_ACTIVATION_TOKEN` | 400 | El token de activación no existe, ya se usó o la cuenta ya no está pendiente |
+| `ACTIVATION_TOKEN_EXPIRED` | 400 | El token de activación venció: hay que pedir el reenvío al superadmin |
+| `UNAUTHORIZED` | 401 | Falta el token o es inválido |
+| `FORBIDDEN` | 403 | El rol no alcanza para la ruta |
+| `VALIDATION_ERROR` | 400 | Body inválido |
+| `NOT_FOUND` | 404 | La ruta no existe |
+| `INTERNAL_ERROR` | 500 | Error no controlado |
+
+Para devolver un error de negocio, el service lanza `ApiException(status, code, message)` (en `common/error`). El `GlobalExceptionHandler` lo traduce; los services nunca arman la respuesta HTTP.
+
+### Usuario de la sesión
+
+Los controllers declaran un parámetro `SessionUser session` (`userId`, `role`, `companyId`), que se arma desde el JWT. Es la única fuente válida del `companyId` (ver [Aislamiento multi-tenant](#aislamiento-multi-tenant)).
 
 ## Estructura de paquetes
 
@@ -114,7 +156,8 @@ src/main/java/com/<grupo>/turnos/
 ├── schedule/          # BusinessHours + ScheduleException: plantilla de atención
 ├── appointment/       # Appointment: disponibilidad, reserva, cancelación, reprogramación
 ├── notification/      # NotificationService desacoplado del canal + reintentos
-└── reporting/         # dashboards del superadmin y del admin de empresa
+├── reporting/         # dashboards del superadmin y del admin de empresa
+└── seed/              # datos de prueba, solo con el perfil dev
 ```
 
 Dentro de cada feature:
@@ -158,7 +201,7 @@ Controller  ──►  Service  ──►  Repository
 | Capa | Responsabilidad | Qué NO hace |
 | :--- | :--- | :--- |
 | **Controller** | Solo HTTP: recibir el request, validar formato, mapear DTOs, devolver códigos de estado. | No contiene lógica de negocio. |
-| **Service** | Reglas de negocio y transacciones (`@Transactional`). Único lugar donde vive la lógica. | No conoce nada de HTTP (ni `HttpServletRequest`, ni códigos de estado). |
+| **Service** | Reglas de negocio y transacciones (`@Transactional`). Único lugar donde vive la lógica. | No arma respuestas HTTP ni toca `HttpServletRequest`. Solo indica el status de un error de negocio al lanzar `ApiException`. |
 | **Repository** | Acceso a datos. | No contiene lógica de negocio. |
 
 Reglas duras:
@@ -235,6 +278,21 @@ Optional<Appointment> findById(UUID id);
 
 El `companyId` sale del JWT de la sesión, nunca del request. Es más verboso que un filtro implícito, pero es imposible de olvidar sin que el código deje de compilar.
 
+> 💬 **Única excepción:** `UserRepository.findByIdAndStatus(id, status)`, que usa la activación de cuenta. Ahí no hay sesión: el token del link prueba la identidad del usuario, y el filtro por `PENDING_ACTIVATION` acota la búsqueda a cuentas pendientes.
+
+Un controller recibe la sesión como parámetro `SessionUser` y le pasa su `companyId` al service:
+
+```java
+// ✅ el companyId viene de la sesión (JWT)
+@GetMapping("/api/company/appointments/{id}")
+public AppointmentResponse get(@PathVariable UUID id, SessionUser session) {
+    return appointmentService.get(id, session.companyId());
+}
+
+// ❌ nunca desde el request: el cliente podría pedir los datos de otra empresa
+public AppointmentResponse get(@PathVariable UUID id, @RequestParam UUID companyId) { ... }
+```
+
 Sin esto, el ataque es trivial: un cliente de la empresa A pide `GET /api/appointments/{id}` con el ID de un turno de la empresa B y lo ve completo. Como tercera barrera, las FK compuestas de la base impiden que un registro mezcle empresas aunque las capas anteriores fallen (ver [esquema-bd.md §4](../docs/tecnologias/esquema-bd.md#4-aislamiento-multi-tenant)).
 
 ## Base de datos y migraciones
@@ -292,16 +350,62 @@ Los jobs de `backend-ci.yml` se saltean si el PR no toca `backend/`; un job salt
 
 ## Seeds y datos de prueba
 
-> ⏳ *A definir.*
+`seed/DevDataSeeder` carga los datos mínimos al arrancar, para poder probar el login, la activación de cuenta, los servicios y los horarios sin crear esos datos a mano. 
+**No corre solo.** Necesita dos condiciones a la vez: el perfil `dev` y la propiedad `app.seed.enabled=true`. Si falta cualquiera de las dos, el bean no se crea.
 
-Necesarios para levantar el entorno con un superadmin, la fila de `platform_settings`, un par de empresas de ejemplo con servicios, horarios y alguna excepción de calendario cargada, y turnos en distintos estados. A resolver: mecanismo (migración `R__seed.sql` de Flyway limitada al perfil de desarrollo, o un `CommandLineRunner` por perfil) y cómo se aísla del entorno productivo.
+```bash
+# bash
+APP_SEED_ENABLED=true ./mvnw spring-boot:run
+```
 
-> La fila única de `platform_settings` **no es un seed opcional**: la inserta la migración inicial, porque la aplicación la asume siempre presente.
+```powershell
+# PowerShell
+$env:APP_SEED_ENABLED='true'; .\mvnw.cmd spring-boot:run
+```
+
+> ⚠️ `app.seed.enabled` **no se define en ningún `application*.yml`**, a propósito. `dev` es el perfil por defecto: si en Render faltara `SPRING_PROFILES_ACTIVE=prod`, la aplicación arrancaría en `dev` contra Neon. Con la propiedad en un archivo, el seed correría ahí y crearía usuarios con una contraseña que está en el repositorio. Pasándola a mano, solo existe en la máquina de quien la escribe.
+
+Si la empresa `barberia-central` ya está en la base, no hace nada, así que un segundo arranque no duplica datos.
+
+Para recrear la base local desde cero con el seed cargado (por ejemplo, para volver a tener el token de activación sin usar), son tres comandos. Borran **toda** la base local, no solo los datos del seed:
+
+```bash
+# bash
+docker compose down -v
+docker compose up -d --wait
+APP_SEED_ENABLED=true ./mvnw spring-boot:run
+```
+
+```powershell
+# PowerShell
+docker compose down -v
+docker compose up -d --wait
+$env:APP_SEED_ENABLED='true'; .\mvnw.cmd spring-boot:run
+```
+
+| Dato | Detalle |
+| :--- | :--- |
+| Empresa | Barbería Central (`/barberia-central`), rubro `BARBERSHOP` |
+| Servicios | Corte de pelo (30 min) y Corte y barba (60 min) |
+| Horario | Lunes a viernes 09–13 y 16–20, sábado 09–13, domingo cerrado. Intervalo de 30 min |
+
+| Email | Rol | Estado |
+| :--- | :--- | :--- |
+| `superadmin@example.com` | `SUPERADMIN` | `ACTIVE` |
+| `admin@example.com` | `COMPANY_ADMIN` | `ACTIVE` |
+| `admin.pendiente@example.com` | `COMPANY_ADMIN` | `PENDING_ACTIVATION` (sin contraseña, con token de activación) |
+| `cliente1@example.com` | `CLIENT` | `ACTIVE` |
+| `cliente2@example.com` | `CLIENT` | `ACTIVE` |
+
+La contraseña de los usuarios activos y el valor del token de activación están en las constantes `DEV_PASSWORD` y `DEV_ACTIVATION_TOKEN` de `DevDataSeeder`.
+
+Los datos de demo para la presentación (más empresas y turnos en distintos estados) se cargan más adelante, antes del despliegue final.
+
+> La fila única de `platform_settings` **no es parte del seed**: la inserta la migración inicial, porque la aplicación la asume siempre presente.
 
 ## Pendiente de definir
 
 - Linter (Checkstyle o similar). El formatter ya está: Spotless con palantir-java-format, en `mvn verify`.
-- Formato exacto del cuerpo de error que devuelve el `@RestControllerAdvice` de US-03.10.
 - Documentación de la API (Swagger / OpenAPI).
 - Proveedor de la API de WhatsApp Business.
 - Storage externo para los logos de empresa (`company.logoUrl`).

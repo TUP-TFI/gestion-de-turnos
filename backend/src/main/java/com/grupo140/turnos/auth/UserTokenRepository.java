@@ -1,7 +1,9 @@
 package com.grupo140.turnos.auth;
 
+import jakarta.persistence.LockModeType;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.repository.Repository;
 
 /**
@@ -13,4 +15,8 @@ public interface UserTokenRepository extends Repository<UserToken, UUID> {
     UserToken save(UserToken token);
 
     Optional<UserToken> findByTokenHash(String tokenHash);
+
+    // Canje del token (activación): bloquea la fila hasta el fin de la transacción.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<UserToken> findForUpdateByTokenHash(String tokenHash);
 }
