@@ -138,4 +138,4 @@ Reglas duras:
 - Prettier, para sumar al workflow de CI. ESLint ya está configurado (`npm run lint`).
 - Si los E2E corren en CI o solo en local.
 
-Tres puntos que estaban acá ya dejaron de ser decisiones abiertas y pasaron a ser trabajo planificado en `tareas.md`: las rutas protegidas por rol (US-03.3), la personalización por empresa (US-05.7 la carga, US-06.1 la aplica) y el autocomplete de clientes del turnero manual (US-09.4, US-09.7).
+Tres puntos que estaban acá ya dejaron de ser decisiones abiertas y pasaron a ser trabajo planificado en [`docs/alcance-mvp.md`](../docs/alcance-mvp.md): las rutas protegidas por rol (US-03.3), la personalización por empresa (US-05.7 la carga, US-06.1 la aplica) y el autocomplete de clientes del turnero manual (US-09.4, US-09.7).
