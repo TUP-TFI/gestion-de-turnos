@@ -66,7 +66,7 @@ public class DevDataSeeder implements CommandLineRunner {
     public static final String DEV_PASSWORD = "Turnos.dev.2026";
 
     // Valor en claro del token de activación del admin pendiente. Solo existe en dev.
-    static final String DEV_ACTIVATION_TOKEN = "dev-activation-token";
+    public static final String DEV_ACTIVATION_TOKEN = "dev-activation-token";
 
     private static final String COMPANY_SLUG = "barberia-central";
     private static final int INTERVAL_MINUTES = 30;
