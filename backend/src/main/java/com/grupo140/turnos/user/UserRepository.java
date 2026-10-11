@@ -1,5 +1,6 @@
 package com.grupo140.turnos.user;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.Query;
@@ -26,4 +27,13 @@ public interface UserRepository extends Repository<User, UUID> {
     // Superadmin: es el único rol sin empresa (CHECK chk_user_company_by_role).
     @Query("select u from User u where lower(u.email) = lower(:email) and u.companyId is null")
     Optional<User> findSuperadminByEmail(@Param("email") String email);
+
+    // Login del panel: SUPERADMIN y COMPANY_ADMIN. Devuelve lista para que el login detecte duplicados.
+    @Query("""
+            select u from User u
+            where lower(u.email) = lower(:email)
+              and u.role in (com.grupo140.turnos.user.UserRole.SUPERADMIN,
+                             com.grupo140.turnos.user.UserRole.COMPANY_ADMIN)
+            """)
+    List<User> findPanelUsersByEmail(@Param("email") String email);
 }

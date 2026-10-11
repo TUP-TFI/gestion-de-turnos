@@ -36,6 +36,7 @@ El perfil `dev` trae valores por defecto que coinciden con el `docker-compose.ym
 | `DB_PASSWORD` | prod | Contraseña de la base. |
 | `PORT` | prod | Puerto HTTP. Lo inyecta Render; en local vale 8080. |
 | `CORS_ALLOWED_ORIGINS` | prod | Origenes que el backend acepta por CORS, separados por coma. Esquema + host, sin path. |
+| `JWT_SECRET` | prod | Secreto con el que se firma el JWT de sesión (HS256). Al menos 32 bytes; si es más corto, la app no arranca. En dev hay un valor fijo. |
 
 Para correr en local contra la base de producción, creá un `backend/.env` con esas variables: el perfil `prod` lo importa si existe (`spring.config.import: optional:file:.env[.properties]`).
 
@@ -94,7 +95,44 @@ El valor es un origen (`https://host`): esquema, host y puerto, sin path, porque
 
 Los preview deploys de Vercel usan un subdominio distinto por rama, así que no entran en esta lista.
 
-> 💬 Cuando se sume `spring-security` (T-04), el filtro de seguridad corre antes que el MVC y hay que activarle CORS aparte con `http.cors(Customizer.withDefaults())`, que reusa esta misma configuración.
+> 💬 El filtro de seguridad corre antes que el MVC, así que `SecurityConfig` activa CORS aparte con `http.cors(Customizer.withDefaults())`, que reusa esta misma configuración.
+
+## Seguridad y sesión
+
+La API es stateless: cada request lleva `Authorization: Bearer <jwt>`. El token lo emite `POST /api/auth/login` (HS256, vence a las 8 h) y trae `sub` (id del usuario), `role` y `companyId` (ausente para el superadmin).
+
+### Rutas por prefijo
+
+La autorización se define por prefijo en `SecurityConfig`. Los endpoints nuevos tienen que respetarlo:
+
+| Prefijo | Acceso |
+| :--- | :--- |
+| `/ping`, `/actuator/health`, `POST /api/auth/login`, `/api/public/**` | Sin sesión |
+| `/api/superadmin/**` | Solo `SUPERADMIN` |
+| `/api/company/**` | Solo `COMPANY_ADMIN` |
+| `/api/client/**` | Solo `CLIENT` |
+| Cualquier otra | Autenticado (ej. `GET /api/auth/me`) |
+
+### Formato de error
+
+Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. El `code` es estable y el frontend decide según él; el `message` está en español.
+
+| Código | Status | Cuándo |
+| :--- | :--- | :--- |
+| `INVALID_CREDENTIALS` | 401 | Email o contraseña incorrectos, o usuario inactivo |
+| `ACCOUNT_NOT_ACTIVATED` | 403 | La cuenta todavía no definió contraseña |
+| `COMPANY_INACTIVE` | 403 | La empresa del admin está desactivada |
+| `UNAUTHORIZED` | 401 | Falta el token o es inválido |
+| `FORBIDDEN` | 403 | El rol no alcanza para la ruta |
+| `VALIDATION_ERROR` | 400 | Body inválido |
+| `NOT_FOUND` | 404 | La ruta no existe |
+| `INTERNAL_ERROR` | 500 | Error no controlado |
+
+Para devolver un error de negocio, el service lanza `ApiException(status, code, message)` (en `common/error`). El `GlobalExceptionHandler` lo traduce; los services nunca arman la respuesta HTTP.
+
+### Usuario de la sesión
+
+Los controllers declaran un parámetro `SessionUser session` (`userId`, `role`, `companyId`), que se arma desde el JWT. Es la única fuente válida del `companyId` (ver [Aislamiento multi-tenant](#aislamiento-multi-tenant)).
 
 ## Estructura de paquetes
 
@@ -159,7 +197,7 @@ Controller  ──►  Service  ──►  Repository
 | Capa | Responsabilidad | Qué NO hace |
 | :--- | :--- | :--- |
 | **Controller** | Solo HTTP: recibir el request, validar formato, mapear DTOs, devolver códigos de estado. | No contiene lógica de negocio. |
-| **Service** | Reglas de negocio y transacciones (`@Transactional`). Único lugar donde vive la lógica. | No conoce nada de HTTP (ni `HttpServletRequest`, ni códigos de estado). |
+| **Service** | Reglas de negocio y transacciones (`@Transactional`). Único lugar donde vive la lógica. | No arma respuestas HTTP ni toca `HttpServletRequest`. Solo indica el status de un error de negocio al lanzar `ApiException`. |
 | **Repository** | Acceso a datos. | No contiene lógica de negocio. |
 
 Reglas duras:
@@ -235,6 +273,19 @@ Optional<Appointment> findById(UUID id);
 ```
 
 El `companyId` sale del JWT de la sesión, nunca del request. Es más verboso que un filtro implícito, pero es imposible de olvidar sin que el código deje de compilar.
+
+Un controller recibe la sesión como parámetro `SessionUser` y le pasa su `companyId` al service:
+
+```java
+// ✅ el companyId viene de la sesión (JWT)
+@GetMapping("/api/company/appointments/{id}")
+public AppointmentResponse get(@PathVariable UUID id, SessionUser session) {
+    return appointmentService.get(id, session.companyId());
+}
+
+// ❌ nunca desde el request: el cliente podría pedir los datos de otra empresa
+public AppointmentResponse get(@PathVariable UUID id, @RequestParam UUID companyId) { ... }
+```
 
 Sin esto, el ataque es trivial: un cliente de la empresa A pide `GET /api/appointments/{id}` con el ID de un turno de la empresa B y lo ve completo. Como tercera barrera, las FK compuestas de la base impiden que un registro mezcle empresas aunque las capas anteriores fallen (ver [esquema-bd.md §4](../docs/tecnologias/esquema-bd.md#4-aislamiento-multi-tenant)).
 
@@ -349,7 +400,6 @@ Los datos de demo para la presentación (más empresas y turnos en distintos est
 ## Pendiente de definir
 
 - Linter (Checkstyle o similar). El formatter ya está: Spotless con palantir-java-format, en `mvn verify`.
-- Formato exacto del cuerpo de error que devuelve el `@RestControllerAdvice` de US-03.10.
 - Documentación de la API (Swagger / OpenAPI).
 - Proveedor de la API de WhatsApp Business.
 - Storage externo para los logos de empresa (`company.logoUrl`).

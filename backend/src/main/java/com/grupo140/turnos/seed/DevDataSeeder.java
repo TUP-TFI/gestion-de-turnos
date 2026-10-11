@@ -63,7 +63,7 @@ public class DevDataSeeder implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(DevDataSeeder.class);
 
     // Contraseña de todos los usuarios de prueba. Solo existe en dev.
-    static final String DEV_PASSWORD = "Turnos.dev.2026";
+    public static final String DEV_PASSWORD = "Turnos.dev.2026";
 
     // Valor en claro del token de activación del admin pendiente. Solo existe en dev.
     static final String DEV_ACTIVATION_TOKEN = "dev-activation-token";

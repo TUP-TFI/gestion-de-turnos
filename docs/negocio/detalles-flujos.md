@@ -233,6 +233,6 @@ Además, para la defensa del trabajo, es lo que permite **mostrar** que el flujo
 
 - Dos JWT distintos según el sistema de login: uno para el panel de sistema (superadmin/admin de empresa) y uno por sesión de cliente, atado a un único `companyId`.
 - Ambos tokens llevan `role` y `companyId` (si aplica) para que el backend valide permisos en cada endpoint sin volver a consultar la base en cada request.
-- **Expiración:** sin refresh token (no suma la complejidad extra al alcance de la tesis). El JWT expira a las **24 horas**; pasado ese tiempo, hay que volver a loguearse, no hay renovación automática.
+- **Expiración:** sin refresh token (no suma la complejidad extra al alcance de la tesis). El JWT expira a las **8 horas**; pasado ese tiempo, hay que volver a loguearse, no hay renovación automática.
 - Login con email + contraseña en ambos sistemas. La comparación del email es case-insensitive.
 - El `companyId` del token no es solo informativo: es el parámetro con el que se filtra **toda** consulta de datos de empresa. Ver la estrategia completa de aislamiento multi-tenant en [esquema-bd.md](../tecnologias/esquema-bd.md#4-aislamiento-multi-tenant).

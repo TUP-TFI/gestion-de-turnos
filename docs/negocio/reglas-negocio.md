@@ -5,7 +5,7 @@
 2. Una cuenta de cliente pertenece a una única empresa. Un mismo email puede repetirse en distintas empresas (son cuentas independientes); lo que no puede repetirse es el email dentro de una misma empresa. La comparación es **case-insensitive**: `Juan@mail.com` y `juan@mail.com` son el mismo email.
 3. La unicidad del email dentro de una empresa **no distingue el rol**. En consecuencia, el admin de una empresa no puede tener además una cuenta de cliente en su propia empresa con ese mismo email; si quiere reservarse un turno, lo carga como reserva manual desde su turnero.
 4. La página pública de cada empresa es visible sin login (consulta de servicios y horarios), pero reservar un turno requiere estar logueado como cliente de esa empresa puntual.
-5. El JWT no tiene refresh token y expira a las 24 horas; pasado ese tiempo el usuario (de cualquiera de los dos sistemas de login) debe volver a loguearse.
+5. El JWT no tiene refresh token y expira a las 8 horas; pasado ese tiempo el usuario (de cualquiera de los dos sistemas de login) debe volver a loguearse.
 6. Los links de activación de cuenta y de recuperación de contraseña son **de un solo uso** y tienen vencimiento (48 hs para activación, 1 hora para recuperación). Del token se persiste únicamente su hash, nunca el valor en claro. Reenviar un link de activación invalida los anteriores de ese usuario.
 
 ### Empresas
