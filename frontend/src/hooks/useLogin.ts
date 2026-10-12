@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
-import { ApiRequestError, login } from '../api/auth'
+import { login } from '../api/auth'
+import { ApiRequestError } from '../api/client'
 import type { LoginRequest } from '../types/Auth'
 import { useAuth } from './useAuth'
 
