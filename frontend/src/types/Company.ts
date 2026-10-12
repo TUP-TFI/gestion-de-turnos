@@ -1,3 +1,5 @@
+import type { User } from './User'
+
 export type CompanyStatus = 'ACTIVE' | 'INACTIVE'
 
 export type CompanyCategory =
@@ -32,4 +34,20 @@ export interface Company {
   status: CompanyStatus
   createdAt: string
   updatedAt: string
+}
+
+// Cuerpo de POST /api/superadmin/companies. El slug y el status los genera el backend.
+export interface CreateCompanyRequest {
+  company: Pick<
+    Company,
+    | 'name'
+    | 'category'
+    | 'timezone'
+    | 'description'
+    | 'address'
+    | 'phone'
+    | 'contactEmail'
+    | 'logoUrl'
+  >
+  admin: Pick<User, 'firstName' | 'lastName' | 'email' | 'phone'>
 }

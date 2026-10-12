@@ -3,7 +3,9 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { ActivateAccountPage } from './pages/ActivateAccountPage'
 import { LoginPage } from './pages/LoginPage'
 import { CompanyDashboardPage } from './pages/company/CompanyDashboardPage'
+import { CreateCompanyPage } from './pages/superadmin/CreateCompanyPage'
 import { SuperadminDashboardPage } from './pages/superadmin/SuperadminDashboardPage'
+import { SuperadminLayout } from './pages/superadmin/SuperadminLayout'
 
 function App() {
   return (
@@ -12,7 +14,10 @@ function App() {
       <Route path="/activate" element={<ActivateAccountPage />} />
 
       <Route element={<ProtectedRoute allowedRole="SUPERADMIN" />}>
-        <Route path="/superadmin/dashboard" element={<SuperadminDashboardPage />} />
+        <Route element={<SuperadminLayout />}>
+          <Route path="/superadmin/dashboard" element={<SuperadminDashboardPage />} />
+          <Route path="/superadmin/companies/new" element={<CreateCompanyPage />} />
+        </Route>
       </Route>
 
       <Route element={<ProtectedRoute allowedRole="COMPANY_ADMIN" />}>
