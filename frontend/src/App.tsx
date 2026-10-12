@@ -1,17 +1,24 @@
-import { usePing } from './hooks/usePing'
+import { Navigate, Route, Routes } from 'react-router'
+import { ProtectedRoute } from './components/ProtectedRoute'
+import { LoginPage } from './pages/LoginPage'
+import { CompanyDashboardPage } from './pages/company/CompanyDashboardPage'
+import { SuperadminDashboardPage } from './pages/superadmin/SuperadminDashboardPage'
 
 function App() {
-  const { data, error, isLoading } = usePing()
-
   return (
-    <div>
-      <h1>gestión de turnos</h1>
-      <p>
-        {isLoading && 'Conectando con el backend...'}
-        {error && `Error al conectar con el backend: ${error}`}
-        {data && `Backend dice: ${data}`}
-      </p>
-    </div>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+
+      <Route element={<ProtectedRoute allowedRole="SUPERADMIN" />}>
+        <Route path="/superadmin/dashboard" element={<SuperadminDashboardPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute allowedRole="COMPANY_ADMIN" />}>
+        <Route path="/company/dashboard" element={<CompanyDashboardPage />} />
+      </Route>
+
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
   )
 }
 

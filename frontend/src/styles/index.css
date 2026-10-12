@@ -1,1 +1,8 @@
 @import "tailwindcss";
+
+/* Colores del panel. Se usan como bg-brand, border-brand, ring-brand-light, etc. */
+@theme {
+  --color-brand: #356378;
+  --color-brand-dark: #2c5568;
+  --color-brand-light: #74a4bc;
+}

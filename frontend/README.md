@@ -97,7 +97,9 @@ Component  ──►  Hook  ──►  api/  ──►  Backend
 | **Hook** | Estado, orquestación y consumo de `api/`, con **TanStack Query**. | No arma URLs ni headers a mano. |
 | **`api/`** | Llamadas HTTP, tipado de request/response, manejo de errores. | No conoce React ni componentes. |
 
-> Hoy hay un único ejemplo de la cadena: `App.tsx` → `hooks/usePing.ts` → `api/ping.ts` (T-01.3). Ese hook usa `useState`/`useEffect` porque es un solo llamado sin caché; TanStack Query se instala con el primer hook que consuma datos reales del dominio.
+> Ejemplo de la cadena: `pages/LoginPage.tsx` → `hooks/useLogin.ts` → `api/auth.ts`.
+
+Toda función de `api/` hace sus pedidos con `request` de [`api/client.ts`](src/api/client.ts), nunca con `fetch` directo. Ese archivo es el único punto que arma la URL con `VITE_API_URL`, agrega el header `Authorization: Bearer <token>` de la sesión y convierte las respuestas de error (`{ code, message }`) en un `ApiRequestError`. Los endpoints sin sesión (login, activación) pasan `auth: false`.
 
 Reglas duras:
 
@@ -138,4 +140,4 @@ Reglas duras:
 - Prettier, para sumar al workflow de CI. ESLint ya está configurado (`npm run lint`).
 - Si los E2E corren en CI o solo en local.
 
-Tres puntos que estaban acá ya dejaron de ser decisiones abiertas y pasaron a ser trabajo planificado en `tareas.md`: las rutas protegidas por rol (US-03.3), la personalización por empresa (US-05.7 la carga, US-06.1 la aplica) y el autocomplete de clientes del turnero manual (US-09.4, US-09.7).
+Tres puntos que estaban acá ya dejaron de ser decisiones abiertas y pasaron a ser trabajo planificado en [`docs/alcance-mvp.md`](../docs/alcance-mvp.md): las rutas protegidas por rol (US-03.3), la personalización por empresa (US-05.7 la carga, US-06.1 la aplica) y el autocomplete de clientes del turnero manual (US-09.4, US-09.7).
