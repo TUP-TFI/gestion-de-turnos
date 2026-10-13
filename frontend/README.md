@@ -99,7 +99,7 @@ Component  ──►  Hook  ──►  api/  ──►  Backend
 
 > Ejemplo de la cadena: `pages/LoginPage.tsx` → `hooks/useLogin.ts` → `api/auth.ts`.
 
-Toda función de `api/` hace sus pedidos con `request` de [`api/client.ts`](src/api/client.ts), nunca con `fetch` directo. Ese archivo es el único punto que arma la URL con `VITE_API_URL`, agrega el header `Authorization: Bearer <token>` de la sesión y convierte las respuestas de error (`{ code, message }`) en un `ApiRequestError`. Los endpoints sin sesión (login, activación) pasan `auth: false`.
+Toda función de `api/` hace sus pedidos con `request` de [`api/client.ts`](src/api/client.ts), nunca con `fetch` directo. Ese archivo es el único punto que arma la URL con `VITE_API_URL`, agrega el header `Authorization: Bearer <token>` de la sesión y convierte las respuestas de error (`{ code, message }`) en un `ApiRequestError`. Los endpoints sin sesión (login, activación) pasan `auth: false`. Si un pedido con sesión vuelve con 401 (token vencido o inválido), `request` borra la sesión y vuelve a `/login`.
 
 Reglas duras:
 

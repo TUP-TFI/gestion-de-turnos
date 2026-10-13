@@ -1,10 +1,8 @@
 import { useMutation } from '@tanstack/react-query'
 import { login } from '../api/auth'
-import { ApiRequestError } from '../api/client'
+import { toErrorMessage } from '../api/client'
 import type { LoginRequest } from '../types/Auth'
 import { useAuth } from './useAuth'
-
-const UNEXPECTED_ERROR = 'Ocurrió un error inesperado. Intentá de nuevo.'
 
 interface UseLoginResult {
   login: (request: LoginRequest) => void
@@ -22,11 +20,7 @@ export function useLogin(): UseLoginResult {
 
   return {
     login: mutation.mutate,
-    error: mutation.error ? toMessage(mutation.error) : null,
+    error: mutation.error ? toErrorMessage(mutation.error) : null,
     isLoading: mutation.isPending,
   }
-}
-
-function toMessage(error: Error): string {
-  return error instanceof ApiRequestError ? error.message : UNEXPECTED_ERROR
 }
