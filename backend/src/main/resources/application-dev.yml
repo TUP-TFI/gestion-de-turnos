@@ -12,6 +12,8 @@ cors:
   allowed-origins: http://localhost:5173
 
 app:
+  # Direccion del frontend: con ella se arma el link de activacion ({frontend-url}/activate?token=...)
+  frontend-url: http://localhost:5173
   jwt:
     # Solo dev: valor publico, no sirve para nada real. Minimo 32 bytes (HS256)
     secret: dev-only-secret-turnos-jwt-0123456789-abcdef

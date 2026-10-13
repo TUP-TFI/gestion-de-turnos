@@ -3,6 +3,8 @@ package com.grupo140.turnos.auth;
 import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.user.UserService;
 import java.time.Clock;
+import java.time.Duration;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class ActivationService {
+
+    // Vigencia del link de activación (US-04.1).
+    private static final Duration ACTIVATION_TOKEN_TTL = Duration.ofHours(48);
 
     private final UserTokenRepository userTokenRepository;
     private final TokenGenerator tokenGenerator;
@@ -32,6 +37,19 @@ public class ActivationService {
         this.userService = userService;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
+    }
+
+    /**
+     * Crea el token de activación de un admin recién creado (US-04.1). En la base queda solo el hash.
+     *
+     * @return el valor en claro, que va en el link de activación.
+     */
+    @Transactional
+    public String createActivationToken(UUID userId) {
+        TokenGenerator.GeneratedToken token = tokenGenerator.generate();
+        userTokenRepository.save(new UserToken(
+                userId, token.hash(), TokenType.ACTIVATION, clock.instant().plus(ACTIVATION_TOKEN_TTL)));
+        return token.plainValue();
     }
 
     /**
