@@ -16,6 +16,12 @@ export interface LoginResponse {
   user: SessionUser
 }
 
+// token es el valor que llega en el link de activación.
+export interface ActivationRequest {
+  token: string
+  password: string
+}
+
 // Forma de los errores del backend: code para distinguir casos, message para mostrar.
 export interface ApiError {
   code: string

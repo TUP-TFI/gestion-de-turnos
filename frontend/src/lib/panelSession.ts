@@ -8,7 +8,17 @@ export function savePanelSession(session: LoginResponse): void {
 
 export function readPanelSession(): LoginResponse | null {
   const stored = localStorage.getItem(STORAGE_KEY)
-  return stored ? JSON.parse(stored) : null
+  if (!stored) {
+    return null
+  }
+
+  try {
+    return JSON.parse(stored)
+  } catch {
+    // Valor dañado: se descarta para que la app arranque sin sesión en vez de romperse.
+    clearPanelSession()
+    return null
+  }
 }
 
 export function clearPanelSession(): void {
