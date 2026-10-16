@@ -14,6 +14,10 @@ public interface CompanyRepository extends Repository<Company, UUID> {
 
     Company save(Company company);
 
+    // Guarda y ejecuta el INSERT en el momento, sin esperar al final de la transacción: recién ahí
+    // quedan cargados createdAt y updatedAt.
+    Company saveAndFlush(Company company);
+
     boolean existsBySlug(String slug);
 
     @Query("select c.status from Company c where c.id = :id")

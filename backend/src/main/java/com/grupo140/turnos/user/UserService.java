@@ -54,6 +54,28 @@ public class UserService {
                 .orElse(false);
     }
 
+    /**
+     * Indica si el email ya pertenece a un usuario del panel ({@code SUPERADMIN} o {@code COMPANY_ADMIN}
+     * de cualquier empresa). El alta de empresa lo usa para no repetir el email de un admin (US-04.1).
+     */
+    @Transactional(readOnly = true)
+    public boolean isPanelEmailTaken(String email) {
+        return !userRepository.findPanelUsersByEmail(email).isEmpty();
+    }
+
+    /**
+     * Crea el admin de una empresa recién dada de alta (US-04.1). Queda {@code PENDING_ACTIVATION} y sin
+     * contraseña: la define él mismo con el link de activación.
+     *
+     * @return el id del usuario creado.
+     */
+    @Transactional
+    public UUID createPendingAdmin(UUID companyId, String firstName, String lastName, String email, String phone) {
+        User admin = new User(
+                firstName, lastName, email, phone, UserRole.COMPANY_ADMIN, companyId, UserStatus.PENDING_ACTIVATION);
+        return userRepository.save(admin).getId();
+    }
+
     private static PanelUserCredentials toCredentials(User user) {
         return new PanelUserCredentials(
                 user.getId(),

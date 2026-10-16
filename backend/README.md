@@ -36,6 +36,7 @@ El perfil `dev` trae valores por defecto que coinciden con el `docker-compose.ym
 | `DB_PASSWORD` | prod | Contraseña de la base. |
 | `PORT` | prod | Puerto HTTP. Lo inyecta Render; en local vale 8080. |
 | `CORS_ALLOWED_ORIGINS` | prod | Origenes que el backend acepta por CORS, separados por coma. Esquema + host, sin path. |
+| `FRONTEND_URL` | prod | Dirección del frontend, sin barra final. Con ella se arma el link de activación (`{FRONTEND_URL}/activate?token=...`). En Render: `https://gestion-de-turnos-eight.vercel.app`. En dev está fija en `http://localhost:5173`. |
 | `JWT_SECRET` | prod | Secreto con el que se firma el JWT de sesión (HS256). Al menos 32 bytes; si es más corto, la app no arranca. En dev hay un valor fijo. |
 
 Para correr en local contra la base de producción, creá un `backend/.env` con esas variables: el perfil `prod` lo importa si existe (`spring.config.import: optional:file:.env[.properties]`).
@@ -103,6 +104,8 @@ La API es stateless: cada request lleva `Authorization: Bearer <jwt>`. El token 
 
 El admin recién creado activa su cuenta con `POST /api/auth/activate` y el body `{ "token": "...", "password": "..." }`, donde `token` es el valor en claro del link. La contraseña va de 8 a 72 caracteres (72 es el tope de BCrypt). Responde `204` sin JWT: después de activar, el usuario entra por el login.
 
+Ese link lo genera el alta de empresa, `POST /api/superadmin/companies`, que crea la empresa, su admin (`PENDING_ACTIVATION`) y el token (vence a las 48 h) en una sola transacción. Hasta que exista el envío por WhatsApp, `NotificationService` escribe el link en el log de la aplicación y se copia a mano: en local sale en la terminal, y en producción en la pestaña *Logs* de Render.
+
 ### Rutas por prefijo
 
 La autorización se define por prefijo en `SecurityConfig`. Los endpoints nuevos tienen que respetarlo:
@@ -126,6 +129,7 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | `COMPANY_INACTIVE` | 403 | La empresa del admin está desactivada |
 | `INVALID_ACTIVATION_TOKEN` | 400 | El token de activación no existe, ya se usó o la cuenta ya no está pendiente |
 | `ACTIVATION_TOKEN_EXPIRED` | 400 | El token de activación venció: hay que pedir el reenvío al superadmin |
+| `EMAIL_ALREADY_IN_USE` | 409 | El email del admin de la empresa nueva ya es de otro admin o de un superadmin |
 | `UNAUTHORIZED` | 401 | Falta el token o es inválido |
 | `FORBIDDEN` | 403 | El rol no alcanza para la ruta |
 | `VALIDATION_ERROR` | 400 | Body inválido |
@@ -232,7 +236,8 @@ seed           ← solo perfil dev: fuera del grafo (ver excepción abajo)
 - ❌ Un feature **nunca** importa un repository de otro feature: se habla con su `Service`.
 - ❌ No se permiten ciclos. Si aparece uno, se resuelve invirtiendo la dependencia o moviendo la lógica.
 - ✅ `auth` depende de `user`: el login y la activación leen y actualizan `User`, pero a través de los services de `user`, nunca de `UserRepository`.
-- ⚠️ **Única excepción: el paquete `seed`** (T-02.4). Corre solo con `@Profile("dev")` y carga datos de prueba de varios features, así que puede usar sus repositories directamente. Nada de código de producción importa `seed`, y `seed` no expone nada para los demás features.
+- ⚠️ **Excepción: el alta de empresa** (US-04.1). `CompanyService.create` crea en una sola transacción la empresa, su admin y el token de activación, así que `company` usa `UserService` (de `user`), `ActivationService` (de `auth`) y `NotificationService`. Como `auth` ya usa `CompanyService` en el login, entre `auth` y `company` queda un ciclo de paquetes. Se acepta porque no hay ciclo entre clases (`ActivationService` no depende de `CompanyService`) y porque evitarlo obligaría a mover el token de activación fuera de `auth`. Sigue valiendo que `company` no importa los repositories de esos features.
+- ⚠️ **Otra excepción: el paquete `seed`** (T-02.4). Corre solo con `@Profile("dev")` y carga datos de prueba de varios features, así que puede usar sus repositories directamente. Nada de código de producción importa `seed`, y `seed` no expone nada para los demás features.
 
 ### Los dos casos concretos que esta regla resuelve
 
