@@ -3,11 +3,14 @@ import type { FormEvent } from 'react'
 import { useCreateCompany } from '../../hooks/useCreateCompany'
 import { COMPANY_CATEGORY_LABELS } from '../../lib/companyCategories'
 import { DEFAULT_TIMEZONE, TIMEZONES } from '../../lib/timezones'
+import {
+  ERROR_CLASSES,
+  INPUT_CLASSES,
+  LABEL_CLASSES,
+  PRIMARY_BUTTON_CLASSES,
+} from '../../lib/formStyles'
 import type { CompanyCategory } from '../../types/Company'
 
-const INPUT_CLASSES =
-  'mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-light/50'
-const LABEL_CLASSES = 'block text-sm font-medium text-slate-700'
 const FIELDSET_CLASSES =
   'space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-6'
 
@@ -79,7 +82,7 @@ export function CreateCompanyPage() {
             reset()
             setFormKey((key) => key + 1)
           }}
-          className="mt-6 cursor-pointer rounded-lg bg-brand px-4 py-2 font-medium text-white hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-light"
+          className={`mt-6 ${PRIMARY_BUTTON_CLASSES}`}
         >
           Crear otra empresa
         </button>
@@ -251,7 +254,7 @@ export function CreateCompanyPage() {
       {error && (
         <p
           role="alert"
-          className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+          className={ERROR_CLASSES}
         >
           {error}
         </p>
@@ -260,7 +263,7 @@ export function CreateCompanyPage() {
       <button
         type="submit"
         disabled={isLoading}
-        className="cursor-pointer rounded-lg bg-brand px-4 py-2 font-medium text-white hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:opacity-60"
+        className={PRIMARY_BUTTON_CLASSES}
       >
         {isLoading ? 'Creando...' : 'Crear empresa'}
       </button>
