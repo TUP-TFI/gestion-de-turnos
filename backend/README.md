@@ -130,6 +130,7 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | `INVALID_ACTIVATION_TOKEN` | 400 | El token de activación no existe, ya se usó o la cuenta ya no está pendiente |
 | `ACTIVATION_TOKEN_EXPIRED` | 400 | El token de activación venció: hay que pedir el reenvío al superadmin |
 | `EMAIL_ALREADY_IN_USE` | 409 | El email del admin de la empresa nueva ya es de otro admin o de un superadmin |
+| `COMPANY_NOT_FOUND` | 404 | La empresa pedida en el detalle o la edición del superadmin no existe |
 | `UNAUTHORIZED` | 401 | Falta el token o es inválido |
 | `FORBIDDEN` | 403 | El rol no alcanza para la ruta |
 | `VALIDATION_ERROR` | 400 | Body inválido |
@@ -283,7 +284,10 @@ Optional<Appointment> findById(UUID id);
 
 El `companyId` sale del JWT de la sesión, nunca del request. Es más verboso que un filtro implícito, pero es imposible de olvidar sin que el código deje de compilar.
 
-> 💬 **Única excepción:** `UserRepository.findByIdAndStatus(id, status)`, que usa la activación de cuenta. Ahí no hay sesión: el token del link prueba la identidad del usuario, y el filtro por `PENDING_ACTIVATION` acota la búsqueda a cuentas pendientes.
+> 💬 **Excepciones:**
+>
+> - `UserRepository.findByIdAndStatus(id, status)`, que usa la activación de cuenta. Ahí no hay sesión: el token del link prueba la identidad del usuario, y el filtro por `PENDING_ACTIVATION` acota la búsqueda a cuentas pendientes.
+> - `CompanyRepository.findById(id)` y `findAllByOrderByNameAsc()`, que usan el listado y la edición de empresas. La empresa es el propio tenant, no un dato que pertenezca a una, y solo el superadmin llega a esas consultas (`/api/superadmin/**`).
 
 Un controller recibe la sesión como parámetro `SessionUser` y le pasa su `companyId` al service:
 
@@ -415,3 +419,4 @@ Los datos de demo para la presentación (más empresas y turnos en distintos est
 - Proveedor de la API de WhatsApp Business.
 - Storage externo para los logos de empresa (`company.logoUrl`).
 - Frecuencia concreta de los jobs programados (cierre de turnos, reintento de notificaciones, purga de tokens).
+- Paginación del listado de empresas (`GET /api/superadmin/companies`). Por el tamaño del MVP devuelve todas juntas; se puede agregar después del MVP si la cantidad de empresas lo pide.

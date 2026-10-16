@@ -1,5 +1,6 @@
 package com.grupo140.turnos.company;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.Query;
@@ -19,6 +20,12 @@ public interface CompanyRepository extends Repository<Company, UUID> {
     Company saveAndFlush(Company company);
 
     boolean existsBySlug(String slug);
+
+    // Listado y edición del superadmin (US-04.2 y US-04.3). No llevan companyId: la empresa es el propio
+    // tenant, y solo el superadmin llega a estas consultas.
+    List<Company> findAllByOrderByNameAsc();
+
+    Optional<Company> findById(UUID id);
 
     @Query("select c.status from Company c where c.id = :id")
     Optional<CompanyStatus> findStatusById(@Param("id") UUID id);
