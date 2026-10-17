@@ -1,30 +1,18 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { Link } from 'react-router'
+import { CompanyFields } from '../../components/CompanyFields'
 import { useCreateCompany } from '../../hooks/useCreateCompany'
-import { COMPANY_CATEGORY_LABELS } from '../../lib/companyCategories'
-import { DEFAULT_TIMEZONE, TIMEZONES } from '../../lib/timezones'
+import { readCompanyData, toRequired } from '../../lib/companyForm'
 import {
   ERROR_CLASSES,
+  FIELDSET_CLASSES,
   INPUT_CLASSES,
   LABEL_CLASSES,
   PRIMARY_BUTTON_CLASSES,
+  SECONDARY_BUTTON_CLASSES,
 } from '../../lib/formStyles'
 import { handleInvalidField, resetFieldValidity } from '../../lib/formValidation'
-import type { CompanyCategory } from '../../types/Company'
-
-const FIELDSET_CLASSES =
-  'space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-6'
-
-const CATEGORIES = Object.keys(COMPANY_CATEGORY_LABELS) as CompanyCategory[]
-
-function toNullable(value: FormDataEntryValue | null): string | null {
-  const text = typeof value === 'string' ? value.trim() : ''
-  return text === '' ? null : text
-}
-
-function toRequired(value: FormDataEntryValue | null): string {
-  return typeof value === 'string' ? value.trim() : ''
-}
 
 export function CreateCompanyPage() {
   const { createCompany, createdCompany, error, isLoading, reset } =
@@ -37,16 +25,7 @@ export function CreateCompanyPage() {
     const data = new FormData(event.currentTarget)
 
     createCompany({
-      company: {
-        name: toRequired(data.get('name')),
-        category: toRequired(data.get('category')) as CompanyCategory,
-        timezone: toRequired(data.get('timezone')),
-        description: toNullable(data.get('description')),
-        address: toNullable(data.get('address')),
-        phone: toNullable(data.get('phone')),
-        contactEmail: toNullable(data.get('contactEmail')),
-        logoUrl: toNullable(data.get('logoUrl')),
-      },
+      company: readCompanyData(data),
       admin: {
         firstName: toRequired(data.get('adminFirstName')),
         lastName: toRequired(data.get('adminLastName')),
@@ -77,13 +56,16 @@ export function CreateCompanyPage() {
         <p className="mt-4 text-sm text-slate-600">
           Se envió el link de activación al admin
         </p>
+        <Link to="/superadmin/companies" className={`mt-6 block ${PRIMARY_BUTTON_CLASSES}`}>
+          Ver empresas
+        </Link>
         <button
           type="button"
           onClick={() => {
             reset()
             setFormKey((key) => key + 1)
           }}
-          className={`mt-6 ${PRIMARY_BUTTON_CLASSES}`}
+          className={`mt-3 ${SECONDARY_BUTTON_CLASSES}`}
         >
           Crear otra empresa
         </button>
@@ -97,122 +79,16 @@ export function CreateCompanyPage() {
       className="space-y-6"
       onSubmit={handleSubmit}
       onInvalidCapture={handleInvalidField}
-      onInputCapture={resetFieldValidity}
+      onInputCapture={(event) => {
+        resetFieldValidity(event)
+        if (error) {
+          reset()
+        }
+      }}
     >
       <h2 className="text-xl font-semibold text-slate-900">Nueva empresa</h2>
 
-      <fieldset className={FIELDSET_CLASSES}>
-        <legend className="px-2 text-sm font-semibold text-slate-900">
-          Datos de la empresa
-        </legend>
-
-        <div>
-          <label htmlFor="name" className={LABEL_CLASSES}>
-            Nombre *
-          </label>
-          <input id="name" name="name" type="text" required className={INPUT_CLASSES} />
-        </div>
-
-        <div>
-          <label htmlFor="category" className={LABEL_CLASSES}>
-            Rubro *
-          </label>
-          <select
-            id="category"
-            name="category"
-            required
-            defaultValue=""
-            className={INPUT_CLASSES}
-          >
-            <option value="" disabled>
-              Elegí un rubro
-            </option>
-            {CATEGORIES.map((category) => (
-              <option key={category} value={category}>
-                {COMPANY_CATEGORY_LABELS[category]}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="timezone" className={LABEL_CLASSES}>
-            Zona horaria *
-          </label>
-          {/* Input con datalist en vez de select: con más de 400 zonas, escribir "Cordoba" o "Madrid" filtra la lista. */}
-          <input
-            id="timezone"
-            name="timezone"
-            type="text"
-            list="timezone-options"
-            required
-            autoComplete="off"
-            defaultValue={DEFAULT_TIMEZONE}
-            onChange={(event) => {
-              const value = event.target.value.trim()
-              event.target.setCustomValidity(
-                value && !TIMEZONES.includes(value)
-                  ? 'Elegí una zona horaria de la lista.'
-                  : '',
-              )
-            }}
-            className={INPUT_CLASSES}
-          />
-          <datalist id="timezone-options">
-            {TIMEZONES.map((timezone) => (
-              <option key={timezone} value={timezone} />
-            ))}
-          </datalist>
-          <p className="mt-1 text-xs text-slate-500">
-            Escribí una ciudad o región para buscar, por ejemplo Cordoba.
-          </p>
-        </div>
-
-        <div>
-          <label htmlFor="description" className={LABEL_CLASSES}>
-            Descripción
-          </label>
-          <textarea
-            id="description"
-            name="description"
-            rows={3}
-            className={INPUT_CLASSES}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="address" className={LABEL_CLASSES}>
-            Dirección
-          </label>
-          <input id="address" name="address" type="text" className={INPUT_CLASSES} />
-        </div>
-
-        <div>
-          <label htmlFor="phone" className={LABEL_CLASSES}>
-            Teléfono
-          </label>
-          <input id="phone" name="phone" type="tel" className={INPUT_CLASSES} />
-        </div>
-
-        <div>
-          <label htmlFor="contactEmail" className={LABEL_CLASSES}>
-            Email de contacto
-          </label>
-          <input
-            id="contactEmail"
-            name="contactEmail"
-            type="email"
-            className={INPUT_CLASSES}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="logoUrl" className={LABEL_CLASSES}>
-            URL del logo
-          </label>
-          <input id="logoUrl" name="logoUrl" type="url" className={INPUT_CLASSES} />
-        </div>
-      </fieldset>
+      <CompanyFields />
 
       <fieldset className={FIELDSET_CLASSES}>
         <legend className="px-2 text-sm font-semibold text-slate-900">
@@ -226,6 +102,7 @@ export function CreateCompanyPage() {
           <input
             id="adminFirstName"
             name="adminFirstName"
+            maxLength={80}
             type="text"
             required
             className={INPUT_CLASSES}
@@ -239,6 +116,7 @@ export function CreateCompanyPage() {
           <input
             id="adminLastName"
             name="adminLastName"
+            maxLength={80}
             type="text"
             required
             className={INPUT_CLASSES}
@@ -252,6 +130,7 @@ export function CreateCompanyPage() {
           <input
             id="adminEmail"
             name="adminEmail"
+            maxLength={150}
             type="email"
             required
             className={INPUT_CLASSES}
@@ -265,6 +144,7 @@ export function CreateCompanyPage() {
           <input
             id="adminPhone"
             name="adminPhone"
+            maxLength={30}
             type="tel"
             required
             className={INPUT_CLASSES}

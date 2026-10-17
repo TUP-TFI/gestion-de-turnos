@@ -36,18 +36,21 @@ export interface Company {
   updatedAt: string
 }
 
+// Datos editables de la empresa: el cuerpo de PUT /api/superadmin/companies/{id}. El slug y el status no se editan.
+export type CompanyData = Pick<
+  Company,
+  | 'name'
+  | 'category'
+  | 'timezone'
+  | 'description'
+  | 'address'
+  | 'phone'
+  | 'contactEmail'
+  | 'logoUrl'
+>
+
 // Cuerpo de POST /api/superadmin/companies. El slug y el status los genera el backend.
 export interface CreateCompanyRequest {
-  company: Pick<
-    Company,
-    | 'name'
-    | 'category'
-    | 'timezone'
-    | 'description'
-    | 'address'
-    | 'phone'
-    | 'contactEmail'
-    | 'logoUrl'
-  >
+  company: CompanyData
   admin: Pick<User, 'firstName' | 'lastName' | 'email' | 'phone'>
 }

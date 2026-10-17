@@ -8,3 +8,9 @@ export const ERROR_CLASSES = 'rounded-lg bg-red-50 px-3 py-2 text-sm text-red-70
 
 export const PRIMARY_BUTTON_CLASSES =
   'w-full cursor-pointer rounded-lg bg-brand px-4 py-2 text-center font-medium text-white hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:opacity-60'
+
+export const SECONDARY_BUTTON_CLASSES =
+  'w-full cursor-pointer rounded-lg border border-slate-300 bg-white px-4 py-2 text-center font-medium text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:opacity-60'
+
+export const FIELDSET_CLASSES =
+  'space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-6'

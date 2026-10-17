@@ -26,6 +26,8 @@ export function PanelLayout({ title, navItems }: PanelLayoutProps) {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  // Sin `end`, "Empresas" quedaría activo también en /superadmin/companies/new.
+                  end
                   className={({ isActive }) =>
                     isActive
                       ? 'text-brand-dark underline underline-offset-4'
