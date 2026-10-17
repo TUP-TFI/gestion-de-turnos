@@ -1078,6 +1078,13 @@ Tareas:
 
 Listo cuando: no queda ninguna discrepancia conocida entre la documentación y el sistema construido.
 
+#### T-13.2 — Ajustes de UX pendientes (opcional)
+Responsable: a definir. Se hace si sobra tiempo; no bloquea la defensa.
+
+Ajustes detectados durante el desarrollo que quedaron fuera de los PRs de cada historia:
+- Botón para mostrar/ocultar la contraseña en `LoginPage` y `ActivateAccountPage` (detectado en el QA de US-04.1). Conviene un componente `PasswordInput` en `components/` que usen las dos pantallas.
+- Mensajes de validación en español (`lib/formValidation.ts`, creado en US-04.1) en `LoginPage` y `ActivateAccountPage`, que todavía muestran los mensajes nativos del navegador.
+
 ---
 
 ### Paso 14 — Despliegue final

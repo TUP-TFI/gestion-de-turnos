@@ -9,6 +9,7 @@ import {
   LABEL_CLASSES,
   PRIMARY_BUTTON_CLASSES,
 } from '../../lib/formStyles'
+import { handleInvalidField, resetFieldValidity } from '../../lib/formValidation'
 import type { CompanyCategory } from '../../types/Company'
 
 const FIELDSET_CLASSES =
@@ -91,7 +92,13 @@ export function CreateCompanyPage() {
   }
 
   return (
-    <form key={formKey} className="space-y-6" onSubmit={handleSubmit}>
+    <form
+      key={formKey}
+      className="space-y-6"
+      onSubmit={handleSubmit}
+      onInvalidCapture={handleInvalidField}
+      onInputCapture={resetFieldValidity}
+    >
       <h2 className="text-xl font-semibold text-slate-900">Nueva empresa</h2>
 
       <fieldset className={FIELDSET_CLASSES}>
@@ -132,19 +139,33 @@ export function CreateCompanyPage() {
           <label htmlFor="timezone" className={LABEL_CLASSES}>
             Zona horaria *
           </label>
-          <select
+          {/* Input con datalist en vez de select: con más de 400 zonas, escribir "Cordoba" o "Madrid" filtra la lista. */}
+          <input
             id="timezone"
             name="timezone"
+            type="text"
+            list="timezone-options"
             required
+            autoComplete="off"
             defaultValue={DEFAULT_TIMEZONE}
+            onChange={(event) => {
+              const value = event.target.value.trim()
+              event.target.setCustomValidity(
+                value && !TIMEZONES.includes(value)
+                  ? 'Elegí una zona horaria de la lista.'
+                  : '',
+              )
+            }}
             className={INPUT_CLASSES}
-          >
+          />
+          <datalist id="timezone-options">
             {TIMEZONES.map((timezone) => (
-              <option key={timezone} value={timezone}>
-                {timezone}
-              </option>
+              <option key={timezone} value={timezone} />
             ))}
-          </select>
+          </datalist>
+          <p className="mt-1 text-xs text-slate-500">
+            Escribí una ciudad o región para buscar, por ejemplo Cordoba.
+          </p>
         </div>
 
         <div>
