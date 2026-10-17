@@ -10,11 +10,11 @@ interface UseCompanyResult {
   isNotFound: boolean
 }
 
-// NOT_FOUND llega cuando el id de la URL ni siquiera es un UUID.
+// En el detalle, VALIDATION_ERROR solo llega cuando el id de la URL no es un UUID (#31): tampoco existe.
 function isNotFoundError(error: Error | null): boolean {
   return (
     error instanceof ApiRequestError &&
-    (error.code === 'COMPANY_NOT_FOUND' || error.code === 'NOT_FOUND')
+    (error.code === 'COMPANY_NOT_FOUND' || error.code === 'VALIDATION_ERROR')
   )
 }
 
