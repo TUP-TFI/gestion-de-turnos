@@ -131,6 +131,7 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | `ACTIVATION_TOKEN_EXPIRED` | 400 | El token de activación venció: hay que pedir el reenvío al superadmin |
 | `EMAIL_ALREADY_IN_USE` | 409 | El email del admin de la empresa nueva ya es de otro admin o de un superadmin |
 | `COMPANY_NOT_FOUND` | 404 | La empresa pedida en el detalle o la edición del superadmin no existe |
+| `SERVICE_NOT_FOUND` | 404 | El servicio pedido no existe o es de otra empresa |
 | `UNAUTHORIZED` | 401 | Falta el token o es inválido |
 | `FORBIDDEN` | 403 | El rol no alcanza para la ruta |
 | `VALIDATION_ERROR` | 400 | Body inválido |
