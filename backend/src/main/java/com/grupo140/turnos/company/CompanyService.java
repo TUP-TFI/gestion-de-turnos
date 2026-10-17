@@ -5,6 +5,7 @@ import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.notification.NotificationService;
 import com.grupo140.turnos.user.UserService;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -63,17 +64,10 @@ public class CompanyService {
             throw new ApiException(
                     HttpStatus.CONFLICT, "EMAIL_ALREADY_IN_USE", "Ya existe un administrador con ese email");
         }
-        if (!isValidTimezone(data.timezone())) {
-            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "La zona horaria no es válida");
-        }
+        requireValidTimezone(data.timezone());
 
         Company company = new Company(data.name(), slugGenerator.generate(data.name()), data.category());
-        company.setTimezone(data.timezone());
-        company.setDescription(data.description());
-        company.setAddress(data.address());
-        company.setPhone(data.phone());
-        company.setContactEmail(data.contactEmail());
-        company.setLogoUrl(data.logoUrl());
+        applyData(company, data);
         company = companyRepository.saveAndFlush(company);
 
         UUID adminId = userService.createPendingAdmin(
@@ -84,8 +78,61 @@ public class CompanyService {
         return CompanyResponse.from(company);
     }
 
+    /** Listado de todas las empresas para el superadmin, ordenado por nombre (US-04.2). */
+    @Transactional(readOnly = true)
+    public List<CompanyResponse> list() {
+        return companyRepository.findAllByOrderByNameAsc().stream()
+                .map(CompanyResponse::from)
+                .toList();
+    }
+
+    /**
+     * Detalle de una empresa, para cargar el formulario de edición (US-04.3).
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404).
+     */
+    @Transactional(readOnly = true)
+    public CompanyResponse get(UUID id) {
+        return CompanyResponse.from(findOrThrow(id));
+    }
+
+    /**
+     * Edición de los datos de una empresa (US-04.3). El slug no cambia aunque cambie el nombre, porque
+     * forma parte de links ya compartidos; el estado se maneja aparte (US-04.4 y US-04.5).
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404) o {@code VALIDATION_ERROR} (400).
+     */
+    @Transactional
+    public CompanyResponse update(UUID id, CreateCompanyRequest.CompanyData data) {
+        requireValidTimezone(data.timezone());
+
+        Company company = findOrThrow(id);
+        applyData(company, data);
+        return CompanyResponse.from(companyRepository.saveAndFlush(company));
+    }
+
+    private Company findOrThrow(UUID id) {
+        return companyRepository
+                .findById(id)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "COMPANY_NOT_FOUND", "La empresa no existe"));
+    }
+
+    // Campos editables, los mismos en el alta y en la edición. El slug y el estado quedan afuera.
+    private static void applyData(Company company, CreateCompanyRequest.CompanyData data) {
+        company.setName(data.name());
+        company.setCategory(data.category());
+        company.setTimezone(data.timezone());
+        company.setDescription(data.description());
+        company.setAddress(data.address());
+        company.setPhone(data.phone());
+        company.setContactEmail(data.contactEmail());
+        company.setLogoUrl(data.logoUrl());
+    }
+
     // Es válida si es una zona IANA que Java conoce: con ella se calcula después la disponibilidad.
-    private static boolean isValidTimezone(String timezone) {
-        return ZoneId.getAvailableZoneIds().contains(timezone);
+    private static void requireValidTimezone(String timezone) {
+        if (!ZoneId.getAvailableZoneIds().contains(timezone)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "La zona horaria no es válida");
+        }
     }
 }
