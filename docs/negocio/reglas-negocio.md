@@ -13,8 +13,10 @@
 7. Dar de baja una empresa significa desactivarla, nunca eliminar el registro. Al desactivar: se bloquea el login de su admin, la página pública muestra un estado de "no disponible", los turnos pendientes se cancelan automáticamente notificando a cada cliente afectado, y el historial se conserva por si se reactiva.
 8. El bloqueo del login del admin al desactivar la empresa **se deriva de `company.status`** en el filtro de autenticación; no se modifica el `status` del usuario. De lo contrario, un admin que ya estaba inactivo antes de la baja quedaría reactivado por error al reactivar la empresa.
 9. Reactivar una empresa es lo inverso: vuelve a estado `ACTIVE`, se desbloquea el login del admin (sin necesitar un nuevo link de activación si ya tenía contraseña definida) y la página pública vuelve a aceptar reservas con la configuración de servicios/horarios que ya tenía cargada. Los turnos cancelados durante la baja quedan cancelados — no se recrean automáticamente.
-10. Cada empresa tiene una **zona horaria** propia (`timezone`, formato IANA). Toda conversión entre las horas de pared de la configuración de agenda y los instantes UTC de los turnos usa esa zona, nunca la zona horaria del servidor.
-11. El `slug` de la URL pública no es editable y no puede coincidir con una ruta propia de la aplicación (`api`, `login`, `superadmin`, etc.): el alta valida contra una lista de slugs reservados.
+10. Cada empresa tiene una **zona horaria** propia (`timezone`, formato IANA). Toda conversión entre las horas de pared de la configuración de agenda y los instantes UTC de los turnos usa esa zona, nunca la zona horaria del servidor. La zona horaria es obligatoria en el alta de la empresa, con `America/Argentina/Cordoba` como valor por defecto en el formulario.
+11. El `slug` de la URL pública no es editable y no puede coincidir con una ruta propia de la aplicación (`api`, `login`, `superadmin`, etc.): el alta valida contra una lista de slugs reservados. El slug lo genera el backend a partir del nombre de la empresa y, si ya existe, le agrega un sufijo.
+
+    **Alta de empresa.** El superadmin crea la `Company` (`ACTIVE`) y el `User` admin (`PENDING_ACTIVATION`, sin contraseña) en una sola transacción, y se dispara el link de activación (regla 6). El email del admin es único de forma global entre `COMPANY_ADMIN` y `SUPERADMIN`; si ya existe, el alta devuelve `EMAIL_ALREADY_IN_USE`. Esto no contradice las reglas 2 y 3, que hablan de las cuentas de clientes.
 
 ### Parámetros configurables
 

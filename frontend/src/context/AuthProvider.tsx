@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { AuthContext } from './AuthContext'
 import {
   clearPanelSession,
@@ -15,6 +16,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   // El valor inicial sale de localStorage, así la sesión sobrevive a recargar la página.
   const [session, setSession] = useState<LoginResponse | null>(readPanelSession)
+  const queryClient = useQueryClient()
 
   function startSession(newSession: LoginResponse) {
     savePanelSession(newSession)
@@ -24,6 +26,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
   function logout() {
     clearPanelSession()
     setSession(null)
+    // Sin esto, el próximo usuario que entre en este navegador vería datos cacheados de la sesión anterior.
+    queryClient.clear()
   }
 
   return (
