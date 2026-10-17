@@ -133,8 +133,8 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | `COMPANY_NOT_FOUND` | 404 | La empresa pedida en el detalle o la edición del superadmin no existe |
 | `UNAUTHORIZED` | 401 | Falta el token o es inválido |
 | `FORBIDDEN` | 403 | El rol no alcanza para la ruta |
-| `VALIDATION_ERROR` | 400 | Body inválido |
-| `NOT_FOUND` | 404 | La ruta no existe |
+| `VALIDATION_ERROR` | 400 | Body inválido, o un query param con un tipo que no corresponde |
+| `NOT_FOUND` | 404 | La ruta no existe, o un id de la ruta que no es UUID |
 | `INTERNAL_ERROR` | 500 | Error no controlado |
 
 Para devolver un error de negocio, el service lanza `ApiException(status, code, message)` (en `common/error`). El `GlobalExceptionHandler` lo traduce; los services nunca arman la respuesta HTTP.

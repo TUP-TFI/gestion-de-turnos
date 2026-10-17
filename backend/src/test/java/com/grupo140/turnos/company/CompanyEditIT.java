@@ -70,6 +70,14 @@ class CompanyEditIT {
     }
 
     @Test
+    void getWithMalformedIdReturns404() throws Exception {
+        // Un id que no es UUID no puede existir: 404, no 500.
+        mockMvc.perform(asSuperadmin(get(COMPANIES + "/no-es-un-uuid")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"));
+    }
+
+    @Test
     void updateChangesDataButKeepsSlug() throws Exception {
         String id = seedCompanyId();
 
