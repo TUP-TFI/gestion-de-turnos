@@ -9,9 +9,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -48,20 +46,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(NoResourceFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError("NOT_FOUND", "El recurso no existe"));
-    }
-
-    /**
-     * Parámetro con un tipo que no corresponde (por ejemplo, un id que no es UUID). En la ruta es un
-     * recurso que no puede existir, así que responde 404, igual que un id inexistente. En un query param
-     * es un pedido mal armado: 400.
-     */
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
-        if (ex.getParameter().hasParameterAnnotation(PathVariable.class)) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ApiError("NOT_FOUND", "El recurso no existe"));
-        }
-        return ResponseEntity.badRequest()
-                .body(new ApiError("VALIDATION_ERROR", "El parámetro " + ex.getName() + " no es válido"));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
