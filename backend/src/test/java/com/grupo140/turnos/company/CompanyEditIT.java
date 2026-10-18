@@ -36,6 +36,7 @@ class CompanyEditIT {
     private static final String COMPANIES = "/api/superadmin/companies";
     private static final String SUPERADMIN_EMAIL = "superadmin@example.com";
     private static final String SEED_SLUG = "barberia-central";
+    private static final String PENDING_SLUG = "estetica-pendiente";
 
     @Autowired
     private MockMvc mockMvc;
@@ -63,10 +64,33 @@ class CompanyEditIT {
     }
 
     @Test
+    void getIncludesActiveAdmin() throws Exception {
+        mockMvc.perform(asSuperadmin(get(COMPANIES + "/" + seedCompanyId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.admin.email").value("admin@example.com"))
+                .andExpect(jsonPath("$.admin.status").value("ACTIVE"));
+    }
+
+    @Test
+    void getIncludesPendingAdmin() throws Exception {
+        mockMvc.perform(asSuperadmin(get(COMPANIES + "/" + companyIdBySlug(PENDING_SLUG))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.admin.email").value("admin.pendiente@example.com"))
+                .andExpect(jsonPath("$.admin.status").value("PENDING_ACTIVATION"));
+    }
+
+    @Test
     void getUnknownCompanyReturns404() throws Exception {
         mockMvc.perform(asSuperadmin(get(COMPANIES + "/" + UUID.randomUUID())))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("COMPANY_NOT_FOUND"));
+    }
+
+    @Test
+    void invalidIdReturnsValidationError() throws Exception {
+        mockMvc.perform(asSuperadmin(get(COMPANIES + "/abc")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
     }
 
     @Test
@@ -110,14 +134,18 @@ class CompanyEditIT {
                 .content(body);
     }
 
-    // El id de la empresa del seed se genera al cargarla, así que se busca en el listado.
     private String seedCompanyId() throws Exception {
+        return companyIdBySlug(SEED_SLUG);
+    }
+
+    // Los ids de las empresas del seed se generan al cargarlas, así que se buscan en el listado.
+    private String companyIdBySlug(String slug) throws Exception {
         String body = mockMvc.perform(asSuperadmin(get(COMPANIES)))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
-        List<String> ids = JsonPath.read(body, "$[?(@.slug == '" + SEED_SLUG + "')].id");
+        List<String> ids = JsonPath.read(body, "$[?(@.slug == '" + slug + "')].id");
         return ids.getFirst();
     }
 

@@ -21,6 +21,9 @@ public interface UserRepository extends Repository<User, UUID> {
 
     Optional<User> findByIdAndCompanyId(UUID id, UUID companyId);
 
+    // Admin de una empresa. Cada empresa tiene uno solo: lo crea el alta (US-04.1).
+    Optional<User> findByCompanyIdAndRole(UUID companyId, UserRole role);
+
     // Única búsqueda por id sin companyId: la usa la activación (US-03.4), donde el token del link ya
     // prueba la identidad del usuario. Filtrar por estado acota el acceso a cuentas pendientes.
     Optional<User> findByIdAndStatus(UUID id, UserStatus status);

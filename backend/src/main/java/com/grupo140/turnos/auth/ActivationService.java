@@ -4,6 +4,7 @@ import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.user.UserService;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -50,6 +51,21 @@ public class ActivationService {
         userTokenRepository.save(new UserToken(
                 userId, token.hash(), TokenType.ACTIVATION, clock.instant().plus(ACTIVATION_TOKEN_TTL)));
         return token.plainValue();
+    }
+
+    /**
+     * Reenvío del link de activación (US-04.8): marca como usados los tokens anteriores del usuario, así el
+     * link viejo deja de servir, y crea uno nuevo de 48 h.
+     *
+     * @return el valor en claro del token nuevo, que va en el link.
+     */
+    @Transactional
+    public String renewActivationToken(UUID userId) {
+        Instant now = clock.instant();
+        userTokenRepository
+                .findByUserIdAndTypeAndUsedAtIsNull(userId, TokenType.ACTIVATION)
+                .forEach(oldToken -> oldToken.markUsed(now));
+        return createActivationToken(userId);
     }
 
     /**

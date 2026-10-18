@@ -69,6 +69,8 @@ public class DevDataSeeder implements CommandLineRunner {
     public static final String DEV_ACTIVATION_TOKEN = "dev-activation-token";
 
     private static final String COMPANY_SLUG = "barberia-central";
+    // Empresa recién dada de alta, cuyo admin todavía no activó la cuenta. Cada empresa tiene un solo admin.
+    private static final String PENDING_COMPANY_SLUG = "estetica-pendiente";
     private static final int INTERVAL_MINUTES = 30;
     private static final LocalTime MORNING_START = LocalTime.of(9, 0);
     private static final LocalTime MORNING_END = LocalTime.of(13, 0);
@@ -112,8 +114,13 @@ public class DevDataSeeder implements CommandLineRunner {
         seedServices(companyId);
         seedBusinessHours(companyId);
         seedUsers(companyId);
+        seedPendingCompany();
 
-        log.info("Seed de dev cargado: empresa '{}', 2 servicios, horario semanal y 5 usuarios.", COMPANY_SLUG);
+        log.info(
+                "Seed de dev cargado: empresas '{}' (2 servicios, horario semanal, admin y 2 clientes) y '{}'"
+                        + " (admin pendiente), más el superadmin.",
+                COMPANY_SLUG,
+                PENDING_COMPANY_SLUG);
         log.info("Seed de dev: token de activación del admin pendiente = {}", DEV_ACTIVATION_TOKEN);
     }
 
@@ -154,8 +161,14 @@ public class DevDataSeeder implements CommandLineRunner {
         saveActiveUser("Carlos", "Gómez", "admin@example.com", "+5493510000002", UserRole.COMPANY_ADMIN, companyId);
         saveActiveUser("Lucía", "Pérez", "cliente1@example.com", "+5493510000004", UserRole.CLIENT, companyId);
         saveActiveUser("Martín", "Sosa", "cliente2@example.com", "+5493510000005", UserRole.CLIENT, companyId);
+    }
 
-        // Admin recién creado que todavía no activó su cuenta: no tiene contraseña, la define al activarla.
+    // Como queda una empresa recién dada de alta: sin servicios ni horarios, y con su admin pendiente de activación.
+    private void seedPendingCompany() {
+        Company company = new Company("Estética Pendiente", PENDING_COMPANY_SLUG, CompanyCategory.BEAUTY_CENTER);
+        UUID companyId = companyRepository.save(company).getId();
+
+        // Admin que todavía no activó su cuenta: no tiene contraseña, la define al activarla.
         // El token es lo que viaja en el link de activación; en la base se guarda solo su hash.
         User pendingAdmin = userRepository.save(new User(
                 "Marta",
