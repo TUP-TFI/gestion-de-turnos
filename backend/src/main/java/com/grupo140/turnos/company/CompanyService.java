@@ -49,6 +49,12 @@ public class CompanyService {
                 .orElse(false);
     }
 
+    /** Cantidad de empresas en un estado, para el dashboard del superadmin (US-04.6). */
+    @Transactional(readOnly = true)
+    public long countByStatus(CompanyStatus status) {
+        return companyRepository.countByStatus(status);
+    }
+
     /**
      * Alta de empresa (US-04.1): crea la empresa, su admin pendiente de activación y el token del link,
      * todo en una sola transacción. Si algo falla, no queda nada guardado.

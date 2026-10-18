@@ -29,4 +29,7 @@ public interface CompanyRepository extends Repository<Company, UUID> {
 
     @Query("select c.status from Company c where c.id = :id")
     Optional<CompanyStatus> findStatusById(@Param("id") UUID id);
+
+    // Dashboard del superadmin (US-04.6): cuenta empresas de toda la plataforma, no datos de una empresa.
+    long countByStatus(CompanyStatus status);
 }

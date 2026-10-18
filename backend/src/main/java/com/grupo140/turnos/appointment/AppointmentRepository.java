@@ -14,4 +14,8 @@ public interface AppointmentRepository extends Repository<Appointment, UUID> {
 
     long countByCompanyIdAndServiceIdAndStatusAndStartDateTimeAfter(
             UUID companyId, UUID serviceId, AppointmentStatus status, Instant after);
+
+    // Dashboard del superadmin (US-04.6): total de turnos de toda la plataforma, en cualquier estado. No
+    // lleva companyId porque no devuelve datos de una empresa, solo un número agregado.
+    long count();
 }

@@ -289,6 +289,7 @@ El `companyId` sale del JWT de la sesión, nunca del request. Es más verboso qu
 >
 > - `UserRepository.findByIdAndStatus(id, status)`, que usa la activación de cuenta. Ahí no hay sesión: el token del link prueba la identidad del usuario, y el filtro por `PENDING_ACTIVATION` acota la búsqueda a cuentas pendientes.
 > - `CompanyRepository.findById(id)` y `findAllByOrderByNameAsc()`, que usan el listado y la edición de empresas. La empresa es el propio tenant, no un dato que pertenezca a una, y solo el superadmin llega a esas consultas (`/api/superadmin/**`).
+> - `CompanyRepository.countByStatus(status)` y `AppointmentRepository.count()`, que usa el dashboard del superadmin (`GET /api/superadmin/stats`). Devuelven un solo número de toda la plataforma, no datos de una empresa.
 
 Un controller recibe la sesión como parámetro `SessionUser` y le pasa su `companyId` al service:
 

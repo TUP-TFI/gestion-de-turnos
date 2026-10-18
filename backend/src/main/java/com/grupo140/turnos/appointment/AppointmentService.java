@@ -36,4 +36,10 @@ public class AppointmentService {
         return appointmentRepository.countByCompanyIdAndServiceIdAndStatusAndStartDateTimeAfter(
                 companyId, serviceId, AppointmentStatus.PENDING, Instant.now(clock));
     }
+
+    /** Total de turnos de toda la plataforma, en cualquier estado, para el dashboard del superadmin (US-04.6). */
+    @Transactional(readOnly = true)
+    public long countAll() {
+        return appointmentRepository.count();
+    }
 }
