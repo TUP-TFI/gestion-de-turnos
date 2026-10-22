@@ -85,12 +85,12 @@ Se complementa con dos controles más del CI: **Dependency review** frena una de
 | Parte | Plataforma | Cómo se despliega | Detalle |
 | :--- | :--- | :--- | :--- |
 | Frontend | **Vercel** | Automático: cada push a `main` actualiza producción y cada rama genera un *preview* con su propia URL. | [README del frontend](../../frontend/README.md#deploy) |
-| Backend | **Render** (free tier, Docker) | Automático al llegar un commit a `main`. | [README del backend](../../backend/README.md#deploy) |
+| Backend | **Render** (free tier, Docker) | Automático al llegar un commit a `main`, pero solo cuando los checks del CI de ese commit terminan en verde (*Auto-Deploy: After CI Checks Pass*). | [README del backend](../../backend/README.md#deploy) |
 | Base de datos | **Neon** (PostgreSQL 18) | Las migraciones de Flyway se aplican al arrancar el backend. | [README del backend](../../backend/README.md#base-de-datos-y-migraciones) |
 
 El repositorio está en la organización `TUP-TFI` justamente para que cada integrante conecte su propia cuenta de despliegue: el frontend se despliega desde una cuenta y el backend desde otra (ver [§7 del README](../../README.md#7-repositorio)).
 
-> TODO (equipo): el comentario de `backend-ci.yml` dice que Render usa "Auto-Deploy: After CI Checks Pass", pero el README del backend dice "On Commit". Confirmar cuál está configurado y unificar.
+Por eso `backend-ci.yml` también corre en cada push a `main`: Render espera a que esos checks pasen antes de desplegar. Si el CI falla después de un merge, producción se queda en la versión anterior.
 
 ## 5. Asistentes de IA: Claude Code
 
