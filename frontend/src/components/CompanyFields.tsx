@@ -1,5 +1,5 @@
 import { COMPANY_CATEGORY_LABELS } from '../lib/companyCategories'
-import { FIELDSET_CLASSES, INPUT_CLASSES, LABEL_CLASSES } from '../lib/formStyles'
+import { FIELDSET_CLASSES, INPUT_CLASSES, LABEL_CLASSES, MUTED_TEXT_CLASSES, TEXTAREA_CLASSES } from '../lib/formStyles'
 import { DEFAULT_TIMEZONE, TIMEZONES } from '../lib/timezones'
 import type { CompanyCategory, CompanyData } from '../types/Company'
 
@@ -14,7 +14,7 @@ interface CompanyFieldsProps {
 export function CompanyFields({ defaultValues }: CompanyFieldsProps) {
   return (
     <fieldset className={FIELDSET_CLASSES}>
-      <legend className="px-2 text-sm font-semibold text-slate-900">
+      <legend className="px-2 text-sm font-semibold text-ink">
         Datos de la empresa
       </legend>
 
@@ -84,7 +84,7 @@ export function CompanyFields({ defaultValues }: CompanyFieldsProps) {
             <option key={timezone} value={timezone} />
           ))}
         </datalist>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className={`mt-1 ${MUTED_TEXT_CLASSES}`}>
           Escribí una ciudad o región para buscar, por ejemplo Cordoba.
         </p>
       </div>
@@ -98,7 +98,7 @@ export function CompanyFields({ defaultValues }: CompanyFieldsProps) {
           name="description"
           rows={3}
           defaultValue={defaultValues?.description ?? ''}
-          className={INPUT_CLASSES}
+          className={TEXTAREA_CLASSES}
         />
       </div>
 

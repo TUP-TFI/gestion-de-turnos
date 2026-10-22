@@ -1,16 +1,47 @@
-// Clases de Tailwind compartidas por los formularios.
-export const LABEL_CLASSES = 'block text-sm font-medium text-slate-700'
+// Clases de Tailwind compartidas por las pantallas. Los valores salen de DESIGN.md.
+export const LABEL_CLASSES = 'block text-sm font-medium text-ink'
 
 export const INPUT_CLASSES =
-  'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-light/50'
+  'mt-1 h-10 w-full rounded-lg border border-hairline bg-white px-3 text-ink focus:border-brand-light focus:outline-none focus:ring-2 focus:ring-brand-light/50'
 
-export const ERROR_CLASSES = 'rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700'
+// Igual que INPUT_CLASSES pero sin alto fijo, para los textarea.
+export const TEXTAREA_CLASSES =
+  'mt-1 w-full rounded-lg border border-hairline bg-white px-3 py-2 text-ink focus:border-brand-light focus:outline-none focus:ring-2 focus:ring-brand-light/50'
+
+export const ERROR_CLASSES =
+  'rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700'
+
+export const SUCCESS_CLASSES =
+  'rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700'
 
 export const PRIMARY_BUTTON_CLASSES =
-  'w-full cursor-pointer rounded-lg bg-brand px-4 py-2 text-center font-medium text-white hover:bg-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:opacity-60'
+  'inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-lg bg-ink px-4 text-sm font-semibold text-white hover:bg-ink-active focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
 
 export const SECONDARY_BUTTON_CLASSES =
-  'w-full cursor-pointer rounded-lg border border-slate-300 bg-white px-4 py-2 text-center font-medium text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:opacity-60'
+  'inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-hairline bg-white px-4 text-sm font-semibold text-ink hover:bg-surface-card focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
 
 export const FIELDSET_CLASSES =
-  'space-y-4 rounded-xl border border-slate-200 bg-white p-4 sm:p-6'
+  'space-y-4 rounded-xl border border-hairline bg-white p-4 shadow-sm sm:p-6'
+
+export const TABLE_WRAPPER_CLASSES =
+  'overflow-x-auto rounded-xl border border-hairline bg-white'
+
+export const TABLE_HEAD_CLASSES =
+  'border-b border-hairline bg-surface-card text-ink'
+
+export const TABLE_CELL_CLASSES = 'px-4 py-3'
+
+export const BADGE_CLASSES =
+  'inline-block rounded-full px-2.5 py-0.5 text-[13px] font-medium'
+
+export const BADGE_VARIANT_CLASSES = {
+  success: 'bg-emerald-50 text-emerald-700',
+  neutral: 'bg-surface-card text-muted',
+  warning: 'bg-amber-50 text-amber-700',
+}
+
+export const LINK_CLASSES = 'font-medium text-ink hover:underline'
+
+export const PAGE_TITLE_CLASSES = 'text-[22px] font-semibold text-ink'
+
+export const MUTED_TEXT_CLASSES = 'text-sm text-muted'

@@ -7,7 +7,11 @@ import { readCompanyData } from '../../lib/companyForm'
 import {
   ERROR_CLASSES,
   FIELDSET_CLASSES,
+  LINK_CLASSES,
+  MUTED_TEXT_CLASSES,
+  PAGE_TITLE_CLASSES,
   PRIMARY_BUTTON_CLASSES,
+  SUCCESS_CLASSES,
 } from '../../lib/formStyles'
 import { handleInvalidField, resetFieldValidity } from '../../lib/formValidation'
 
@@ -16,8 +20,6 @@ export function EditCompanyPage() {
   const { id = '' } = useParams()
   return <EditCompanyForm key={id} id={id} />
 }
-
-const BACK_LINK_CLASSES = 'font-medium text-brand hover:text-brand-dark hover:underline'
 
 function EditCompanyForm({ id }: { id: string }) {
   const { company, error: loadError, isLoading: isLoadingCompany, isNotFound } =
@@ -31,14 +33,14 @@ function EditCompanyForm({ id }: { id: string }) {
   }
 
   if (isLoadingCompany) {
-    return <p className="text-sm text-slate-600">Cargando...</p>
+    return <p className={MUTED_TEXT_CLASSES}>Cargando...</p>
   }
 
   if (isNotFound) {
     return (
       <section className="space-y-4">
-        <p className="text-sm text-slate-700">La empresa no existe</p>
-        <Link to="/superadmin/companies" className={BACK_LINK_CLASSES}>
+        <p className="text-sm text-body">La empresa no existe</p>
+        <Link to="/superadmin/companies" className={LINK_CLASSES}>
           Volver al listado
         </Link>
       </section>
@@ -67,14 +69,14 @@ function EditCompanyForm({ id }: { id: string }) {
       }}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-semibold text-slate-900">Editar empresa</h2>
-        <Link to="/superadmin/companies" className={BACK_LINK_CLASSES}>
+        <h2 className={PAGE_TITLE_CLASSES}>Editar empresa</h2>
+        <Link to="/superadmin/companies" className={LINK_CLASSES}>
           Volver al listado
         </Link>
       </div>
 
       <div className={FIELDSET_CLASSES}>
-        <dl className="space-y-2 text-sm text-slate-700">
+        <dl className="space-y-2 text-sm text-body">
           <div>
             <dt className="font-medium">Slug</dt>
             <dd>{company.slug}</dd>
@@ -84,7 +86,7 @@ function EditCompanyForm({ id }: { id: string }) {
             <dd>/{company.slug}</dd>
           </div>
         </dl>
-        <p className="text-xs text-slate-500">El slug no se puede cambiar</p>
+        <p className={MUTED_TEXT_CLASSES}>El slug no se puede cambiar</p>
       </div>
 
       <CompanyFields defaultValues={company} />
@@ -96,10 +98,7 @@ function EditCompanyForm({ id }: { id: string }) {
       )}
 
       {updatedCompany && (
-        <p
-          role="status"
-          className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700"
-        >
+        <p role="status" className={SUCCESS_CLASSES}>
           Cambios guardados
         </p>
       )}
