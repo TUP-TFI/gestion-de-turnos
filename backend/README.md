@@ -106,6 +106,8 @@ El admin recién creado activa su cuenta con `POST /api/auth/activate` y el body
 
 Ese link lo genera el alta de empresa, `POST /api/superadmin/companies`, que crea la empresa, su admin (`PENDING_ACTIVATION`) y el token (vence a las 48 h) en una sola transacción. Hasta que exista el envío por WhatsApp, `NotificationService` escribe el link en el log de la aplicación y se copia a mano: en local sale en la terminal, y en producción en la pestaña *Logs* de Render.
 
+Si el link vence o se pierde, el superadmin lo reenvía con `POST /api/superadmin/companies/{id}/resend-activation` (responde `204`): se genera un token nuevo de 48 h y los anteriores dejan de servir. Solo funciona mientras el admin siga `PENDING_ACTIVATION`; si ya activó su cuenta, responde `409 ADMIN_ALREADY_ACTIVE`. Para saber si mostrar esa opción, el detalle de la empresa (`GET /api/superadmin/companies/{id}`) incluye `admin: { email, status }`.
+
 ### Rutas por prefijo
 
 La autorización se define por prefijo en `SecurityConfig`. Los endpoints nuevos tienen que respetarlo:
@@ -131,10 +133,11 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | `ACTIVATION_TOKEN_EXPIRED` | 400 | El token de activación venció: hay que pedir el reenvío al superadmin |
 | `EMAIL_ALREADY_IN_USE` | 409 | El email del admin de la empresa nueva ya es de otro admin o de un superadmin |
 | `COMPANY_NOT_FOUND` | 404 | La empresa pedida en el detalle o la edición del superadmin no existe |
+| `ADMIN_ALREADY_ACTIVE` | 409 | Se pidió reenviar el link de activación, pero el admin ya activó su cuenta |
 | `SERVICE_NOT_FOUND` | 404 | El servicio pedido no existe o es de otra empresa |
 | `UNAUTHORIZED` | 401 | Falta el token o es inválido |
 | `FORBIDDEN` | 403 | El rol no alcanza para la ruta |
-| `VALIDATION_ERROR` | 400 | Body inválido |
+| `VALIDATION_ERROR` | 400 | Body inválido, o un valor de la dirección con formato incorrecto (por ejemplo, un id que no es UUID) |
 | `NOT_FOUND` | 404 | La ruta no existe |
 | `INTERNAL_ERROR` | 500 | Error no controlado |
 
@@ -398,14 +401,17 @@ $env:APP_SEED_ENABLED='true'; .\mvnw.cmd spring-boot:run
 | Empresa | Barbería Central (`/barberia-central`), rubro `BARBERSHOP` |
 | Servicios | Corte de pelo (30 min) y Corte y barba (60 min) |
 | Horario | Lunes a viernes 09–13 y 16–20, sábado 09–13, domingo cerrado. Intervalo de 30 min |
+| Segunda empresa | Estética Pendiente (`/estetica-pendiente`), rubro `BEAUTY_CENTER`, sin servicios ni horarios: como queda una empresa recién dada de alta |
 
-| Email | Rol | Estado |
-| :--- | :--- | :--- |
-| `superadmin@example.com` | `SUPERADMIN` | `ACTIVE` |
-| `admin@example.com` | `COMPANY_ADMIN` | `ACTIVE` |
-| `admin.pendiente@example.com` | `COMPANY_ADMIN` | `PENDING_ACTIVATION` (sin contraseña, con token de activación) |
-| `cliente1@example.com` | `CLIENT` | `ACTIVE` |
-| `cliente2@example.com` | `CLIENT` | `ACTIVE` |
+Cada empresa tiene un solo admin, igual que las que crea el alta.
+
+| Email | Rol | Empresa | Estado |
+| :--- | :--- | :--- | :--- |
+| `superadmin@example.com` | `SUPERADMIN` | — | `ACTIVE` |
+| `admin@example.com` | `COMPANY_ADMIN` | Barbería Central | `ACTIVE` |
+| `cliente1@example.com` | `CLIENT` | Barbería Central | `ACTIVE` |
+| `cliente2@example.com` | `CLIENT` | Barbería Central | `ACTIVE` |
+| `admin.pendiente@example.com` | `COMPANY_ADMIN` | Estética Pendiente | `PENDING_ACTIVATION` (sin contraseña, con token de activación) |
 
 La contraseña de los usuarios activos y el valor del token de activación están en las constantes `DEV_PASSWORD` y `DEV_ACTIVATION_TOKEN` de `DevDataSeeder`.
 

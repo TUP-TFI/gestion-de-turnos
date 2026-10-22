@@ -42,8 +42,15 @@ public class CompanyController {
 
     /** Detalle de una empresa, para el formulario de edición (US-04.3). */
     @GetMapping("/{id}")
-    public CompanyResponse get(@PathVariable UUID id) {
+    public CompanyDetailResponse get(@PathVariable UUID id) {
         return companyService.get(id);
+    }
+
+    /** Reenvío del link de activación al admin que todavía no activó su cuenta (US-04.8). */
+    @PostMapping("/{id}/resend-activation")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resendActivation(@PathVariable UUID id) {
+        companyService.resendActivation(id);
     }
 
     /** Edición de los datos de una empresa, sin el slug ni el estado (US-04.3). */

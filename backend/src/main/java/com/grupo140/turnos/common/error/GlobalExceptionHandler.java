@@ -10,6 +10,7 @@ import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -41,6 +42,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleUnreadable(HttpMessageNotReadableException ex) {
         return ResponseEntity.badRequest()
                 .body(new ApiError("VALIDATION_ERROR", "El cuerpo de la petición es inválido"));
+    }
+
+    // Un valor de la dirección que no se puede convertir al tipo esperado, por ejemplo un id que no es UUID
+    // (/api/superadmin/companies/abc). Es un error del pedido, no del servidor.
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.badRequest()
+                .body(new ApiError("VALIDATION_ERROR", "La dirección tiene un valor que no es válido"));
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

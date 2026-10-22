@@ -76,6 +76,14 @@ public class UserService {
         return userRepository.save(admin).getId();
     }
 
+    /** Admin de la empresa, o vacío si no tiene (no debería pasar: el alta siempre crea uno). */
+    @Transactional(readOnly = true)
+    public Optional<CompanyAdmin> findCompanyAdmin(UUID companyId) {
+        return userRepository
+                .findByCompanyIdAndRole(companyId, UserRole.COMPANY_ADMIN)
+                .map(admin -> new CompanyAdmin(admin.getId(), admin.getEmail(), admin.getPhone(), admin.getStatus()));
+    }
+
     private static PanelUserCredentials toCredentials(User user) {
         return new PanelUserCredentials(
                 user.getId(),
