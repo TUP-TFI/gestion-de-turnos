@@ -31,7 +31,6 @@ rama feat/... ──► commits (Conventional Commits) ──► PR contra main
 
 Las tareas se reparten entre los dos integrantes según el [alcance del MVP](../alcance-mvp.md), que asigna un responsable por ítem. En general, backend y frontend de una misma historia van en PRs separados.
 
-> TODO (equipo): confirmar si `main` tiene una regla de protección activa (review obligatoria y checks requeridos). Al preparar este borrador, la API de GitHub respondía "Branch not protected".
 
 ## 2. Integración continua
 
@@ -66,7 +65,7 @@ npm run lint
 npm run build
 ```
 
-> TODO (equipo): `frontend.yml` usa `actions/checkout@v4` y `actions/setup-node@v4` sin fijar por SHA, y no corre en push a `main`. Decidir si se alinea con el backend o se documenta como diferencia intencional.
+> ⚠️ `frontend.yml` todavía no está alineado con el backend: sus actions no están fijadas por SHA y el workflow no corre en push a `main`. Ver [#48](https://github.com/TUP-TFI/gestion-de-turnos/issues/48).
 
 ## 3. Dependencias: Dependabot
 
@@ -97,7 +96,9 @@ El repositorio está en la organización `TUP-TFI` justamente para que cada inte
 
 Durante el desarrollo se usa **Claude Code**, el asistente de programación de Anthropic que corre en la terminal, como apoyo para:
 
-> TODO (equipo): completar con el uso real. Ejemplos posibles: investigar el código antes de un cambio, redactar y revisar documentación, proponer implementaciones que después se revisan, armar los workflows de CI, revisar PRs.
+- **Generación de código:** propone implementaciones a partir de la historia de usuario o la tarea, que el desarrollador revisa y ajusta antes de commitear.
+- **Revisiones:** revisa los cambios de una rama o de un PR en busca de errores, inconsistencias con la documentación y violaciones de las convenciones del proyecto.
+- **Refinamiento:** mejora código y documentación ya escritos, por ejemplo simplificando una implementación, aplicando el feedback de una review o corrigiendo la redacción.
 
 ### Reglas de uso
 
