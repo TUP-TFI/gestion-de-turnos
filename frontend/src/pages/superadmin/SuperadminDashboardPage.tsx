@@ -1,9 +1,10 @@
 import { useAuth } from '../../hooks/useAuth'
+import { MUTED_TEXT_CLASSES } from '../../lib/formStyles'
 
 export function SuperadminDashboardPage() {
   const { session } = useAuth()
 
   return (
-    <p className="text-sm text-slate-600">Hola, {session?.user.firstName}</p>
+    <p className={MUTED_TEXT_CLASSES}>Hola, {session?.user.firstName}</p>
   )
 }

@@ -1,8 +1,18 @@
 @import "tailwindcss";
 
-/* Colores del panel. Se usan como bg-brand, border-brand, ring-brand-light, etc. */
+/* Colores y fuente del panel. Se usan como bg-brand, text-ink, border-hairline, ring-brand-light, etc. Ver DESIGN.md. */
 @theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+
   --color-brand: #356378;
   --color-brand-dark: #2c5568;
   --color-brand-light: #74a4bc;
+
+  --color-ink: #111111;
+  --color-ink-active: #242424;
+  --color-body: #374151;
+  --color-muted: #6b7280;
+  --color-hairline: #e5e7eb;
+  --color-surface: #f8f9fa;
+  --color-surface-card: #f5f5f5;
 }

@@ -55,6 +55,17 @@ public class CompanyService {
                 .orElse(false);
     }
 
+    /**
+     * Zona horaria de la empresa, con la que se interpretan las horas de su horario de atención. La usan el
+     * aviso de turnos fuera de rango (US-05.4) y el cálculo de disponibilidad (US-05.5).
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404).
+     */
+    @Transactional(readOnly = true)
+    public ZoneId zoneOf(UUID companyId) {
+        return ZoneId.of(findOrThrow(companyId).getTimezone());
+    }
+
     /** Cantidad de empresas en un estado, para el dashboard del superadmin (US-04.6). */
     @Transactional(readOnly = true)
     public long countByStatus(CompanyStatus status) {

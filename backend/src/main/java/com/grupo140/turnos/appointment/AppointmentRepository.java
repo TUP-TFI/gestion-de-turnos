@@ -16,6 +16,9 @@ public interface AppointmentRepository extends Repository<Appointment, UUID> {
     long countByCompanyIdAndServiceIdAndStatusAndStartDateTimeAfter(
             UUID companyId, UUID serviceId, AppointmentStatus status, Instant after);
 
+    List<Appointment> findAllByCompanyIdAndStatusAndStartDateTimeAfter(
+            UUID companyId, AppointmentStatus status, Instant after);
+
     // Turnos de una empresa en un estado. La desactivación de la empresa cancela todos los PENDING (US-04.4).
     List<Appointment> findByCompanyIdAndStatus(UUID companyId, AppointmentStatus status);
 
