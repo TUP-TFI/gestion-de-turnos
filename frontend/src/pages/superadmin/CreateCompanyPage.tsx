@@ -9,6 +9,8 @@ import {
   FIELDSET_CLASSES,
   INPUT_CLASSES,
   LABEL_CLASSES,
+  MUTED_TEXT_CLASSES,
+  PAGE_TITLE_CLASSES,
   PRIMARY_BUTTON_CLASSES,
   SECONDARY_BUTTON_CLASSES,
 } from '../../lib/formStyles'
@@ -37,9 +39,9 @@ export function CreateCompanyPage() {
 
   if (createdCompany) {
     return (
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
-        <h2 className="text-xl font-semibold text-slate-900">Empresa creada</h2>
-        <dl className="mt-4 space-y-2 text-sm text-slate-700">
+      <section className={FIELDSET_CLASSES}>
+        <h2 className={PAGE_TITLE_CLASSES}>Empresa creada</h2>
+        <dl className="mt-4 space-y-2 text-sm text-body">
           <div>
             <dt className="font-medium">Nombre</dt>
             <dd>{createdCompany.name}</dd>
@@ -53,10 +55,10 @@ export function CreateCompanyPage() {
             <dd>/{createdCompany.slug}</dd>
           </div>
         </dl>
-        <p className="mt-4 text-sm text-slate-600">
+        <p className={`mt-4 ${MUTED_TEXT_CLASSES}`}>
           Se envió el link de activación al admin
         </p>
-        <Link to="/superadmin/companies" className={`mt-6 block ${PRIMARY_BUTTON_CLASSES}`}>
+        <Link to="/superadmin/companies" className={`mt-6 w-full ${PRIMARY_BUTTON_CLASSES}`}>
           Ver empresas
         </Link>
         <button
@@ -65,7 +67,7 @@ export function CreateCompanyPage() {
             reset()
             setFormKey((key) => key + 1)
           }}
-          className={`mt-3 ${SECONDARY_BUTTON_CLASSES}`}
+          className={`mt-3 w-full ${SECONDARY_BUTTON_CLASSES}`}
         >
           Crear otra empresa
         </button>
@@ -86,12 +88,12 @@ export function CreateCompanyPage() {
         }
       }}
     >
-      <h2 className="text-xl font-semibold text-slate-900">Nueva empresa</h2>
+      <h2 className={PAGE_TITLE_CLASSES}>Nueva empresa</h2>
 
       <CompanyFields />
 
       <fieldset className={FIELDSET_CLASSES}>
-        <legend className="px-2 text-sm font-semibold text-slate-900">
+        <legend className="px-2 text-sm font-semibold text-ink">
           Datos del admin
         </legend>
 
@@ -164,7 +166,7 @@ export function CreateCompanyPage() {
       <button
         type="submit"
         disabled={isLoading}
-        className={PRIMARY_BUTTON_CLASSES}
+        className={`w-full ${PRIMARY_BUTTON_CLASSES}`}
       >
         {isLoading ? 'Creando...' : 'Crear empresa'}
       </button>

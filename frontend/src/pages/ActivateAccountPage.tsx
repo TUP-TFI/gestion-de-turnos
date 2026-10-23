@@ -6,6 +6,7 @@ import {
   ERROR_CLASSES,
   INPUT_CLASSES,
   LABEL_CLASSES,
+  MUTED_TEXT_CLASSES,
   PRIMARY_BUTTON_CLASSES,
 } from '../lib/formStyles'
 
@@ -28,7 +29,7 @@ export function ActivateAccountPage() {
         title="Activá tu cuenta"
         subtitle="El link de activación no es válido"
       >
-        <p className="mt-6 text-center text-sm text-slate-600">
+        <p className={`mt-6 text-center ${MUTED_TEXT_CLASSES}`}>
           Pedile al administrador de la plataforma que te envíe uno nuevo.
         </p>
       </AuthCard>
@@ -41,7 +42,7 @@ export function ActivateAccountPage() {
         title="Tu cuenta quedó activada"
         subtitle="Ya podés ingresar con tu email y tu contraseña"
       >
-        <Link to="/login" className={`mt-6 block ${PRIMARY_BUTTON_CLASSES}`}>
+        <Link to="/login" className={`mt-6 w-full ${PRIMARY_BUTTON_CLASSES}`}>
           Iniciar sesión
         </Link>
       </AuthCard>
@@ -78,7 +79,7 @@ export function ActivateAccountPage() {
             onChange={(event) => setPassword(event.target.value)}
             className={INPUT_CLASSES}
           />
-          <p className="mt-1 text-xs text-slate-500">
+          <p className={`mt-1 ${MUTED_TEXT_CLASSES}`}>
             Entre {MIN_PASSWORD_LENGTH} y {MAX_PASSWORD_LENGTH} caracteres.
           </p>
         </div>
@@ -107,7 +108,7 @@ export function ActivateAccountPage() {
         <button
           type="submit"
           disabled={isLoading}
-          className={PRIMARY_BUTTON_CLASSES}
+          className={`w-full ${PRIMARY_BUTTON_CLASSES}`}
         >
           {isLoading ? 'Activando...' : 'Activar cuenta'}
         </button>

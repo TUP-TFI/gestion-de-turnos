@@ -6,7 +6,7 @@ Interfaz del sistema de gestión de turnos. React + TypeScript + Vite.
 
 ## Puesta en marcha
 
-Requisitos: **Node 24** (fijado en `engines` del `package.json`) y **npm**. Los estilos usan **Tailwind**.
+Requisitos: **Node 24** (fijado en `engines` del `package.json`) y **npm**. Los estilos usan **Tailwind**; el sistema de diseño está en [`DESIGN.md`](DESIGN.md) y las clases compartidas en `src/lib/formStyles.ts`.
 
 ```bash
 # 1. Instalar dependencias
