@@ -42,7 +42,7 @@ export function ActivateAccountPage() {
         title="Tu cuenta quedó activada"
         subtitle="Ya podés ingresar con tu email y tu contraseña"
       >
-        <Link to="/login" className={`mt-6 ${PRIMARY_BUTTON_CLASSES}`}>
+        <Link to="/login" className={`mt-6 w-full ${PRIMARY_BUTTON_CLASSES}`}>
           Iniciar sesión
         </Link>
       </AuthCard>
@@ -108,7 +108,7 @@ export function ActivateAccountPage() {
         <button
           type="submit"
           disabled={isLoading}
-          className={PRIMARY_BUTTON_CLASSES}
+          className={`w-full ${PRIMARY_BUTTON_CLASSES}`}
         >
           {isLoading ? 'Activando...' : 'Activar cuenta'}
         </button>

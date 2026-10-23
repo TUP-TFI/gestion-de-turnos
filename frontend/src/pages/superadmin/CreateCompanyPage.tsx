@@ -58,7 +58,7 @@ export function CreateCompanyPage() {
         <p className={`mt-4 ${MUTED_TEXT_CLASSES}`}>
           Se envió el link de activación al admin
         </p>
-        <Link to="/superadmin/companies" className={`mt-6 ${PRIMARY_BUTTON_CLASSES}`}>
+        <Link to="/superadmin/companies" className={`mt-6 w-full ${PRIMARY_BUTTON_CLASSES}`}>
           Ver empresas
         </Link>
         <button
@@ -67,7 +67,7 @@ export function CreateCompanyPage() {
             reset()
             setFormKey((key) => key + 1)
           }}
-          className={`mt-3 ${SECONDARY_BUTTON_CLASSES}`}
+          className={`mt-3 w-full ${SECONDARY_BUTTON_CLASSES}`}
         >
           Crear otra empresa
         </button>
@@ -166,7 +166,7 @@ export function CreateCompanyPage() {
       <button
         type="submit"
         disabled={isLoading}
-        className={PRIMARY_BUTTON_CLASSES}
+        className={`w-full ${PRIMARY_BUTTON_CLASSES}`}
       >
         {isLoading ? 'Creando...' : 'Crear empresa'}
       </button>

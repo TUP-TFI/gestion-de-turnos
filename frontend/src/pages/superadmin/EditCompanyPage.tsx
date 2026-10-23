@@ -106,7 +106,7 @@ function EditCompanyForm({ id }: { id: string }) {
       <button
         type="submit"
         disabled={isLoading}
-        className={PRIMARY_BUTTON_CLASSES}
+        className={`w-full ${PRIMARY_BUTTON_CLASSES}`}
       >
         {isLoading ? 'Guardando...' : 'Guardar cambios'}
       </button>

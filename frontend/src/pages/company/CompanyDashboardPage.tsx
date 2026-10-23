@@ -20,7 +20,7 @@ export function CompanyDashboardPage() {
         <button
           type="button"
           onClick={logout}
-          className={`mt-6 ${SECONDARY_BUTTON_CLASSES} w-auto`}
+          className={`mt-6 ${SECONDARY_BUTTON_CLASSES}`}
         >
           Cerrar sesión
         </button>

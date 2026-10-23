@@ -34,7 +34,7 @@ export function CompaniesPage() {
         <h2 className={PAGE_TITLE_CLASSES}>Empresas</h2>
         <Link
           to="/superadmin/companies/new"
-          className={`${PRIMARY_BUTTON_CLASSES} w-auto`}
+          className={PRIMARY_BUTTON_CLASSES}
         >
           Nueva empresa
         </Link>

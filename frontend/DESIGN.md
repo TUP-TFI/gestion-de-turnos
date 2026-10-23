@@ -51,6 +51,7 @@ No usar peso mayor a 600.
 ## 5. Componentes
 
 - **Botones e inputs:** 40px de alto (`h-10`). El `textarea` no lleva alto fijo.
+- **Ancho de los botones:** por defecto, el del texto. Los botones que cierran un form o una tarjeta (guardar, iniciar sesión, activar) llevan `w-full`.
 - **Botón principal:** fondo `ink`, texto blanco. Deshabilitado: fondo `hairline`, texto `muted`.
 - **Botón secundario:** fondo blanco, borde `hairline`, texto `ink`.
 - **Foco:** anillo `brand-light` en inputs, botones y links.

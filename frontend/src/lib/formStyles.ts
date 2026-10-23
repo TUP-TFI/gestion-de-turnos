@@ -14,11 +14,13 @@ export const ERROR_CLASSES =
 export const SUCCESS_CLASSES =
   'rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700'
 
+// Los botones no traen ancho: se agrega `w-full` donde haga falta. Sumar `w-auto` encima de `w-full` no
+// sirve, porque en Tailwind gana la clase que aparece después en el CSS, no la última del className.
 export const PRIMARY_BUTTON_CLASSES =
-  'inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-lg bg-ink px-4 text-sm font-semibold text-white hover:bg-ink-active focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
+  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-ink px-4 text-sm font-semibold text-white hover:bg-ink-active focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
 
 export const SECONDARY_BUTTON_CLASSES =
-  'inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-hairline bg-white px-4 text-sm font-semibold text-ink hover:bg-surface-card focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
+  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-hairline bg-white px-4 text-sm font-semibold text-ink hover:bg-surface-card focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
 
 export const FIELDSET_CLASSES =
   'space-y-4 rounded-xl border border-hairline bg-white p-4 shadow-sm sm:p-6'

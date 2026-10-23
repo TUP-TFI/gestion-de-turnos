@@ -43,7 +43,7 @@ export function PanelLayout({ title, navItems }: PanelLayoutProps) {
           <button
             type="button"
             onClick={logout}
-            className={`${SECONDARY_BUTTON_CLASSES} w-auto`}
+            className={SECONDARY_BUTTON_CLASSES}
           >
             Cerrar sesión
           </button>
