@@ -2,6 +2,7 @@ import type { FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import { CompanyFields } from '../../components/CompanyFields'
 import { useCompany } from '../../hooks/useCompany'
+import { useRedirectAfterSuccess } from '../../hooks/useRedirectAfterSuccess'
 import { useUpdateCompany } from '../../hooks/useUpdateCompany'
 import { readCompanyData } from '../../lib/companyForm'
 import {
@@ -26,6 +27,8 @@ function EditCompanyForm({ id }: { id: string }) {
     useCompany(id)
   const { updateCompany, updatedCompany, error, isLoading, reset } =
     useUpdateCompany(id)
+  // Guardado: muestra el aviso y a los pocos segundos vuelve al listado.
+  useRedirectAfterSuccess(Boolean(updatedCompany), '/superadmin/companies')
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -62,8 +65,7 @@ function EditCompanyForm({ id }: { id: string }) {
       onInvalidCapture={handleInvalidField}
       onInputCapture={(event) => {
         resetFieldValidity(event)
-        // Al volver a editar se limpia el resultado del último guardado: el error o el aviso de éxito.
-        if (error || updatedCompany) {
+        if (error) {
           reset()
         }
       }}
@@ -105,7 +107,7 @@ function EditCompanyForm({ id }: { id: string }) {
 
       <button
         type="submit"
-        disabled={isLoading}
+        disabled={isLoading || Boolean(updatedCompany)}
         className={`w-full ${PRIMARY_BUTTON_CLASSES}`}
       >
         {isLoading ? 'Guardando...' : 'Guardar cambios'}
