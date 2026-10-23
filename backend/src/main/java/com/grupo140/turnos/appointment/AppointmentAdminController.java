@@ -1,9 +1,13 @@
 package com.grupo140.turnos.appointment;
 
 import com.grupo140.turnos.common.security.SessionUser;
+import com.grupo140.turnos.schedule.BusinessHoursRequest;
+import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -12,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
  * {@code COMPANY_ADMIN} (ver {@code SecurityConfig}).
  */
 @RestController
-@RequestMapping("/api/company/services")
+@RequestMapping("/api/company")
 public class AppointmentAdminController {
 
     private final AppointmentService appointmentService;
@@ -22,8 +26,15 @@ public class AppointmentAdminController {
     }
 
     /** Cantidad de turnos pendientes futuros de un servicio, para avisar antes de desactivarlo (US-05.2). */
-    @GetMapping("/{id}/future-appointments")
-    public FutureAppointmentsResponse futureAppointments(SessionUser session, @PathVariable UUID id) {
-        return new FutureAppointmentsResponse(appointmentService.countFutureByService(session.companyId(), id));
+    @GetMapping("/services/{id}/future-appointments")
+    public AppointmentCountResponse futureAppointments(SessionUser session, @PathVariable UUID id) {
+        return new AppointmentCountResponse(appointmentService.countFutureByService(session.companyId(), id));
+    }
+
+    /** Cantidad de turnos pendientes futuros fuera de un horario propuesto, sin guardarlo (US-05.4). */
+    @PostMapping("/business-hours/out-of-range-appointments")
+    public AppointmentCountResponse outOfRangeAppointments(
+            SessionUser session, @Valid @RequestBody BusinessHoursRequest request) {
+        return new AppointmentCountResponse(appointmentService.countOutOfRange(session.companyId(), request));
     }
 }

@@ -135,6 +135,7 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | `COMPANY_NOT_FOUND` | 404 | La empresa pedida en el detalle o la edición del superadmin no existe |
 | `ADMIN_ALREADY_ACTIVE` | 409 | Se pidió reenviar el link de activación, pero el admin ya activó su cuenta |
 | `SERVICE_NOT_FOUND` | 404 | El servicio pedido no existe o es de otra empresa |
+| `INVALID_BUSINESS_HOURS` | 400 | El horario semanal tiene una franja que termina antes de empezar, o dos franjas del mismo día superpuestas |
 | `UNAUTHORIZED` | 401 | Falta el token o es inválido |
 | `FORBIDDEN` | 403 | El rol no alcanza para la ruta |
 | `VALIDATION_ERROR` | 400 | Body inválido, o un valor de la dirección con formato incorrecto (por ejemplo, un id que no es UUID) |
