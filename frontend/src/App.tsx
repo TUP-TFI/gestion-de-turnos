@@ -3,6 +3,10 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { ActivateAccountPage } from './pages/ActivateAccountPage'
 import { LoginPage } from './pages/LoginPage'
 import { CompanyDashboardPage } from './pages/company/CompanyDashboardPage'
+import { CompanyLayout } from './pages/company/CompanyLayout'
+import { CreateServicePage } from './pages/company/CreateServicePage'
+import { EditServicePage } from './pages/company/EditServicePage'
+import { ServicesPage } from './pages/company/ServicesPage'
 import { CompaniesPage } from './pages/superadmin/CompaniesPage'
 import { CreateCompanyPage } from './pages/superadmin/CreateCompanyPage'
 import { EditCompanyPage } from './pages/superadmin/EditCompanyPage'
@@ -25,7 +29,12 @@ function App() {
       </Route>
 
       <Route element={<ProtectedRoute allowedRole="COMPANY_ADMIN" />}>
-        <Route path="/company/dashboard" element={<CompanyDashboardPage />} />
+        <Route element={<CompanyLayout />}>
+          <Route path="/company/dashboard" element={<CompanyDashboardPage />} />
+          <Route path="/company/services" element={<ServicesPage />} />
+          <Route path="/company/services/new" element={<CreateServicePage />} />
+          <Route path="/company/services/:id/edit" element={<EditServicePage />} />
+        </Route>
       </Route>
 
       <Route path="*" element={<Navigate to="/login" replace />} />
