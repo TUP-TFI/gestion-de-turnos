@@ -10,6 +10,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class CompanyService {
     private final UserService userService;
     private final ActivationService activationService;
     private final NotificationService notificationService;
+    private final ApplicationEventPublisher events;
     private final String frontendUrl;
 
     public CompanyService(
@@ -33,12 +35,14 @@ public class CompanyService {
             UserService userService,
             ActivationService activationService,
             NotificationService notificationService,
+            ApplicationEventPublisher events,
             @Value("${app.frontend-url}") String frontendUrl) {
         this.companyRepository = companyRepository;
         this.slugGenerator = slugGenerator;
         this.userService = userService;
         this.activationService = activationService;
         this.notificationService = notificationService;
+        this.events = events;
         this.frontendUrl = frontendUrl;
     }
 
@@ -152,6 +156,47 @@ public class CompanyService {
 
         Company company = findOrThrow(id);
         applyData(company, data);
+        return CompanyResponse.from(companyRepository.saveAndFlush(company));
+    }
+
+    /**
+     * Desactiva una empresa (US-04.4): nunca se borra, pasa a {@link CompanyStatus#INACTIVE}. Publica
+     * {@link CompanyDeactivatedEvent} para que {@code appointment} cancele sus turnos pendientes en la misma
+     * transacción. El login del admin queda bloqueado solo, porque se deriva del estado de la empresa.
+     *
+     * <p>Si ya estaba inactiva, no hace nada y devuelve la empresa igual.
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404).
+     */
+    @Transactional
+    public CompanyResponse deactivate(UUID id) {
+        Company company = findOrThrow(id);
+        if (company.getStatus() == CompanyStatus.INACTIVE) {
+            return CompanyResponse.from(company);
+        }
+
+        company.setStatus(CompanyStatus.INACTIVE);
+        company = companyRepository.saveAndFlush(company);
+        events.publishEvent(new CompanyDeactivatedEvent(id));
+        return CompanyResponse.from(company);
+    }
+
+    /**
+     * Reactiva una empresa (US-04.5): vuelve a {@link CompanyStatus#ACTIVE} con la configuración que ya tenía.
+     * Los turnos cancelados al desactivarla no se recuperan.
+     *
+     * <p>Si ya estaba activa, no hace nada y devuelve la empresa igual.
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404).
+     */
+    @Transactional
+    public CompanyResponse reactivate(UUID id) {
+        Company company = findOrThrow(id);
+        if (company.getStatus() == CompanyStatus.ACTIVE) {
+            return CompanyResponse.from(company);
+        }
+
+        company.setStatus(CompanyStatus.ACTIVE);
         return CompanyResponse.from(companyRepository.saveAndFlush(company));
     }
 

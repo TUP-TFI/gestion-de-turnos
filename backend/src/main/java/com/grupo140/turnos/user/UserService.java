@@ -84,6 +84,15 @@ public class UserService {
                 .map(admin -> new CompanyAdmin(admin.getId(), admin.getEmail(), admin.getPhone(), admin.getStatus()));
     }
 
+    /**
+     * Teléfono de un cliente de la empresa, para avisarle de un cambio en su turno (US-04.4). Vacío si el
+     * usuario no existe o es de otra empresa.
+     */
+    @Transactional(readOnly = true)
+    public Optional<String> findPhone(UUID userId, UUID companyId) {
+        return userRepository.findByIdAndCompanyId(userId, companyId).map(User::getPhone);
+    }
+
     private static PanelUserCredentials toCredentials(User user) {
         return new PanelUserCredentials(
                 user.getId(),

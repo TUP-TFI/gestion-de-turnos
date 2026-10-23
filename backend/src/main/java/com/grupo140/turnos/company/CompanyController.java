@@ -53,6 +53,18 @@ public class CompanyController {
         companyService.resendActivation(id);
     }
 
+    /** Desactivación de una empresa: cancela sus turnos pendientes y bloquea el login de su admin (US-04.4). */
+    @PostMapping("/{id}/deactivate")
+    public CompanyResponse deactivate(@PathVariable UUID id) {
+        return companyService.deactivate(id);
+    }
+
+    /** Reactivación de una empresa con la configuración que ya tenía (US-04.5). */
+    @PostMapping("/{id}/reactivate")
+    public CompanyResponse reactivate(@PathVariable UUID id) {
+        return companyService.reactivate(id);
+    }
+
     /** Edición de los datos de una empresa, sin el slug ni el estado (US-04.3). */
     @PutMapping("/{id}")
     public CompanyResponse update(@PathVariable UUID id, @Valid @RequestBody CreateCompanyRequest.CompanyData request) {

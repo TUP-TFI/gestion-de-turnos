@@ -3,8 +3,10 @@ package com.grupo140.turnos.appointment;
 import com.grupo140.turnos.catalog.CatalogService;
 import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.company.CompanyService;
+import com.grupo140.turnos.notification.NotificationService;
 import com.grupo140.turnos.schedule.BusinessHoursRequest;
 import com.grupo140.turnos.schedule.ScheduleService;
+import com.grupo140.turnos.user.UserService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -20,10 +22,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AppointmentService {
 
+    // Motivo que queda guardado en los turnos cancelados por la baja de la empresa (US-04.4).
+    static final String COMPANY_DEACTIVATED_REASON = "La empresa fue dada de baja";
+
     private final AppointmentRepository appointmentRepository;
     private final CatalogService catalogService;
     private final ScheduleService scheduleService;
     private final CompanyService companyService;
+    private final UserService userService;
+    private final NotificationService notificationService;
     private final Clock clock;
 
     public AppointmentService(
@@ -31,11 +38,15 @@ public class AppointmentService {
             CatalogService catalogService,
             ScheduleService scheduleService,
             CompanyService companyService,
+            UserService userService,
+            NotificationService notificationService,
             Clock clock) {
         this.appointmentRepository = appointmentRepository;
         this.catalogService = catalogService;
         this.scheduleService = scheduleService;
         this.companyService = companyService;
+        this.userService = userService;
+        this.notificationService = notificationService;
         this.clock = clock;
     }
 
@@ -87,6 +98,42 @@ public class AppointmentService {
                 .filter(slot -> slot.dayOfWeek() == start.getDayOfWeek())
                 .anyMatch(slot -> !start.toLocalTime().isBefore(slot.startTime())
                         && !end.toLocalTime().isAfter(slot.endTime()));
+    }
+
+    /**
+     * Cancela todos los turnos pendientes de una empresa que se desactivó (US-04.4). Quedan cancelados por la
+     * empresa, con la fecha y el motivo; al reactivarla no se recuperan (US-04.5).
+     *
+     * @return cuántos turnos se cancelaron.
+     */
+    @Transactional
+    public int cancelPendingByCompany(UUID companyId) {
+        Instant now = Instant.now(clock);
+        List<Appointment> pending =
+                appointmentRepository.findByCompanyIdAndStatus(companyId, AppointmentStatus.PENDING);
+        for (Appointment appointment : pending) {
+            appointment.setStatus(AppointmentStatus.CANCELLED);
+            appointment.setCancelledBy(CancelledBy.COMPANY);
+            appointment.setCancelledAt(now);
+            appointment.setCancellationReason(COMPANY_DEACTIVATED_REASON);
+            String phone = clientPhone(appointment);
+            if (phone != null) {
+                notificationService.sendAppointmentCancelled(
+                        phone, appointment.getStartDateTime(), COMPANY_DEACTIVATED_REASON);
+            }
+        }
+        return pending.size();
+    }
+
+    // El cliente registrado tiene su teléfono en su cuenta; el turno cargado a mano por el admin lo guarda en el
+    // propio turno. Si no hay ninguno de los dos, no hay a quién avisar.
+    private String clientPhone(Appointment appointment) {
+        if (appointment.getClientId() != null) {
+            return userService
+                    .findPhone(appointment.getClientId(), appointment.getCompanyId())
+                    .orElse(null);
+        }
+        return appointment.getManualClientPhone();
     }
 
     /** Total de turnos de toda la plataforma, en cualquier estado, para el dashboard del superadmin (US-04.6). */
