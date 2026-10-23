@@ -60,7 +60,10 @@ public class ScheduleService {
                         companyId, slot.dayOfWeek(), slot.startTime(), slot.endTime(), slot.intervalMinutes())))
                 .toList();
         businessHoursRepository.flush();
-        return saved.stream().sorted(BY_DAY_AND_START).map(BusinessHoursResponse::from).toList();
+        return saved.stream()
+                .sorted(BY_DAY_AND_START)
+                .map(BusinessHoursResponse::from)
+                .toList();
     }
 
     /**
@@ -81,8 +84,8 @@ public class ScheduleService {
             }
         }
 
-        Map<DayOfWeek, List<BusinessHoursRequest.Slot>> byDay = request.hours().stream()
-                .collect(Collectors.groupingBy(BusinessHoursRequest.Slot::dayOfWeek));
+        Map<DayOfWeek, List<BusinessHoursRequest.Slot>> byDay =
+                request.hours().stream().collect(Collectors.groupingBy(BusinessHoursRequest.Slot::dayOfWeek));
         byDay.forEach((day, slots) -> {
             List<BusinessHoursRequest.Slot> sorted = slots.stream()
                     .sorted(Comparator.comparing(BusinessHoursRequest.Slot::startTime))

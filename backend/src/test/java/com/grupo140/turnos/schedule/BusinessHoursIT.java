@@ -84,9 +84,7 @@ class BusinessHoursIT {
     void contiguousSlotsAreAccepted() throws Exception {
         String week = hours(slot("MONDAY", "09:00", "13:00"), slot("MONDAY", "13:00", "17:00"));
 
-        mockMvc.perform(adminJson(put(HOURS), week))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(2)));
+        mockMvc.perform(adminJson(put(HOURS), week)).andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(2)));
     }
 
     @Test
