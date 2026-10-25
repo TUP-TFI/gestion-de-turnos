@@ -30,7 +30,7 @@ Para emparejar la carga de back entre los dos:
 ## Decisiones de diseño
 
 - **Email único global para `COMPANY_ADMIN`.** El login del panel (`/login`) recibe solo email y contraseña, sin empresa, y lo usan tanto los admins como el superadmin. Como el índice de la base permite el mismo email en dos empresas, y también separa a los superadmins de los usuarios con empresa, el login podría encontrar más de un usuario con el mismo email y no sabría cuál elegir. Se resuelve validando en el alta de empresa (US-04.1) que el email del admin no exista como `COMPANY_ADMIN` en ninguna otra empresa ni como `SUPERADMIN`. No requiere migración. Los clientes siguen con email único por empresa.
-- **Superadmin en producción.** El seed corre solo en desarrollo, así que en producción no hay ningún superadmin y nadie podría dar de alta la primera empresa. Se carga un solo superadmin a mano, una vez, en la base de producción. El procedimiento (cómo generar el hash BCrypt de la contraseña y el `INSERT` exacto) se documenta en el README del backend, para poder repetirlo si se recrea la base.
+- **Superadmin y usuarios de prueba en producción.** El seed de demo (`DemoDataSeeder`) también corre en Render si se prende con `APP_SEED_ENABLED=true`. Carga el superadmin, un admin activo, clientes y un admin pendiente de activación, para que el tutor pruebe la UI desplegada sin depender de un link de activación. En producción, la contraseña y el token salen de variables de entorno (`SEED_PASSWORD`, `SEED_ACTIVATION_TOKEN`), nunca de los valores de dev que están en el repositorio. Cada arranque crea solo lo que falta, así que el seed se actualiza con cada funcionalidad nueva sin duplicar datos. Antes de la entrega final se decide si se apaga y se borran los usuarios de prueba, o si quedan como cuentas de demostración. Detalle en la sección *Seeds y datos de prueba* del README del backend.
 - **Un solo PR de autenticación.** US-03.1, US-03.2, US-03.9 y US-03.10 comparten infraestructura (Spring Security, JWT, manejador de errores) y se prueban juntas.
 
 ## Lo que no se recorta
@@ -1093,7 +1093,7 @@ Ajustes detectados durante el desarrollo que quedaron fuera de los PRs de cada h
 
 #### T-14.1 — Despliegue final estable
 
-- **Backend (Nico):** verificar que la versión final está desplegada y estable en Render, y que la base de producción tiene el superadmin cargado a mano según el procedimiento del README del backend (ver *Decisiones de diseño* → superadmin en producción).
+- **Backend (Nico):** verificar que la versión final está desplegada y estable en Render, y decidir qué pasa con el seed de demo en producción: apagarlo y borrar los usuarios de prueba, o dejarlos como cuentas de demostración (ver *Decisiones de diseño* → superadmin y usuarios de prueba en producción).
 - **Frontend (Brune):** verificar que la versión final está desplegada y estable en Vercel.
 
 Listo cuando: ambos entornos responden sin errores con la última versión.

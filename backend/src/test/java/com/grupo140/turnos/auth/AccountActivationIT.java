@@ -1,6 +1,6 @@
 package com.grupo140.turnos.auth;
 
-import static com.grupo140.turnos.seed.DevDataSeeder.DEV_ACTIVATION_TOKEN;
+import static com.grupo140.turnos.seed.SeedTestValues.DEV_ACTIVATION_TOKEN;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;

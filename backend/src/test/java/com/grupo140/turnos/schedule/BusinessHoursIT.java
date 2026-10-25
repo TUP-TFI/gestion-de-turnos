@@ -1,6 +1,6 @@
 package com.grupo140.turnos.schedule;
 
-import static com.grupo140.turnos.seed.DevDataSeeder.DEV_PASSWORD;
+import static com.grupo140.turnos.seed.SeedTestValues.DEV_PASSWORD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.startsWith;
