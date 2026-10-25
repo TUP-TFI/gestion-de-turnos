@@ -161,6 +161,9 @@ Responsable: Brune
 El seed no es decorativo: hay cuatro historias del Paso 3 al 6 que dependen de él para poder probarse de forma aislada, sin esperar a que el flujo que crea esos datos esté terminado.
 
 Tareas — cargar, vía un `CommandLineRunner` restringido al perfil local/dev (`@Profile("dev")`):
+
+> Actualización: hoy el seed es `DemoDataSeeder` y ya no depende del perfil. Corre en cualquier perfil con `app.seed.enabled=true`, también en Render (ver *Decisiones de diseño* → superadmin y usuarios de prueba en producción).
+
 - Un **superadmin** en `ACTIVE` → US-03.1.
 - Una **empresa de ejemplo** con `timezone` cargada, un par de **servicios** y su **horario semanal** (`BusinessHours`, con al menos un día de jornada partida) → US-05.5, US-06.1, US-06.2.
 - Su **admin en `ACTIVE`**, con contraseña ya definida → US-03.2, que se prueba sin necesidad de tener lista la activación.

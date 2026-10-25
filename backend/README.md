@@ -12,7 +12,7 @@ Requisitos: **JDK 21** y **Docker**. Maven no hace falta: el proyecto usa el wra
 # 1. Levantar PostgreSQL 18 en el puerto 5433
 docker compose up -d
 
-# 2. Arrancar la API (perfil dev por defecto)
+# 2. Arrancar la API (con Maven, el perfil por defecto es dev)
 ./mvnw spring-boot:run
 
 # 3. Verificar
@@ -30,7 +30,7 @@ El perfil `dev` trae valores por defecto que coinciden con el `docker-compose.ym
 
 | Variable | Perfil | Descripción |
 | :--- | :--- | :--- |
-| `SPRING_PROFILES_ACTIVE` | ambos | `dev` (default) o `prod`. Va en el comando, no en el `.env`: ese archivo lo importa el perfil `prod`, que para leerlo ya tiene que estar activo. |
+| `SPRING_PROFILES_ACTIVE` | ambos | `dev` o `prod`. Con `./mvnw spring-boot:run`, sin la variable se usa `dev`; el `.jar` sin la variable no arranca (ver [Perfiles](#perfiles)). Va en el comando, no en el `.env`: ese archivo lo importa el perfil `prod`, que para leerlo ya tiene que estar activo. |
 | `DB_URL` | prod | URL JDBC de la base. En Neon, el host **directo** (sin `-pooler`): Flyway necesita locks de sesión. |
 | `DB_USERNAME` | prod | Usuario de la base. |
 | `DB_PASSWORD` | prod | Contraseña de la base. |
@@ -57,8 +57,10 @@ SPRING_PROFILES_ACTIVE=prod ./mvnw spring-boot:run  # base de Neon, lee el .env
 
 | Perfil | Base | Notas |
 | :--- | :--- | :--- |
-| `dev` | `localhost:5433` (docker-compose) | `show-sql: true`. Es el default si no se define `SPRING_PROFILES_ACTIVE`. |
+| `dev` | `localhost:5433` (docker-compose) | `show-sql: true`. Es el default de `./mvnw spring-boot:run` y de los tests, si no se define `SPRING_PROFILES_ACTIVE`. |
 | `prod` | Neon, por variables de entorno | Sin defaults: si falta una variable, la app no arranca. Pool de Hikari limitado a 5 conexiones por el free tier. |
+
+> ⚠️ **No hay perfil por defecto en `application.yml`, a propósito.** El default `dev` lo ponen Maven (`spring-boot:run`) y failsafe (tests) en el `pom.xml`. El `.jar` que corre en Render no lo hereda: si ahí faltara `SPRING_PROFILES_ACTIVE=prod`, la app no arranca, en vez de arrancar en `dev` contra Neon con el secreto del JWT y la contraseña del seed que están en el repositorio. Si corrés la app desde el IDE (botón Run sobre `TurnosApplication`), definí el perfil `dev` en la configuración de ejecución.
 
 ## Deploy
 
@@ -76,6 +78,7 @@ Configuración del servicio en Render:
 | Root Directory | `backend` |
 | Dockerfile Path | `./Dockerfile` |
 | Health Check Path | `/actuator/health` |
+| Environment | `SPRING_PROFILES_ACTIVE=prod` y las variables `prod` de la tabla de [Variables de entorno](#variables-de-entorno) |
 | Auto-Deploy | On Commit |
 
 Probar la imagen antes de subirla:
@@ -393,6 +396,8 @@ $env:APP_SEED_ENABLED='true'; .\mvnw.cmd spring-boot:run
 ```
 
 > ⚠️ `app.seed.enabled` **no se define en ningún `application*.yml`**, a propósito: se prende a mano en local y con la variable `APP_SEED_ENABLED` en Render. Apagarlo es sacar la variable.
+>
+> En Render tiene que estar `SPRING_PROFILES_ACTIVE=prod`. Sin perfil, la app no arranca (ver [Perfiles](#perfiles)), así que el seed nunca corre con los valores de dev contra Neon.
 
 ### Contraseña y token
 
