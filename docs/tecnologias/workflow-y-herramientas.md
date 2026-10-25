@@ -34,7 +34,7 @@ Las tareas se reparten entre los dos integrantes según el [alcance del MVP](../
 
 ## 2. Integración continua
 
-Todo corre en **GitHub Actions**, con los workflows de [`.github/workflows`](../../.github/workflows). Cada check aparece en el PR: si uno bloqueante falla, el PR no se mergea.
+Todo corre en **GitHub Actions**, con los workflows de [`.github/workflows`](../../.github/workflows). Cada check aparece en el PR: si uno bloqueante falla, el PR no se mergea. Lo exige el ruleset `Proteger main` del repo, que además pide una review aprobada y no permite borrar `main` ni hacerle force push.
 
 | Workflow | Cuándo corre | Qué verifica | Bloquea |
 | :--- | :--- | :--- | :--- |
@@ -94,7 +94,7 @@ Por eso `backend-ci.yml` también corre en cada push a `main`: Render espera a q
 
 ## 5. Asistentes de IA: Claude Code
 
-Durante el desarrollo se usa **Claude Code**, el asistente de programación de Anthropic que corre en la terminal, como apoyo para:
+Los dos integrantes usan **Claude Code**, el asistente de programación de Anthropic que corre en la terminal, como apoyo para:
 
 - **Generación de código:** propone implementaciones a partir de la historia de usuario o la tarea, que el desarrollador revisa y ajusta antes de commitear.
 - **Revisiones:** revisa los cambios de una rama o de un PR en busca de errores, inconsistencias con la documentación y violaciones de las convenciones del proyecto.
@@ -110,10 +110,8 @@ Las reglas están en [`AGENTS.md`](../../AGENTS.md), en la raíz del repo, y val
 
 ### Trazabilidad
 
-- Los commits hechos con ayuda del agente llevan la línea `Co-Authored-By: Claude ...`, así queda registrado en el historial qué cambios tuvieron asistencia de IA.
+- Algunos commits hechos con ayuda del agente llevan la línea `Co-Authored-By: Claude ...`, pero no se usó en todos. Por eso el historial no sirve para saber qué cambios tuvieron asistencia de IA.
 - El código generado pasa por el mismo CI y la misma review del otro integrante que el código escrito a mano. El responsable del cambio es siempre el desarrollador que lo commitea.
-
-> TODO (equipo): confirmar si ambos integrantes usan Claude Code (u otro asistente) y si se siguió la convención de `Co-Authored-By` en todos los casos. Hoy hay un solo commit con esa línea en el historial.
 
 ## 6. Otras herramientas
 
@@ -126,5 +124,5 @@ Las reglas están en [`AGENTS.md`](../../AGENTS.md), en la raíz del repo, y val
 | **Maven Wrapper (`./mvnw`)** | Build del backend sin instalar Maven. |
 | **Spring Boot Actuator** | `/actuator/health`, que Render usa como health check. |
 | **GitHub CLI (`gh`)** | Gestión de PRs y ramas desde la terminal. |
-
-> TODO (equipo): agregar las herramientas que falten, por ejemplo IDE, cliente HTTP para probar la API (Postman, Bruno, etc.), o tablero de tareas si se usa alguno.
+| **IntelliJ IDEA** | IDE para el desarrollo. |
+| **Postman** | Cliente HTTP para probar los endpoints de la API. |
