@@ -47,14 +47,15 @@ export function ServiceFields({ defaultValues }: ServiceFieldsProps) {
           Precio *
         </label>
         {/* Texto en vez de number: el input numérico no deja escribir la coma decimal ni el punto de miles.
-            Acepta 1500, 1500,99, 1.500 y 1.500,99; readServiceData lo pasa a número. */}
+            Acepta 1500, 1500,99, 1.500 y 1.500,99, con hasta 8 cifras enteras como @Digits del backend;
+            readServiceData lo pasa a número. */}
         <input
           id="price"
           name="price"
           type="text"
           inputMode="decimal"
           required
-          pattern="\d+(,\d{1,2})?|\d{1,3}(\.\d{3})+(,\d{1,2})?"
+          pattern="\d{1,8}(,\d{1,2})?|(\d{1,3}|\d{1,2}\.\d{3})\.\d{3}(,\d{1,2})?"
           defaultValue={
             defaultValues ? String(defaultValues.price).replace('.', ',') : undefined
           }

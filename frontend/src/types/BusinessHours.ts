@@ -11,3 +11,10 @@ export interface BusinessHours {
   createdAt: string
   updatedAt: string
 }
+
+// Una franja de PUT /api/company/business-hours y del conteo de turnos fuera de rango. Las horas van como
+// 'HH:mm' y se interpretan en la zona horaria de la empresa.
+export type BusinessHoursSlot = Pick<
+  BusinessHours,
+  'dayOfWeek' | 'startTime' | 'endTime' | 'intervalMinutes'
+>
