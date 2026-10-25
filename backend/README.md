@@ -114,6 +114,12 @@ Ese link lo genera el alta de empresa, `POST /api/superadmin/companies`, que cre
 
 Si el link vence o se pierde, el superadmin lo reenvía con `POST /api/superadmin/companies/{id}/resend-activation` (responde `204`): se genera un token nuevo de 48 h y los anteriores dejan de servir. Solo funciona mientras el admin siga `PENDING_ACTIVATION`; si ya activó su cuenta, responde `409 ADMIN_ALREADY_ACTIVE`. Para saber si mostrar esa opción, el detalle de la empresa (`GET /api/superadmin/companies/{id}`) incluye `admin: { email, status }`. El reenvío también funciona con la empresa desactivada: el admin puede definir su contraseña, pero no entra hasta que la empresa se reactive (ver abajo).
 
+### Marca de la empresa
+
+El admin personaliza su página pública con `GET /api/company/branding` y `PUT /api/company/branding`. Las dos usan la empresa de la sesión, nunca una del body ni de la URL. Responden `200` con `{ logoUrl, primaryColor }`, y los dos valores pueden ser `null`.
+
+El `PUT` reemplaza los dos campos: lo que llega en `null`, o no llega, se borra. `primaryColor` tiene el formato `#RRGGBB` (el mismo `CHECK` de la base) y `logoUrl` hasta 500 caracteres, la misma validación que usa el superadmin al crear o editar la empresa, porque los dos escriben el mismo campo. Un valor inválido responde `400 VALIDATION_ERROR`. No hay storage: el logo es una URL cargada a mano.
+
 ### Desactivar y reactivar una empresa
 
 `POST /api/superadmin/companies/{id}/deactivate` y `POST /api/superadmin/companies/{id}/reactivate`, sin body. Responden `200` con la empresa actualizada, o `404 COMPANY_NOT_FOUND`. Si la empresa ya estaba en ese estado, responden `200` igual y no hacen nada.

@@ -160,6 +160,30 @@ public class CompanyService {
     }
 
     /**
+     * Logo y color primario de la empresa, para la pantalla de marca del admin (US-05.7).
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404).
+     */
+    @Transactional(readOnly = true)
+    public BrandingResponse getBranding(UUID companyId) {
+        return BrandingResponse.from(findOrThrow(companyId));
+    }
+
+    /**
+     * Reemplaza el logo y el color primario de la empresa (US-05.7). Un valor {@code null} lo borra. El logo
+     * también lo edita el superadmin desde {@link #update}: el último que guarda gana.
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404).
+     */
+    @Transactional
+    public BrandingResponse updateBranding(UUID companyId, BrandingRequest request) {
+        Company company = findOrThrow(companyId);
+        company.setLogoUrl(request.logoUrl());
+        company.setPrimaryColor(request.primaryColor());
+        return BrandingResponse.from(companyRepository.saveAndFlush(company));
+    }
+
+    /**
      * Desactiva una empresa (US-04.4): nunca se borra, pasa a {@link CompanyStatus#INACTIVE}. Publica
      * {@link CompanyDeactivatedEvent} para que {@code appointment} cancele sus turnos pendientes en la misma
      * transacción. El login del admin queda bloqueado solo, porque se deriva del estado de la empresa.
