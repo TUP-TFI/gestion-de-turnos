@@ -73,7 +73,7 @@ Configuración del servicio en Render:
 | Root Directory | `backend` |
 | Dockerfile Path | `./Dockerfile` |
 | Health Check Path | `/actuator/health` |
-| Auto-Deploy | On Commit |
+| Auto-Deploy | After CI Checks Pass |
 
 Probar la imagen antes de subirla:
 

@@ -42,6 +42,7 @@ La documentación está dividida según su ciclo de vida: en `docs/` vive **el q
 - [Diccionario de datos](docs/tecnologias/diccionario-datos.md) — modelo lógico: entidades, atributos y reglas de integridad.
 - [Esquema de base de datos](docs/tecnologias/esquema-bd.md) — DDL de PostgreSQL, índices, constraints y DBML del diagrama.
 - [Convenciones técnicas](docs/tecnologias/convenciones.md)
+- [Workflow y herramientas](docs/tecnologias/workflow-y-herramientas.md) — flujo de trabajo, CI, Dependabot, despliegue y uso de IA.
 
 ## 4. Stack
 
