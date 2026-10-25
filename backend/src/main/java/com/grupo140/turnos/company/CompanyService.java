@@ -105,14 +105,19 @@ public class CompanyService {
      * Reenvío del link de activación al admin que todavía no activó su cuenta (US-04.8). El link anterior
      * deja de servir.
      *
-     * @throws ApiException {@code COMPANY_NOT_FOUND} (404) o {@code ADMIN_ALREADY_ACTIVE} (409).
+     * <p>Bloquea la fila del admin mientras renueva el token, para que dos reenvíos simultáneos no dejen
+     * dos links vigentes.
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404), {@code COMPANY_WITHOUT_ADMIN} (409) o
+     *     {@code ADMIN_ALREADY_ACTIVE} (409).
      */
     @Transactional
     public void resendActivation(UUID id) {
         findOrThrow(id);
         CompanyAdmin admin = userService
-                .findCompanyAdmin(id)
-                .orElseThrow(() -> new IllegalStateException("La empresa " + id + " no tiene admin"));
+                .lockCompanyAdmin(id)
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.CONFLICT, "COMPANY_WITHOUT_ADMIN", "La empresa no tiene un administrador"));
         if (admin.status() != UserStatus.PENDING_ACTIVATION) {
             throw new ApiException(HttpStatus.CONFLICT, "ADMIN_ALREADY_ACTIVE", "El admin ya activó su cuenta");
         }
