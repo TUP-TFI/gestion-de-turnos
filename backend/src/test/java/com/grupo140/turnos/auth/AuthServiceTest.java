@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 
 import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.company.CompanyService;
-import com.grupo140.turnos.user.PanelUserCredentials;
+import com.grupo140.turnos.user.UserCredentials;
 import com.grupo140.turnos.user.UserRole;
 import com.grupo140.turnos.user.UserService;
 import com.grupo140.turnos.user.UserStatus;
@@ -51,9 +51,10 @@ class AuthServiceTest {
 
     @Test
     void superadminLoginSucceedsWithoutCompanyId() {
-        PanelUserCredentials user = user(UserRole.SUPERADMIN, null, UserStatus.ACTIVE, PASSWORD);
+        UserCredentials user = user(UserRole.SUPERADMIN, null, UserStatus.ACTIVE, PASSWORD);
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.of(user));
-        when(jwtService.issue(user.id(), "SUPERADMIN", null)).thenReturn("token");
+        when(jwtService.issue(user.id(), "SUPERADMIN", null, JwtService.PANEL_AUDIENCE))
+                .thenReturn("token");
 
         LoginResponse response = authService.loginPanel(new LoginRequest(EMAIL, PASSWORD));
 
@@ -66,10 +67,11 @@ class AuthServiceTest {
     @Test
     void companyAdminLoginSucceedsWithCompanyId() {
         UUID companyId = UUID.randomUUID();
-        PanelUserCredentials user = user(UserRole.COMPANY_ADMIN, companyId, UserStatus.ACTIVE, PASSWORD);
+        UserCredentials user = user(UserRole.COMPANY_ADMIN, companyId, UserStatus.ACTIVE, PASSWORD);
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.of(user));
         when(companyService.isActive(companyId)).thenReturn(true);
-        when(jwtService.issue(user.id(), "COMPANY_ADMIN", companyId)).thenReturn("token");
+        when(jwtService.issue(user.id(), "COMPANY_ADMIN", companyId, JwtService.PANEL_AUDIENCE))
+                .thenReturn("token");
 
         LoginResponse response = authService.loginPanel(new LoginRequest(EMAIL, PASSWORD));
 
@@ -82,12 +84,12 @@ class AuthServiceTest {
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.empty());
 
         assertError(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS");
-        verify(jwtService, never()).issue(any(), any(), any());
+        verify(jwtService, never()).issue(any(), any(), any(), any());
     }
 
     @Test
     void wrongPasswordIsInvalidCredentials() {
-        PanelUserCredentials user = user(UserRole.SUPERADMIN, null, UserStatus.ACTIVE, "otra-contraseña");
+        UserCredentials user = user(UserRole.SUPERADMIN, null, UserStatus.ACTIVE, "otra-contraseña");
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.of(user));
 
         assertError(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS");
@@ -95,8 +97,7 @@ class AuthServiceTest {
 
     @Test
     void pendingActivationAccountIsRejected() {
-        PanelUserCredentials user =
-                user(UserRole.COMPANY_ADMIN, UUID.randomUUID(), UserStatus.PENDING_ACTIVATION, null);
+        UserCredentials user = user(UserRole.COMPANY_ADMIN, UUID.randomUUID(), UserStatus.PENDING_ACTIVATION, null);
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.of(user));
 
         assertError(HttpStatus.FORBIDDEN, "ACCOUNT_NOT_ACTIVATED");
@@ -104,7 +105,7 @@ class AuthServiceTest {
 
     @Test
     void inactiveUserIsInvalidCredentials() {
-        PanelUserCredentials user = user(UserRole.COMPANY_ADMIN, UUID.randomUUID(), UserStatus.INACTIVE, PASSWORD);
+        UserCredentials user = user(UserRole.COMPANY_ADMIN, UUID.randomUUID(), UserStatus.INACTIVE, PASSWORD);
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.of(user));
 
         assertError(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS");
@@ -113,12 +114,12 @@ class AuthServiceTest {
     @Test
     void inactiveCompanyIsRejected() {
         UUID companyId = UUID.randomUUID();
-        PanelUserCredentials user = user(UserRole.COMPANY_ADMIN, companyId, UserStatus.ACTIVE, PASSWORD);
+        UserCredentials user = user(UserRole.COMPANY_ADMIN, companyId, UserStatus.ACTIVE, PASSWORD);
         when(userService.findPanelUserByEmail(EMAIL)).thenReturn(Optional.of(user));
         when(companyService.isActive(eq(companyId))).thenReturn(false);
 
         assertError(HttpStatus.FORBIDDEN, "COMPANY_INACTIVE");
-        verify(jwtService, never()).issue(any(), any(), any());
+        verify(jwtService, never()).issue(any(), any(), any(), any());
     }
 
     private void assertError(HttpStatus status, String code) {
@@ -129,8 +130,8 @@ class AuthServiceTest {
                 });
     }
 
-    private PanelUserCredentials user(UserRole role, UUID companyId, UserStatus status, String rawPassword) {
+    private UserCredentials user(UserRole role, UUID companyId, UserStatus status, String rawPassword) {
         String hash = rawPassword == null ? null : passwordEncoder.encode(rawPassword);
-        return new PanelUserCredentials(UUID.randomUUID(), "Carlos", "Gómez", EMAIL, role, companyId, status, hash);
+        return new UserCredentials(UUID.randomUUID(), "Carlos", "Gómez", EMAIL, role, companyId, status, hash);
     }
 }

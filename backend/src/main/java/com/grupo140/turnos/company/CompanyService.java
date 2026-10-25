@@ -2,6 +2,7 @@ package com.grupo140.turnos.company;
 
 import com.grupo140.turnos.auth.ActivationService;
 import com.grupo140.turnos.common.error.ApiException;
+import com.grupo140.turnos.common.security.CompanyStatusChecker;
 import com.grupo140.turnos.notification.NotificationService;
 import com.grupo140.turnos.user.CompanyAdmin;
 import com.grupo140.turnos.user.UserService;
@@ -19,7 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
  * Reglas de negocio de las empresas, y API de {@code company} para el resto de los features.
  */
 @Service
-public class CompanyService {
+public class CompanyService implements CompanyStatusChecker {
 
     private final CompanyRepository companyRepository;
     private final SlugGenerator slugGenerator;
@@ -47,12 +48,30 @@ public class CompanyService {
     }
 
     /** Indica si la empresa existe y está {@link CompanyStatus#ACTIVE}. */
+    @Override
     @Transactional(readOnly = true)
     public boolean isActive(UUID companyId) {
         return companyRepository
                 .findStatusById(companyId)
                 .map(status -> status == CompanyStatus.ACTIVE)
                 .orElse(false);
+    }
+
+    /**
+     * Id de la empresa dueña de una página pública, para el registro y el login de clientes (US-03.5 y
+     * US-03.6), que llegan por el slug y no tienen sesión todavía.
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404) o {@code COMPANY_INACTIVE} (403).
+     */
+    @Transactional(readOnly = true)
+    public UUID requireActiveIdBySlug(String slug) {
+        Company company = companyRepository
+                .findBySlug(slug)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "COMPANY_NOT_FOUND", "La empresa no existe"));
+        if (company.getStatus() != CompanyStatus.ACTIVE) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "COMPANY_INACTIVE", "La empresa está desactivada");
+        }
+        return company.getId();
     }
 
     /**

@@ -390,7 +390,7 @@ Como superadmin, quiero desactivar una empresa, para dar de baja el negocio sin 
 
 Criterios de aceptación:
 - La empresa pasa a estado `INACTIVE` — el registro nunca se borra.
-- El login del admin de esa empresa queda bloqueado (derivado de `company.status` en el filtro de autenticación, sin tocar `User.status`).
+- El login del admin de esa empresa queda bloqueado (derivado de `company.status` en el filtro de autenticación, sin tocar `User.status`). El bloqueo también corta la sesión que ya estaba abierta, la del admin y la de sus clientes: cualquier request con ese token responde `403 COMPANY_INACTIVE` en el acto, sin esperar a que el token venza.
 - Los turnos pendientes de esa empresa se cancelan automáticamente, notificando a cada cliente afectado.
 - La página pública de esa empresa deja de ofrecer reservas y muestra un estado de "no disponible".
 

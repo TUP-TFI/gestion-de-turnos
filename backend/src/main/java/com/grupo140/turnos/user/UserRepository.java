@@ -19,6 +19,10 @@ public interface UserRepository extends Repository<User, UUID> {
 
     User save(User user);
 
+    // Igual que save, pero escribe en el acto: el registro de clientes necesita que el índice único salte acá y no
+    // al cerrar la transacción.
+    User saveAndFlush(User user);
+
     Optional<User> findByIdAndCompanyId(UUID id, UUID companyId);
 
     // Admin de una empresa. Cada empresa tiene uno solo: lo crea el alta (US-04.1).

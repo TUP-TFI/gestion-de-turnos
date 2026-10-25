@@ -106,7 +106,7 @@ Los preview deploys de Vercel usan un subdominio distinto por rama, así que no 
 
 ## Seguridad y sesión
 
-La API es stateless: cada request lleva `Authorization: Bearer <jwt>`. El token lo emite `POST /api/auth/login` (HS256, vence a las 8 h) y trae `sub` (id del usuario), `role` y `companyId` (ausente para el superadmin).
+La API es stateless: cada request lleva `Authorization: Bearer <jwt>`. El token lo emite `POST /api/auth/login` (HS256, vence a las 8 h) y trae `sub` (id del usuario), `role` y `companyId` (ausente para el superadmin). La audiencia (`aud`) es `panel` para el superadmin y el admin de empresa, y `client` para el cliente final; el decoder no la valida, y lo que separa las rutas es el rol, por prefijo.
 
 El admin recién creado activa su cuenta con `POST /api/auth/activate` y el body `{ "token": "...", "password": "..." }`, donde `token` es el valor en claro del link. La contraseña va de 8 a 72 caracteres (72 es el tope de BCrypt). Responde `204` sin JWT: después de activar, el usuario entra por el login.
 
@@ -114,11 +114,22 @@ Ese link lo genera el alta de empresa, `POST /api/superadmin/companies`, que cre
 
 Si el link vence o se pierde, el superadmin lo reenvía con `POST /api/superadmin/companies/{id}/resend-activation` (responde `204`): se genera un token nuevo de 48 h y los anteriores dejan de servir. Solo funciona mientras el admin siga `PENDING_ACTIVATION`; si ya activó su cuenta, responde `409 ADMIN_ALREADY_ACTIVE`. Para saber si mostrar esa opción, el detalle de la empresa (`GET /api/superadmin/companies/{id}`) incluye `admin: { email, status }`. El reenvío también funciona con la empresa desactivada: el admin puede definir su contraseña, pero no entra hasta que la empresa se reactive (ver abajo).
 
+### Registro y login de clientes
+
+El cliente final entra desde la página pública de la empresa, por su `slug`. Las dos rutas están bajo `/api/public/**`, así que no piden sesión:
+
+| Ruta | Respuesta |
+| :--- | :--- |
+| `POST /api/public/companies/{slug}/register` | `201` con `{ token, user }`: el cliente queda con la sesión iniciada. Body: `firstName`, `lastName`, `email`, `phone` y `password` (8 a 72 caracteres), todos obligatorios. `409 EMAIL_ALREADY_IN_USE` si el email ya está en uso en esa empresa. |
+| `POST /api/public/companies/{slug}/login` | `200` con `{ token, user }`, o `401 INVALID_CREDENTIALS`. Solo entra un usuario con rol `CLIENT`: un admin con ese email no sirve. |
+
+En las dos, un slug inexistente responde `404 COMPANY_NOT_FOUND` y una empresa desactivada `403 COMPANY_INACTIVE`. El email es único por empresa, sin distinguir mayúsculas: la misma persona puede registrarse en dos empresas distintas con cuentas separadas. El token trae `role = CLIENT` y `companyId`, y sirve para las rutas `/api/client/**`.
+
 ### Desactivar y reactivar una empresa
 
 `POST /api/superadmin/companies/{id}/deactivate` y `POST /api/superadmin/companies/{id}/reactivate`, sin body. Responden `200` con la empresa actualizada, o `404 COMPANY_NOT_FOUND`. Si la empresa ya estaba en ese estado, responden `200` igual y no hacen nada.
 
-- **Desactivar** nunca borra la empresa: pasa a `INACTIVE`. El login de su admin queda bloqueado (`403 COMPANY_INACTIVE`), porque se deriva del estado de la empresa y no del usuario. Todos sus turnos `PENDING` se cancelan (`cancelledBy = COMPANY`, con fecha y motivo) y cada cliente recibe un aviso; hasta el Paso 10, el aviso se escribe en el log, igual que el link de activación.
+- **Desactivar** nunca borra la empresa: pasa a `INACTIVE`. El login de su admin queda bloqueado (`403 COMPANY_INACTIVE`), porque se deriva del estado de la empresa y no del usuario. El bloqueo también corta las sesiones abiertas: `ActiveCompanyFilter` revisa el estado de la empresa en cada request con token de un admin o un cliente y responde `403 COMPANY_INACTIVE`, sin esperar a que el token venza. Cuesta una consulta por request; el filtro solo conoce la interfaz `CompanyStatusChecker` (en `common/security`), que implementa `CompanyService`, porque `common` y `config` no pueden depender de `company`. Todos sus turnos `PENDING` se cancelan (`cancelledBy = COMPANY`, con fecha y motivo) y cada cliente recibe un aviso; hasta el Paso 10, el aviso se escribe en el log, igual que el link de activación.
 - **Reactivar** la devuelve a `ACTIVE` con los servicios y horarios que ya tenía, y el admin vuelve a entrar con su contraseña. Los turnos cancelados no se recuperan.
 
 La cancelación vive en `appointment`, que no puede ser llamado desde `company` (formaría un ciclo, ver [Regla de dependencias entre features](#regla-de-dependencias-entre-features-horizontal)). `CompanyService` publica `CompanyDeactivatedEvent` y `appointment/CompanyDeactivationListener` lo escucha con `@EventListener`, dentro de la misma transacción: si la cancelación falla, la empresa no queda desactivada.
@@ -129,7 +140,7 @@ La autorización se define por prefijo en `SecurityConfig`. Los endpoints nuevos
 
 | Prefijo | Acceso |
 | :--- | :--- |
-| `/ping`, `/actuator/health`, `POST /api/auth/login`, `POST /api/auth/activate`, `/api/public/**` | Sin sesión |
+| `/ping`, `/actuator/health`, `POST /api/auth/login`, `POST /api/auth/activate`, `/api/public/**` (incluye el registro y el login de clientes) | Sin sesión |
 | `/api/superadmin/**` | Solo `SUPERADMIN` |
 | `/api/company/**` | Solo `COMPANY_ADMIN` |
 | `/api/client/**` | Solo `CLIENT` |
@@ -143,11 +154,11 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | :--- | :--- | :--- |
 | `INVALID_CREDENTIALS` | 401 | Email o contraseña incorrectos, o usuario inactivo |
 | `ACCOUNT_NOT_ACTIVATED` | 403 | La cuenta todavía no definió contraseña |
-| `COMPANY_INACTIVE` | 403 | La empresa del admin está desactivada |
+| `COMPANY_INACTIVE` | 403 | La empresa está desactivada: lo reciben el login del admin, el registro y el login de clientes, y cualquier request con una sesión abierta de esa empresa |
 | `INVALID_ACTIVATION_TOKEN` | 400 | El token de activación no existe, ya se usó o la cuenta ya no está pendiente |
 | `ACTIVATION_TOKEN_EXPIRED` | 400 | El token de activación venció: hay que pedir el reenvío al superadmin |
-| `EMAIL_ALREADY_IN_USE` | 409 | El email del admin de la empresa nueva ya es de otro admin o de un superadmin |
-| `COMPANY_NOT_FOUND` | 404 | La empresa pedida en el detalle o la edición del superadmin no existe |
+| `EMAIL_ALREADY_IN_USE` | 409 | El email del admin de la empresa nueva ya es de otro admin o de un superadmin, o el cliente que se registra ya tiene cuenta en esa empresa |
+| `COMPANY_NOT_FOUND` | 404 | La empresa pedida no existe: el detalle o la edición del superadmin, o el slug del registro y el login de clientes |
 | `ADMIN_ALREADY_ACTIVE` | 409 | Se pidió reenviar el link de activación, pero el admin ya activó su cuenta |
 | `SERVICE_NOT_FOUND` | 404 | El servicio pedido no existe o es de otra empresa |
 | `INVALID_BUSINESS_HOURS` | 400 | El horario semanal tiene una franja que termina antes de empezar, o dos franjas del mismo día superpuestas |

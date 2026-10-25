@@ -1,10 +1,13 @@
 package com.grupo140.turnos.user;
 
+import com.grupo140.turnos.common.error.ApiException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +31,7 @@ public class UserService {
      * que a lo sumo hay uno; si aparece más de uno es un dato inconsistente y se devuelve vacío.
      */
     @Transactional(readOnly = true)
-    public Optional<PanelUserCredentials> findPanelUserByEmail(String email) {
+    public Optional<UserCredentials> findPanelUserByEmail(String email) {
         List<User> users = userRepository.findPanelUsersByEmail(email);
         if (users.size() > 1) {
             log.warn("Hay {} usuarios del panel con el mismo email: se rechaza el login", users.size());
@@ -85,6 +88,43 @@ public class UserService {
     }
 
     /**
+     * Indica si el email ya está en uso en esa empresa, con cualquier rol: el índice único
+     * {@code ux_user_email_per_company} no distingue roles.
+     */
+    @Transactional(readOnly = true)
+    public boolean isEmailTakenInCompany(UUID companyId, String email) {
+        return userRepository.findByEmailAndCompanyId(email, companyId).isPresent();
+    }
+
+    /**
+     * Crea un cliente ya activo, con la contraseña que eligió (US-03.5).
+     *
+     * @param passwordHash hash BCrypt de la contraseña.
+     * @throws ApiException {@code EMAIL_ALREADY_IN_USE} (409) si otro registro simultáneo ganó el email.
+     */
+    @Transactional
+    public UserCredentials createClient(
+            UUID companyId, String firstName, String lastName, String email, String phone, String passwordHash) {
+        User client = new User(firstName, lastName, email, phone, UserRole.CLIENT, companyId, UserStatus.ACTIVE);
+        client.setPassword(passwordHash);
+        try {
+            return toCredentials(userRepository.saveAndFlush(client));
+        } catch (DataIntegrityViolationException ex) {
+            // Dos registros a la vez con el mismo email: el chequeo previo no alcanza, lo frena el índice único.
+            throw new ApiException(HttpStatus.CONFLICT, "EMAIL_ALREADY_IN_USE", "Ya existe una cuenta con ese email");
+        }
+    }
+
+    /** Cliente de la empresa por email. Un admin con ese email en la misma empresa no cuenta. */
+    @Transactional(readOnly = true)
+    public Optional<UserCredentials> findClientCredentials(UUID companyId, String email) {
+        return userRepository
+                .findByEmailAndCompanyId(email, companyId)
+                .filter(user -> user.getRole() == UserRole.CLIENT)
+                .map(UserService::toCredentials);
+    }
+
+    /**
      * Teléfono de un cliente de la empresa, para avisarle de un cambio en su turno (US-04.4). Vacío si el
      * usuario no existe o es de otra empresa.
      */
@@ -93,8 +133,8 @@ public class UserService {
         return userRepository.findByIdAndCompanyId(userId, companyId).map(User::getPhone);
     }
 
-    private static PanelUserCredentials toCredentials(User user) {
-        return new PanelUserCredentials(
+    private static UserCredentials toCredentials(User user) {
+        return new UserCredentials(
                 user.getId(),
                 user.getFirstName(),
                 user.getLastName(),
