@@ -11,8 +11,10 @@ import static org.mockito.Mockito.when;
 import com.grupo140.turnos.catalog.CatalogService;
 import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.company.CompanyService;
+import com.grupo140.turnos.notification.NotificationService;
 import com.grupo140.turnos.schedule.BusinessHoursRequest;
 import com.grupo140.turnos.schedule.ScheduleService;
+import com.grupo140.turnos.user.UserService;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.Duration;
@@ -50,6 +52,12 @@ class AppointmentServiceTest {
     @Mock
     private CompanyService companyService;
 
+    @Mock
+    private UserService userService;
+
+    @Mock
+    private NotificationService notificationService;
+
     private AppointmentService appointmentService;
 
     private TimeZone processZone;
@@ -64,6 +72,8 @@ class AppointmentServiceTest {
                 catalogService,
                 scheduleService,
                 companyService,
+                userService,
+                notificationService,
                 Clock.fixed(now, ZoneOffset.UTC));
     }
 

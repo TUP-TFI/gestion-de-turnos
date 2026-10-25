@@ -53,6 +53,17 @@ class ResendActivationIT {
                 .andExpect(jsonPath("$.code").value("INVALID_ACTIVATION_TOKEN"));
     }
 
+    // Decisión de la issue #42: con la empresa desactivada el reenvío se permite. El admin puede definir su
+    // contraseña, pero el login sigue bloqueado hasta que la empresa se reactive.
+    @Test
+    void resendWorksForInactiveCompany() throws Exception {
+        String companyId = companyIdBySlug(PENDING_SLUG);
+        mockMvc.perform(asSuperadmin(post(COMPANIES + "/" + companyId + "/deactivate")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(resend(companyId)).andExpect(status().isNoContent());
+    }
+
     @Test
     void activeAdminReturns409() throws Exception {
         mockMvc.perform(resend(companyIdBySlug(ACTIVE_SLUG)))

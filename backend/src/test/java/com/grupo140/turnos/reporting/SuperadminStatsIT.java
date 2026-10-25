@@ -41,25 +41,31 @@ class SuperadminStatsIT {
         mockMvc.perform(asUser("superadmin@example.com", get(STATS)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.activeCompanies").isNumber())
-                .andExpect(jsonPath("$.inactiveCompanies").value(0))
+                .andExpect(jsonPath("$.inactiveCompanies").isNumber())
                 .andExpect(jsonPath("$.totalAppointments").isNumber());
     }
 
     @Test
     void newCompanyIsCountedAsActive() throws Exception {
-        long before = activeCompanies();
+        long before = stat("activeCompanies");
 
-        mockMvc.perform(asUser("superadmin@example.com", post("/api/superadmin/companies"))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "company": {"name": "Estudio Stats", "category": "OTHER", "timezone": "America/Cordoba"},
-                                  "admin": {"firstName": "Ana", "lastName": "Paz", "email": "stats@example.com", "phone": "+5493510000030"}
-                                }
-                                """))
-                .andExpect(status().isCreated());
+        createCompany();
 
-        assertThat(activeCompanies()).isEqualTo(before + 1);
+        assertThat(stat("activeCompanies")).isEqualTo(before + 1);
+    }
+
+    @Test
+    void deactivatedCompanyMovesFromActiveToInactive() throws Exception {
+        String companyId = createCompany();
+        long activeBefore = stat("activeCompanies");
+        long inactiveBefore = stat("inactiveCompanies");
+
+        mockMvc.perform(asUser(
+                        "superadmin@example.com", post("/api/superadmin/companies/" + companyId + "/deactivate")))
+                .andExpect(status().isOk());
+
+        assertThat(stat("activeCompanies")).isEqualTo(activeBefore - 1);
+        assertThat(stat("inactiveCompanies")).isEqualTo(inactiveBefore + 1);
     }
 
     @Test
@@ -69,13 +75,31 @@ class SuperadminStatsIT {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
-    private long activeCompanies() throws Exception {
+    // Crea una empresa con el alta y devuelve su id.
+    private String createCompany() throws Exception {
+        String body = mockMvc.perform(asUser("superadmin@example.com", post("/api/superadmin/companies"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "company": {"name": "Estudio Stats", "category": "OTHER", "timezone": "America/Cordoba"},
+                                  "admin": {"firstName": "Ana", "lastName": "Paz", "email": "stats@example.com", "phone": "+5493510000030"}
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return JsonPath.read(body, "$.id");
+    }
+
+    // Uno de los tres indicadores del dashboard, por su nombre en el JSON.
+    private long stat(String field) throws Exception {
         String body = mockMvc.perform(asUser("superadmin@example.com", get(STATS)))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
-        Number count = JsonPath.read(body, "$.activeCompanies");
+        Number count = JsonPath.read(body, "$." + field);
         return count.longValue();
     }
 

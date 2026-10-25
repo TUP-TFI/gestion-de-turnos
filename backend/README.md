@@ -106,7 +106,16 @@ El admin recién creado activa su cuenta con `POST /api/auth/activate` y el body
 
 Ese link lo genera el alta de empresa, `POST /api/superadmin/companies`, que crea la empresa, su admin (`PENDING_ACTIVATION`) y el token (vence a las 48 h) en una sola transacción. Hasta que exista el envío por WhatsApp, `NotificationService` escribe el link en el log de la aplicación y se copia a mano: en local sale en la terminal, y en producción en la pestaña *Logs* de Render.
 
-Si el link vence o se pierde, el superadmin lo reenvía con `POST /api/superadmin/companies/{id}/resend-activation` (responde `204`): se genera un token nuevo de 48 h y los anteriores dejan de servir. Solo funciona mientras el admin siga `PENDING_ACTIVATION`; si ya activó su cuenta, responde `409 ADMIN_ALREADY_ACTIVE`. Para saber si mostrar esa opción, el detalle de la empresa (`GET /api/superadmin/companies/{id}`) incluye `admin: { email, status }`.
+Si el link vence o se pierde, el superadmin lo reenvía con `POST /api/superadmin/companies/{id}/resend-activation` (responde `204`): se genera un token nuevo de 48 h y los anteriores dejan de servir. Solo funciona mientras el admin siga `PENDING_ACTIVATION`; si ya activó su cuenta, responde `409 ADMIN_ALREADY_ACTIVE`. Para saber si mostrar esa opción, el detalle de la empresa (`GET /api/superadmin/companies/{id}`) incluye `admin: { email, status }`. El reenvío también funciona con la empresa desactivada: el admin puede definir su contraseña, pero no entra hasta que la empresa se reactive (ver abajo).
+
+### Desactivar y reactivar una empresa
+
+`POST /api/superadmin/companies/{id}/deactivate` y `POST /api/superadmin/companies/{id}/reactivate`, sin body. Responden `200` con la empresa actualizada, o `404 COMPANY_NOT_FOUND`. Si la empresa ya estaba en ese estado, responden `200` igual y no hacen nada.
+
+- **Desactivar** nunca borra la empresa: pasa a `INACTIVE`. El login de su admin queda bloqueado (`403 COMPANY_INACTIVE`), porque se deriva del estado de la empresa y no del usuario. Todos sus turnos `PENDING` se cancelan (`cancelledBy = COMPANY`, con fecha y motivo) y cada cliente recibe un aviso; hasta el Paso 10, el aviso se escribe en el log, igual que el link de activación.
+- **Reactivar** la devuelve a `ACTIVE` con los servicios y horarios que ya tenía, y el admin vuelve a entrar con su contraseña. Los turnos cancelados no se recuperan.
+
+La cancelación vive en `appointment`, que no puede ser llamado desde `company` (formaría un ciclo, ver [Regla de dependencias entre features](#regla-de-dependencias-entre-features-horizontal)). `CompanyService` publica `CompanyDeactivatedEvent` y `appointment/CompanyDeactivationListener` lo escucha con `@EventListener`, dentro de la misma transacción: si la cancelación falla, la empresa no queda desactivada.
 
 ### Rutas por prefijo
 
@@ -242,6 +251,7 @@ seed           ← solo perfil dev: fuera del grafo (ver excepción abajo)
 - ❌ Un feature **nunca** importa un repository de otro feature: se habla con su `Service`.
 - ❌ No se permiten ciclos. Si aparece uno, se resuelve invirtiendo la dependencia o moviendo la lógica.
 - ✅ `auth` depende de `user`: el login y la activación leen y actualizan `User`, pero a través de los services de `user`, nunca de `UserRepository`.
+- ✅ `appointment` depende de `user` y de `notification`: al cancelar turnos busca el teléfono del cliente con `UserService.findPhone` y lo avisa con `NotificationService`. Ninguno de los dos depende de `appointment`, así que no hay ciclo.
 - ⚠️ **Excepción: el alta de empresa** (US-04.1). `CompanyService.create` crea en una sola transacción la empresa, su admin y el token de activación, así que `company` usa `UserService` (de `user`), `ActivationService` (de `auth`) y `NotificationService`. Como `auth` ya usa `CompanyService` en el login, entre `auth` y `company` queda un ciclo de paquetes. Se acepta porque no hay ciclo entre clases (`ActivationService` no depende de `CompanyService`) y porque evitarlo obligaría a mover el token de activación fuera de `auth`. Sigue valiendo que `company` no importa los repositories de esos features.
 - ⚠️ **Otra excepción: el paquete `seed`** (T-02.4). Corre solo con `@Profile("dev")` y carga datos de prueba de varios features, así que puede usar sus repositories directamente. Nada de código de producción importa `seed`, y `seed` no expone nada para los demás features.
 
