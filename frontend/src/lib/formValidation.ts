@@ -17,6 +17,13 @@ function getValidationMessage(field: FormField): string {
   if (validity.typeMismatch && field.type === 'url') {
     return 'Ingresá una dirección válida que empiece con https://.'
   }
+  // min y max solo existen en HTMLInputElement, y solo un input puede tener estos flags.
+  if ((validity.rangeUnderflow || validity.rangeOverflow) && field instanceof HTMLInputElement) {
+    return `Ingresá un valor entre ${field.min} y ${field.max}.`
+  }
+  if (validity.stepMismatch || validity.badInput) {
+    return 'Ingresá un número entero.'
+  }
   if (validity.tooLong) {
     return 'El texto es demasiado largo.'
   }

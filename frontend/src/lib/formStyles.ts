@@ -46,4 +46,6 @@ export const LINK_CLASSES = 'font-medium text-ink hover:underline'
 
 export const PAGE_TITLE_CLASSES = 'text-[22px] font-semibold text-ink'
 
+export const CARD_TITLE_CLASSES = 'text-lg font-semibold text-ink'
+
 export const MUTED_TEXT_CLASSES = 'text-sm text-muted'

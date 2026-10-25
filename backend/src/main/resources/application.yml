@@ -4,6 +4,10 @@ spring:
   profiles:
     # Sin SPRING_PROFILES_ACTIVE se usa dev; Render define prod
     default: dev
+  jackson:
+    deserialization:
+      # Un decimal en un campo entero (30.5 en minutos) da 400 en lugar de truncarse a 30
+      accept-float-as-int: false
   jpa:
     # La sesion de JPA se cierra al salir del service (regla de capas del README)
     open-in-view: false

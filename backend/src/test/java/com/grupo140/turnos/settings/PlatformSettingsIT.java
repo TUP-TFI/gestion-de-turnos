@@ -89,6 +89,75 @@ class PlatformSettingsIT {
                 .andExpect(jsonPath("$.code").value("FORBIDDEN"));
     }
 
+    // Issue #47
+    @Test
+    void negativeRescheduleCountReturnsValidationError() throws Exception {
+        mockMvc.perform(update(body(30, 3, -1, 90)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void withoutTokenReturns401() throws Exception {
+        mockMvc.perform(get(SETTINGS))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+        mockMvc.perform(put(SETTINGS).contentType(MediaType.APPLICATION_JSON).content(body(30, 3, 2, 90)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    void invalidTypesReturnValidationError() throws Exception {
+        mockMvc.perform(update("""
+                        {"minBookingNoticeMinutes": "abc", "cancellationDeadlineHours": 3,
+                         "maxRescheduleCount": 2, "maxBookingAdvanceDays": 90}
+                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+        mockMvc.perform(update("""
+                        {"minBookingNoticeMinutes": 30.5, "cancellationDeadlineHours": 3,
+                         "maxRescheduleCount": 2, "maxBookingAdvanceDays": 90}
+                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+    }
+
+    @Test
+    void companyAdminCannotUpdateSettings() throws Exception {
+        mockMvc.perform(asUser("admin@example.com", put(SETTINGS))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body(30, 3, 2, 90)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    // Issue #45: un valor por encima de cada tope responde 400, y el tope mismo se acepta.
+    @Test
+    void valueAboveMaximumReturnsValidationError() throws Exception {
+        for (String invalid :
+                new String[] {body(1441, 3, 2, 365), body(30, 169, 2, 90), body(30, 3, 11, 90), body(30, 3, 2, 366)}) {
+            mockMvc.perform(update(invalid))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+        }
+        mockMvc.perform(update(body(1440, 168, 10, 365))).andExpect(status().isOk());
+    }
+
+    // Issue #46, caso límite: 1 día de máxima son 1440 minutos, igual al tope de la mínima, y pasa. Con los
+    // topes actuales la ventana vacía no se puede armar por HTTP; el rechazo se prueba en PlatformSettingsServiceTest.
+    @Test
+    void minimumNoticeEqualToMaximumIsAccepted() throws Exception {
+        mockMvc.perform(update(body(1440, 3, 2, 1))).andExpect(status().isOk());
+    }
+
+    private static String body(int notice, int deadline, int reschedules, int advanceDays) {
+        return """
+                {"minBookingNoticeMinutes": %d, "cancellationDeadlineHours": %d,
+                 "maxRescheduleCount": %d, "maxBookingAdvanceDays": %d}
+                """.formatted(notice, deadline, reschedules, advanceDays);
+    }
+
     private MockHttpServletRequestBuilder update(String body) throws Exception {
         return asUser("superadmin@example.com", put(SETTINGS))
                 .contentType(MediaType.APPLICATION_JSON)

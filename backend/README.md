@@ -197,7 +197,7 @@ appointment/
 | Módulo | Por qué existe |
 | :--- | :--- |
 | `user` | La búsqueda de clientes para vincular un turno manual (UC8) y el listado de Clientes del panel no son parte de `auth` (no tienen nada que ver con autenticarse) ni de `company`. `User` es la entidad más transversal del modelo y no tenía paquete propio. |
-| `settings` | Los tres parámetros globales (anticipación mínima, plazo de cancelación, máximo de reprogramaciones) los edita el superadmin y los consulta `appointment`. No pertenecen a ningún feature de negocio. |
+| `settings` | Los cuatro parámetros globales (anticipación mínima, plazo de cancelación, máximo de reprogramaciones, anticipación máxima) los edita el superadmin y los consulta `appointment`. No pertenecen a ningún feature de negocio. |
 | `reporting` | Los dashboards del superadmin y del admin son queries de agregación que cruzan varias entidades. Meterlos en `company` o en `appointment` los convertiría en cajones de sastre. |
 | `schedule` | Pasa a contener también `ScheduleException` (feriados y horarios especiales). |
 
