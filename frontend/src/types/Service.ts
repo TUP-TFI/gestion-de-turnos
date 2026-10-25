@@ -11,3 +11,10 @@ export interface Service {
   createdAt: string
   updatedAt: string
 }
+
+// Cuerpo de POST y PUT /api/company/services. La empresa sale de la sesión y el status se cambia con
+// los endpoints de desactivar y reactivar.
+export type ServiceData = Pick<
+  Service,
+  'name' | 'description' | 'price' | 'durationMinutes'
+>

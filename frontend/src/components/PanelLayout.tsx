@@ -16,6 +16,12 @@ interface PanelLayoutProps {
 export function PanelLayout({ title, navItems }: PanelLayoutProps) {
   const { logout } = useAuth()
 
+  function handleLogout() {
+    if (window.confirm('¿Cerrar sesión?')) {
+      logout()
+    }
+  }
+
   return (
     <div className="min-h-screen bg-surface">
       <header className="border-b border-hairline bg-white">
@@ -42,7 +48,7 @@ export function PanelLayout({ title, navItems }: PanelLayoutProps) {
           </div>
           <button
             type="button"
-            onClick={logout}
+            onClick={handleLogout}
             className={SECONDARY_BUTTON_CLASSES}
           >
             Cerrar sesión
