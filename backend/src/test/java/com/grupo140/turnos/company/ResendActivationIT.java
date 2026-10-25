@@ -1,7 +1,7 @@
 package com.grupo140.turnos.company;
 
-import static com.grupo140.turnos.seed.DevDataSeeder.DEV_ACTIVATION_TOKEN;
-import static com.grupo140.turnos.seed.DevDataSeeder.DEV_PASSWORD;
+import static com.grupo140.turnos.seed.SeedTestValues.DEV_ACTIVATION_TOKEN;
+import static com.grupo140.turnos.seed.SeedTestValues.DEV_PASSWORD;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;

@@ -117,11 +117,24 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<!-- "./mvnw spring-boot:run" arranca en dev si no se define SPRING_PROFILES_ACTIVE. Es un default
+				     de Maven y no de application.yml: el .jar que corre en Render no lo hereda -->
+				<configuration>
+					<systemPropertyVariables>
+						<spring.profiles.default>dev</spring.profiles.default>
+					</systemPropertyVariables>
+				</configuration>
 			</plugin>
 			<!-- Corre los *IT en la fase integration-test; surefire se queda con los *Test -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
+				<!-- Los *IT usan dev (base de Testcontainers, valores del seed de application-dev.yml) -->
+				<configuration>
+					<systemPropertyVariables>
+						<spring.profiles.default>dev</spring.profiles.default>
+					</systemPropertyVariables>
+				</configuration>
 			</plugin>
 			<!-- Formato: "mvn verify" falla si el codigo no esta formateado. Se corrige con "mvn spotless:apply" -->
 			<plugin>
