@@ -13,32 +13,33 @@ function deactivationMessage(name: string): string {
   return `¿Desactivar "${name}"? Se cancelan sus turnos pendientes y se avisa a cada cliente. Su admin no va a poder iniciar sesión.`
 }
 
-// Reactiva una empresa inactiva. Una activa se desactiva recién después de que el superadmin confirme
-// (US-04.4 y US-04.5). Devuelve null si cancela.
-async function toggle(company: Company): Promise<Company | null> {
-  if (company.status === 'INACTIVE') {
-    return reactivateCompany(company.id)
-  }
-  if (!window.confirm(deactivationMessage(company.name))) {
-    return null
-  }
-  return deactivateCompany(company.id)
+function changeStatus(company: Company): Promise<Company> {
+  return company.status === 'INACTIVE'
+    ? reactivateCompany(company.id)
+    : deactivateCompany(company.id)
 }
 
 export function useCompanyStatus(): UseCompanyStatusResult {
   const queryClient = useQueryClient()
 
   const mutation = useMutation({
-    mutationFn: toggle,
-    onSuccess: (result) => {
-      if (result) {
-        return queryClient.invalidateQueries({ queryKey: ['companies'] })
-      }
-    },
+    mutationFn: changeStatus,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['companies'] }),
   })
 
+  // Reactiva una empresa inactiva. Una activa se desactiva recién después de que el superadmin confirme
+  // (US-04.4 y US-04.5): mientras el aviso está abierto no hay mutación en curso.
+  function toggleStatus(company: Company) {
+    mutation.reset()
+
+    if (company.status === 'ACTIVE' && !window.confirm(deactivationMessage(company.name))) {
+      return
+    }
+    mutation.mutate(company)
+  }
+
   return {
-    toggleStatus: mutation.mutate,
+    toggleStatus,
     error: mutation.error ? toErrorMessage(mutation.error) : null,
     isLoading: mutation.isPending,
   }
