@@ -706,6 +706,7 @@ Criterios de aceptación:
 
 Tareas técnicas:
 - Backend (Nico): `NotificationService` que persiste la fila y despacha por el canal, invocado con `@TransactionalEventListener(AFTER_COMMIT)` desde `appointment` — así `notification` queda como hoja del grafo de dependencias (ver `backend/README.md`).
+- Backend (Nico): pasar a `AFTER_COMMIT` también el aviso de la cascada de US-04.4. Hoy `AppointmentService.cancelPendingByCompany` llama a `NotificationService` dentro de la transacción de la desactivación. Mientras el envío sea solo un log no pasa nada, pero con el canal real del Paso 10 un rollback dejaría a los clientes avisados de una cancelación que no ocurrió, y un fallo de envío revertiría la desactivación de la empresa. Surgió en la revisión de #52.
 
 Dependencias: el canal real de WhatsApp se integra recién en el Paso 10 — hasta entonces el despacho va mockeado/logueado, **pero la fila en `Notification` se escribe igual desde acá**.
 
@@ -993,7 +994,8 @@ Responsable: Brune (continuidad con el Paso 4, que lideró en backend).
 Como superadmin, quiero que al desactivar una empresa (US-04.4) la cancelación en cascada de turnos pendientes quede prolija y sin casos borde sin cubrir, para confiar en que la baja de una empresa no deja turnos "colgados".
 
 Criterios de aceptación:
-- La cascada de US-04.4 cubre todos los turnos `PENDING` de esa empresa (incluidos los reprogramados, que siguen siendo `PENDING`).
+- La cascada de US-04.4 cubre todos los turnos `PENDING` futuros de esa empresa (incluidos los reprogramados, que siguen siendo `PENDING`).
+- Los turnos `PENDING` cuyo horario ya pasó no se cancelan ni se avisan: se atendieron, y los pasa a `COMPLETED` el job de US-11.1. La versión de #52 busca con `findByCompanyIdAndStatus`, sin filtrar por fecha. Hoy no tiene efecto porque todavía no hay reservas reales, pero sin el filtro una baja cancelaría el historial y avisaría a clientes por turnos viejos. Además, entre dos corridas del job siempre puede quedar un turno vencido en `PENDING`. Se resuelve usando `findAllByCompanyIdAndStatusAndStartDateTimeAfter(..., now)` y sumando al test un turno `PENDING` en el pasado.
 - Cada cliente afectado recibe su notificación correspondiente (o queda registrado si el envío falla).
 - La reactivación (US-04.5) no revive los turnos cancelados durante la baja.
 
