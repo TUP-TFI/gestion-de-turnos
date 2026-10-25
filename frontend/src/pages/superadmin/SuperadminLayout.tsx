@@ -4,7 +4,6 @@ import type { PanelNavItem } from '../../components/PanelLayout'
 const NAV_ITEMS: PanelNavItem[] = [
   { to: '/superadmin/dashboard', label: 'Inicio' },
   { to: '/superadmin/companies', label: 'Empresas' },
-  { to: '/superadmin/companies/new', label: 'Nueva empresa' },
 ]
 
 export function SuperadminLayout() {
