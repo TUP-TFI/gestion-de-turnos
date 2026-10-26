@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { ApiRequestError, toErrorMessage } from '../api/client'
 import { getCompany } from '../api/companies'
-import type { Company } from '../types/Company'
+import type { CompanyDetail } from '../types/Company'
 
 interface UseCompanyResult {
-  company: Company | null
+  company: CompanyDetail | null
   error: string | null
   isLoading: boolean
   isNotFound: boolean
