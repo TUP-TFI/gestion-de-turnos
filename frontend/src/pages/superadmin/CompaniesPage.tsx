@@ -1,14 +1,16 @@
 import { Link } from 'react-router'
 import { useCompanies } from '../../hooks/useCompanies'
+import { useCompanyStatus } from '../../hooks/useCompanyStatus'
 import { COMPANY_CATEGORY_LABELS } from '../../lib/companyCategories'
 import {
   BADGE_CLASSES,
   BADGE_VARIANT_CLASSES,
   ERROR_CLASSES,
-  LINK_CLASSES,
   MUTED_TEXT_CLASSES,
   PAGE_TITLE_CLASSES,
   PRIMARY_BUTTON_CLASSES,
+  ROW_BUTTON_CLASSES,
+  ROW_DANGER_BUTTON_CLASSES,
   TABLE_CELL_CLASSES,
   TABLE_HEAD_CLASSES,
   TABLE_WRAPPER_CLASSES,
@@ -27,6 +29,11 @@ const STATUS_CLASSES: Record<CompanyStatus, string> = {
 
 export function CompaniesPage() {
   const { companies, error, isLoading } = useCompanies()
+  const {
+    toggleStatus,
+    error: statusError,
+    isLoading: isChangingStatus,
+  } = useCompanyStatus()
 
   return (
     <section className="space-y-6">
@@ -45,6 +52,12 @@ export function CompaniesPage() {
       {error && (
         <p role="alert" className={ERROR_CLASSES}>
           {error}
+        </p>
+      )}
+
+      {statusError && (
+        <p role="alert" className={ERROR_CLASSES}>
+          {statusError}
         </p>
       )}
 
@@ -86,10 +99,10 @@ export function CompaniesPage() {
                     </span>
                   </td>
                   <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
-                    <div className="flex gap-4">
+                    <div className="flex gap-2">
                       <Link
                         to={`/superadmin/companies/${company.id}/edit`}
-                        className={LINK_CLASSES}
+                        className={ROW_BUTTON_CLASSES}
                       >
                         Editar
                       </Link>
@@ -97,10 +110,22 @@ export function CompaniesPage() {
                         href={`/${company.slug}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={LINK_CLASSES}
+                        className={ROW_BUTTON_CLASSES}
                       >
                         Ver página pública
                       </a>
+                      <button
+                        type="button"
+                        onClick={() => toggleStatus(company)}
+                        disabled={isChangingStatus}
+                        className={
+                          company.status === 'ACTIVE'
+                            ? ROW_DANGER_BUTTON_CLASSES
+                            : ROW_BUTTON_CLASSES
+                        }
+                      >
+                        {company.status === 'ACTIVE' ? 'Desactivar' : 'Reactivar'}
+                      </button>
                     </div>
                   </td>
                 </tr>

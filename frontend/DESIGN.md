@@ -54,6 +54,7 @@ No usar peso mayor a 600.
 - **Ancho de los botones:** por defecto, el del texto. Los botones que cierran un form o una tarjeta (guardar, iniciar sesión, activar) llevan `w-full`.
 - **Botón principal:** fondo `ink`, texto blanco. Deshabilitado: fondo `hairline`, texto `muted`.
 - **Botón secundario:** fondo blanco, borde `hairline`, texto `ink`.
+- **Botones de fila (tablas):** secundario compacto de 32px (`h-8`), con borde, para que las acciones se distingan del texto. Las destructivas (desactivar) llevan texto y borde rojos.
 - **Foco:** anillo `brand-light` en inputs, botones y links.
 - **Hover:** solo se oscurece el botón principal y se subraya el link. Sin otros efectos.
 - **Links de acción:** `ink` con subrayado al hover.

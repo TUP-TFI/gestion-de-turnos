@@ -160,6 +160,7 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | `EMAIL_ALREADY_IN_USE` | 409 | El email del admin de la empresa nueva ya es de otro admin o de un superadmin, o el cliente que se registra ya tiene cuenta en esa empresa |
 | `COMPANY_NOT_FOUND` | 404 | La empresa pedida no existe: el detalle o la edición del superadmin, o el slug del registro y el login de clientes |
 | `ADMIN_ALREADY_ACTIVE` | 409 | Se pidió reenviar el link de activación, pero el admin ya activó su cuenta |
+| `COMPANY_WITHOUT_ADMIN` | 409 | Se pidió reenviar el link de activación, pero la empresa no tiene un administrador |
 | `SERVICE_NOT_FOUND` | 404 | El servicio pedido no existe o es de otra empresa |
 | `INVALID_BUSINESS_HOURS` | 400 | El horario semanal tiene una franja que termina antes de empezar, o dos franjas del mismo día superpuestas |
 | `UNAUTHORIZED` | 401 | Falta el token o es inválido |
@@ -214,7 +215,7 @@ appointment/
 | Módulo | Por qué existe |
 | :--- | :--- |
 | `user` | La búsqueda de clientes para vincular un turno manual (UC8) y el listado de Clientes del panel no son parte de `auth` (no tienen nada que ver con autenticarse) ni de `company`. `User` es la entidad más transversal del modelo y no tenía paquete propio. |
-| `settings` | Los tres parámetros globales (anticipación mínima, plazo de cancelación, máximo de reprogramaciones) los edita el superadmin y los consulta `appointment`. No pertenecen a ningún feature de negocio. |
+| `settings` | Los cuatro parámetros globales (anticipación mínima, plazo de cancelación, máximo de reprogramaciones, anticipación máxima) los edita el superadmin y los consulta `appointment`. No pertenecen a ningún feature de negocio. |
 | `reporting` | Los dashboards del superadmin y del admin son queries de agregación que cruzan varias entidades. Meterlos en `company` o en `appointment` los convertiría en cajones de sastre. |
 | `schedule` | Pasa a contener también `ScheduleException` (feriados y horarios especiales). |
 

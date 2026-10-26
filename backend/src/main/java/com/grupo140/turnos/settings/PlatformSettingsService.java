@@ -1,5 +1,7 @@
 package com.grupo140.turnos.settings;
 
+import com.grupo140.turnos.common.error.ApiException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class PlatformSettingsService {
+
+    private static final int MINUTES_PER_DAY = 1440;
 
     private final PlatformSettingsRepository platformSettingsRepository;
 
@@ -27,9 +31,17 @@ public class PlatformSettingsService {
     /**
      * Reemplaza los cuatro valores. No toca los turnos ya reservados: solo aplican a las operaciones
      * posteriores.
+     *
+     * @throws ApiException {@code VALIDATION_ERROR} (400) si la anticipación mínima supera a la máxima: no
+     *     quedaría ningún horario reservable.
      */
     @Transactional
     public PlatformSettingsResponse update(PlatformSettingsRequest request) {
+        // Que sean iguales es válido: la ventana queda reducida a un instante, pero no vacía.
+        if (request.minBookingNoticeMinutes() > request.maxBookingAdvanceDays() * MINUTES_PER_DAY) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "La anticipación mínima no puede superar a la máxima");
+        }
         PlatformSettings settings = findSettings();
         settings.setMinBookingNoticeMinutes(request.minBookingNoticeMinutes());
         settings.setCancellationDeadlineHours(request.cancellationDeadlineHours());

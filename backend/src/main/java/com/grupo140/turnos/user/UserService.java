@@ -79,12 +79,26 @@ public class UserService {
         return userRepository.save(admin).getId();
     }
 
-    /** Admin de la empresa, o vacío si no tiene (no debería pasar: el alta siempre crea uno). */
+    /**
+     * Admin de la empresa, o vacío si no tiene (no debería pasar: el alta siempre crea uno). Si hubiera más
+     * de uno, devuelve el más antiguo.
+     */
     @Transactional(readOnly = true)
     public Optional<CompanyAdmin> findCompanyAdmin(UUID companyId) {
         return userRepository
-                .findByCompanyIdAndRole(companyId, UserRole.COMPANY_ADMIN)
-                .map(admin -> new CompanyAdmin(admin.getId(), admin.getEmail(), admin.getPhone(), admin.getStatus()));
+                .findFirstByCompanyIdAndRoleOrderByCreatedAtAsc(companyId, UserRole.COMPANY_ADMIN)
+                .map(UserService::toCompanyAdmin);
+    }
+
+    /**
+     * Igual que {@link #findCompanyAdmin}, pero bloquea la fila del admin hasta el fin de la transacción.
+     * Hay que llamarlo dentro de una transacción de escritura.
+     */
+    @Transactional
+    public Optional<CompanyAdmin> lockCompanyAdmin(UUID companyId) {
+        return userRepository
+                .findFirstForUpdateByCompanyIdAndRoleOrderByCreatedAtAsc(companyId, UserRole.COMPANY_ADMIN)
+                .map(UserService::toCompanyAdmin);
     }
 
     /**
@@ -131,6 +145,10 @@ public class UserService {
     @Transactional(readOnly = true)
     public Optional<String> findPhone(UUID userId, UUID companyId) {
         return userRepository.findByIdAndCompanyId(userId, companyId).map(User::getPhone);
+    }
+
+    private static CompanyAdmin toCompanyAdmin(User admin) {
+        return new CompanyAdmin(admin.getId(), admin.getEmail(), admin.getPhone(), admin.getStatus());
     }
 
     private static UserCredentials toCredentials(User user) {
