@@ -22,7 +22,7 @@ public class CompanyBrandingController {
         this.companyService = companyService;
     }
 
-    /** Logo y color primario actuales de la empresa. */
+    /** Logo y color primario actuales de la empresa, más su slug para el link a la página pública. */
     @GetMapping
     public BrandingResponse get(SessionUser session) {
         return companyService.getBranding(session.companyId());

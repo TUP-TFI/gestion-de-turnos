@@ -44,11 +44,13 @@ class CompanyBrandingIT {
     void saveAndReadBack() throws Exception {
         mockMvc.perform(update(body(LOGO, "#1A2B3C")))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slug").value("barberia-central"))
                 .andExpect(jsonPath("$.logoUrl").value(LOGO))
                 .andExpect(jsonPath("$.primaryColor").value("#1A2B3C"));
 
         mockMvc.perform(asAdmin(get(BRANDING)))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slug").value("barberia-central"))
                 .andExpect(jsonPath("$.logoUrl").value(LOGO))
                 .andExpect(jsonPath("$.primaryColor").value("#1A2B3C"));
     }
@@ -67,6 +69,14 @@ class CompanyBrandingIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.logoUrl").doesNotExist())
                 .andExpect(jsonPath("$.primaryColor").doesNotExist());
+    }
+
+    @Test
+    void slugInBodyIsIgnored() throws Exception {
+        // El slug es de solo lectura: el PUT no lo cambia aunque llegue en el body.
+        mockMvc.perform(update("{\"slug\": \"otro-slug\", \"logoUrl\": null, \"primaryColor\": null}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slug").value("barberia-central"));
     }
 
     @Test

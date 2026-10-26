@@ -127,7 +127,7 @@ En las dos, un slug inexistente responde `404 COMPANY_NOT_FOUND` y una empresa d
 
 ### Marca de la empresa
 
-El admin personaliza su página pública con `GET /api/company/branding` y `PUT /api/company/branding`. Las dos usan la empresa de la sesión, nunca una del body ni de la URL. Responden `200` con `{ logoUrl, primaryColor }`, y los dos valores pueden ser `null`.
+El admin personaliza su página pública con `GET /api/company/branding` y `PUT /api/company/branding`. Las dos usan la empresa de la sesión, nunca una del body ni de la URL. Responden `200` con `{ slug, logoUrl, primaryColor }`. `logoUrl` y `primaryColor` pueden ser `null`; `slug` es de solo lectura y sirve para armar el link a la página pública, porque la sesión del admin solo trae el `companyId`.
 
 El `PUT` reemplaza los dos campos: lo que llega en `null`, o no llega, se borra. `primaryColor` tiene el formato `#RRGGBB` (el mismo `CHECK` de la base) y `logoUrl` hasta 500 caracteres, la misma validación que usa el superadmin al crear o editar la empresa, porque los dos escriben el mismo campo. Un valor inválido responde `400 VALIDATION_ERROR`. No hay storage: el logo es una URL cargada a mano.
 
