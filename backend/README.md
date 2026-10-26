@@ -125,6 +125,12 @@ El cliente final entra desde la página pública de la empresa, por su `slug`. L
 
 En las dos, un slug inexistente responde `404 COMPANY_NOT_FOUND` y una empresa desactivada `403 COMPANY_INACTIVE`. El email es único por empresa, sin distinguir mayúsculas: la misma persona puede registrarse en dos empresas distintas con cuentas separadas. El token trae `role = CLIENT` y `companyId`, y sirve para las rutas `/api/client/**`.
 
+### Marca de la empresa
+
+El admin personaliza su página pública con `GET /api/company/branding` y `PUT /api/company/branding`. Las dos usan la empresa de la sesión, nunca una del body ni de la URL. Responden `200` con `{ slug, logoUrl, primaryColor }`. `logoUrl` y `primaryColor` pueden ser `null`; `slug` es de solo lectura y sirve para armar el link a la página pública, porque la sesión del admin solo trae el `companyId`.
+
+El `PUT` reemplaza los dos campos: lo que llega en `null`, o no llega, se borra. `primaryColor` tiene el formato `#RRGGBB` (el mismo `CHECK` de la base) y `logoUrl` hasta 500 caracteres, la misma validación que usa el superadmin al crear o editar la empresa, porque los dos escriben el mismo campo. Un valor inválido responde `400 VALIDATION_ERROR`. No hay storage: el logo es una URL cargada a mano.
+
 ### Desactivar y reactivar una empresa
 
 `POST /api/superadmin/companies/{id}/deactivate` y `POST /api/superadmin/companies/{id}/reactivate`, sin body. Responden `200` con la empresa actualizada, o `404 COMPANY_NOT_FOUND`. Si la empresa ya estaba en ese estado, responden `200` igual y no hacen nada.

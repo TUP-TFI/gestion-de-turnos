@@ -596,6 +596,8 @@ Tareas técnicas:
 Dependencias: Paso 3 (sesión de admin), US-04.1 (la empresa existe).
 
 > ⏳ **Bloqueante a resolver antes de empezar esta historia:** `backend/README.md` lista el *storage* externo para los logos como pendiente de definir. Mientras no esté resuelto, el color se puede implementar completo y el logo queda como un campo de URL cargada a mano.
+>
+> **Estado del backend:** `GET` y `PUT /api/company/branding` ya existen. El bloqueante del storage sigue abierto, así que el logo es una URL cargada a mano y se valida solo por largo (500 caracteres), igual que cuando lo edita el superadmin. El color se valida como `#RRGGBB`.
 
 ---
 
