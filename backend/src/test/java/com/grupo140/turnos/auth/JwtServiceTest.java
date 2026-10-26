@@ -32,7 +32,7 @@ class JwtServiceTest {
         UUID userId = UUID.randomUUID();
         UUID companyId = UUID.randomUUID();
 
-        Jwt jwt = decoder.decode(jwtService.issue(userId, "COMPANY_ADMIN", companyId));
+        Jwt jwt = decoder.decode(jwtService.issue(userId, "COMPANY_ADMIN", companyId, JwtService.PANEL_AUDIENCE));
 
         assertThat(jwt.getSubject()).isEqualTo(userId.toString());
         assertThat(jwt.getClaimAsString("role")).isEqualTo("COMPANY_ADMIN");
@@ -43,8 +43,19 @@ class JwtServiceTest {
     }
 
     @Test
+    void clientTokenCarriesClientAudience() {
+        UUID companyId = UUID.randomUUID();
+
+        Jwt jwt = decoder.decode(jwtService.issue(UUID.randomUUID(), "CLIENT", companyId, JwtService.CLIENT_AUDIENCE));
+
+        assertThat(jwt.getAudience()).containsExactly("client");
+        assertThat(jwt.getClaimAsString("role")).isEqualTo("CLIENT");
+        assertThat(jwt.getClaimAsString("companyId")).isEqualTo(companyId.toString());
+    }
+
+    @Test
     void superadminTokenHasNoCompanyId() {
-        Jwt jwt = decoder.decode(jwtService.issue(UUID.randomUUID(), "SUPERADMIN", null));
+        Jwt jwt = decoder.decode(jwtService.issue(UUID.randomUUID(), "SUPERADMIN", null, JwtService.PANEL_AUDIENCE));
 
         assertThat(jwt.hasClaim("companyId")).isFalse();
     }

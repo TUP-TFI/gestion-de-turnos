@@ -3,18 +3,19 @@ package com.grupo140.turnos.auth;
 import com.grupo140.turnos.auth.LoginResponse.LoggedUser;
 import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.company.CompanyService;
-import com.grupo140.turnos.user.PanelUserCredentials;
+import com.grupo140.turnos.user.UserCredentials;
 import com.grupo140.turnos.user.UserRole;
 import com.grupo140.turnos.user.UserService;
 import com.grupo140.turnos.user.UserStatus;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Login del panel (US-03.1 y US-03.2): superadmin y admin de empresa.
+ * Login del panel (US-03.1 y US-03.2), y registro y login del cliente final (US-03.5 y US-03.6).
  */
 @Service
 public class AuthService {
@@ -48,12 +49,12 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public LoginResponse loginPanel(LoginRequest request) {
-        Optional<PanelUserCredentials> found = userService.findPanelUserByEmail(request.email());
+        Optional<UserCredentials> found = userService.findPanelUserByEmail(request.email());
         if (found.isEmpty()) {
             passwordEncoder.matches(request.password(), dummyHash);
             throw invalidCredentials();
         }
-        PanelUserCredentials user = found.get();
+        UserCredentials user = found.get();
 
         // Va antes del chequeo de contraseña: es nula hasta que se activa la cuenta.
         if (user.status() == UserStatus.PENDING_ACTIVATION) {
@@ -69,10 +70,74 @@ public class AuthService {
         }
 
         String role = user.role().name();
-        String token = jwtService.issue(user.id(), role, user.companyId());
+        String token = jwtService.issue(user.id(), role, user.companyId(), JwtService.PANEL_AUDIENCE);
+        return toResponse(user, token);
+    }
+
+    /**
+     * Registra a un cliente en la empresa de la página pública y lo deja con la sesión iniciada (US-03.5).
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404), {@code COMPANY_INACTIVE} (403) o
+     *     {@code EMAIL_ALREADY_IN_USE} (409).
+     */
+    @Transactional
+    public LoginResponse registerClient(String slug, ClientRegisterRequest request) {
+        UUID companyId = companyService.requireActiveIdBySlug(slug);
+        if (userService.isEmailTakenInCompany(companyId, request.email())) {
+            throw emailAlreadyInUse();
+        }
+
+        UserCredentials client = userService.createClient(
+                companyId,
+                request.firstName(),
+                request.lastName(),
+                request.email(),
+                request.phone(),
+                passwordEncoder.encode(request.password()));
+        String token = jwtService.issue(client.id(), client.role().name(), companyId, JwtService.CLIENT_AUDIENCE);
+        return toResponse(client, token);
+    }
+
+    /**
+     * Login del cliente en la empresa de la página pública (US-03.6). Un admin de esa empresa no entra por acá.
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404), {@code COMPANY_INACTIVE} (403) o
+     *     {@code INVALID_CREDENTIALS} (401).
+     */
+    @Transactional(readOnly = true)
+    public LoginResponse loginClient(String slug, LoginRequest request) {
+        UUID companyId = companyService.requireActiveIdBySlug(slug);
+
+        Optional<UserCredentials> found = userService.findClientCredentials(companyId, request.email());
+        if (found.isEmpty()) {
+            passwordEncoder.matches(request.password(), dummyHash);
+            throw invalidCredentials();
+        }
+        UserCredentials client = found.get();
+
+        if (client.status() != UserStatus.ACTIVE
+                || client.passwordHash() == null
+                || !passwordEncoder.matches(request.password(), client.passwordHash())) {
+            throw invalidCredentials();
+        }
+        String token = jwtService.issue(client.id(), client.role().name(), companyId, JwtService.CLIENT_AUDIENCE);
+        return toResponse(client, token);
+    }
+
+    private static LoginResponse toResponse(UserCredentials user, String token) {
         return new LoginResponse(
                 token,
-                new LoggedUser(user.id(), user.firstName(), user.lastName(), user.email(), role, user.companyId()));
+                new LoggedUser(
+                        user.id(),
+                        user.firstName(),
+                        user.lastName(),
+                        user.email(),
+                        user.role().name(),
+                        user.companyId()));
+    }
+
+    private static ApiException emailAlreadyInUse() {
+        return new ApiException(HttpStatus.CONFLICT, "EMAIL_ALREADY_IN_USE", "Ya existe una cuenta con ese email");
     }
 
     private static ApiException invalidCredentials() {

@@ -33,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 class CompanyStatusIT {
 
     private static final String COMPANIES = "/api/superadmin/companies";
+    private static final String SERVICES = "/api/company/services";
     private static final String SEED_SLUG = "barberia-central";
     private static final String SEED_ADMIN_EMAIL = "admin@example.com";
 
@@ -80,6 +81,24 @@ class CompanyStatusIT {
         // Al reactivar vuelve a entrar con su contraseña de siempre.
         mockMvc.perform(action(id, "reactivate")).andExpect(status().isOk());
         mockMvc.perform(login(SEED_ADMIN_EMAIL)).andExpect(status().isOk());
+    }
+
+    // #54: el token que el admin ya tenía deja de servir al desactivar la empresa, y vuelve a servir al reactivarla.
+    @Test
+    void openAdminSessionIsCutWhileCompanyIsInactive() throws Exception {
+        String id = companyIdBySlug(SEED_SLUG);
+        String adminToken = tokenOf(SEED_ADMIN_EMAIL);
+        mockMvc.perform(get(SERVICES).header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(action(id, "deactivate")).andExpect(status().isOk());
+        mockMvc.perform(get(SERVICES).header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("COMPANY_INACTIVE"));
+
+        mockMvc.perform(action(id, "reactivate")).andExpect(status().isOk());
+        mockMvc.perform(get(SERVICES).header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk());
     }
 
     @Test
