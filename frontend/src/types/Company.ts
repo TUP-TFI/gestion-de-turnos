@@ -1,4 +1,4 @@
-import type { User } from './User'
+import type { User, UserStatus } from './User'
 
 export type CompanyStatus = 'ACTIVE' | 'INACTIVE'
 
@@ -35,6 +35,15 @@ export interface Company {
   createdAt: string
   updatedAt: string
 }
+
+// Admin de la empresa que muestra el detalle (GET /api/superadmin/companies/{id}).
+export interface CompanyAdminSummary {
+  email: string
+  status: UserStatus
+}
+
+// Detalle de una empresa. admin es null si la empresa no tiene administrador.
+export type CompanyDetail = Company & { admin: CompanyAdminSummary | null }
 
 // Datos editables de la empresa: el cuerpo de PUT /api/superadmin/companies/{id}. El slug y el status no se editan.
 export type CompanyData = Pick<

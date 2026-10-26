@@ -55,7 +55,13 @@ export async function request<T>(
   }
 
   if (!response.ok) {
-    throw new ApiRequestError(await readError(response))
+    const error = await readError(response)
+    // COMPANY_INACTIVE en un pedido con sesión: la empresa se desactivó con la sesión abierta (US-04.4).
+    if (error.code === 'COMPANY_INACTIVE' && token) {
+      clearPanelSession()
+      window.location.assign('/login?reason=company-inactive')
+    }
+    throw new ApiRequestError(error)
   }
 
   // 204: respuesta correcta sin cuerpo.

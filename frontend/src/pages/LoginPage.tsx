@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate } from 'react-router'
+import { Navigate, useSearchParams } from 'react-router'
 import { AuthCard } from '../components/AuthCard'
 import { useAuth } from '../hooks/useAuth'
 import { useLogin } from '../hooks/useLogin'
@@ -14,8 +14,12 @@ import { getDashboardPath } from '../lib/panelRoutes'
 export function LoginPage() {
   const { session } = useAuth()
   const { login, error, isLoading } = useLogin()
+  const [searchParams] = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+
+  // El cliente de api/client.ts redirige acá cuando la empresa se desactiva con la sesión abierta.
+  const isCompanyInactive = searchParams.get('reason') === 'company-inactive'
 
   const dashboardPath = session ? getDashboardPath(session.user.role) : null
   if (dashboardPath) {
@@ -60,6 +64,12 @@ export function LoginPage() {
             className={INPUT_CLASSES}
           />
         </div>
+
+        {isCompanyInactive && !error && (
+          <p role="alert" className={ERROR_CLASSES}>
+            La empresa está desactivada
+          </p>
+        )}
 
         {error && (
           <p role="alert" className={ERROR_CLASSES}>

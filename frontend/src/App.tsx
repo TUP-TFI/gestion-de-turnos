@@ -12,6 +12,7 @@ import { CompaniesPage } from './pages/superadmin/CompaniesPage'
 import { CreateCompanyPage } from './pages/superadmin/CreateCompanyPage'
 import { EditCompanyPage } from './pages/superadmin/EditCompanyPage'
 import { SuperadminDashboardPage } from './pages/superadmin/SuperadminDashboardPage'
+import { SettingsPage } from './pages/superadmin/SettingsPage'
 import { SuperadminLayout } from './pages/superadmin/SuperadminLayout'
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
           <Route path="/superadmin/companies" element={<CompaniesPage />} />
           <Route path="/superadmin/companies/new" element={<CreateCompanyPage />} />
           <Route path="/superadmin/companies/:id/edit" element={<EditCompanyPage />} />
+          <Route path="/superadmin/settings" element={<SettingsPage />} />
         </Route>
       </Route>
 

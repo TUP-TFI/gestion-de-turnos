@@ -2,21 +2,30 @@ package com.grupo140.turnos.company;
 
 import static com.grupo140.turnos.seed.SeedTestValues.DEV_ACTIVATION_TOKEN;
 import static com.grupo140.turnos.seed.SeedTestValues.DEV_PASSWORD;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.grupo140.turnos.TestcontainersConfiguration;
+import com.grupo140.turnos.notification.NotificationService;
+import com.grupo140.turnos.user.User;
+import com.grupo140.turnos.user.UserRepository;
+import com.grupo140.turnos.user.UserRole;
+import com.grupo140.turnos.user.UserStatus;
 import com.jayway.jsonpath.JsonPath;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +49,16 @@ class ResendActivationIT {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private CompanyRepository companyRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    // Spy: el aviso se manda de verdad (escribe en el log) y el test captura el link que se mandó.
+    @MockitoSpyBean
+    private NotificationService notificationService;
 
     @Test
     void resendForPendingAdminReturns204AndInvalidatesOldLink() throws Exception {
@@ -76,6 +95,69 @@ class ResendActivationIT {
         mockMvc.perform(resend(UUID.randomUUID().toString()))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("COMPANY_NOT_FOUND"));
+    }
+
+    // Issue #41: el link nuevo sirve de punta a punta, no solo "el viejo deja de servir".
+    @Test
+    void resentLinkActivatesAccountAndAllowsLogin() throws Exception {
+        String companyId = companyIdBySlug(PENDING_SLUG);
+        String adminEmail = adminEmailOf(companyId);
+
+        mockMvc.perform(resend(companyId)).andExpect(status().isNoContent());
+
+        ArgumentCaptor<String> link = ArgumentCaptor.forClass(String.class);
+        verify(notificationService).sendActivationLink(anyString(), link.capture());
+        String token = link.getValue().substring(link.getValue().indexOf("token=") + "token=".length());
+
+        mockMvc.perform(post("/api/auth/activate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"%s\",\"password\":\"NuevaClave123\"}".formatted(token)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"%s\",\"password\":\"NuevaClave123\"}".formatted(adminEmail)))
+                .andExpect(status().isOk());
+    }
+
+    // Issue #40: una empresa sin admin responde 409, no 500.
+    @Test
+    void companyWithoutAdminReturns409() throws Exception {
+        UUID companyId = companyRepository
+                .saveAndFlush(new Company("Sin Admin", "sin-admin", CompanyCategory.OTHER))
+                .getId();
+
+        mockMvc.perform(resend(companyId.toString()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("COMPANY_WITHOUT_ADMIN"));
+    }
+
+    // Issue #39: con dos admins no hay 500; se usa el más antiguo.
+    @Test
+    void companyWithTwoAdminsStillWorks() throws Exception {
+        String companyId = companyIdBySlug(PENDING_SLUG);
+        String oldestEmail = adminEmailOf(companyId);
+        userRepository.save(new User(
+                "Otro",
+                "Admin",
+                "otro-admin@example.com",
+                "+5493510000099",
+                UserRole.COMPANY_ADMIN,
+                UUID.fromString(companyId),
+                UserStatus.ACTIVE));
+
+        mockMvc.perform(asSuperadmin(get(COMPANIES + "/" + companyId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.admin.email").value(oldestEmail));
+        mockMvc.perform(resend(companyId)).andExpect(status().isNoContent());
+    }
+
+    private String adminEmailOf(String companyId) throws Exception {
+        String body = mockMvc.perform(asSuperadmin(get(COMPANIES + "/" + companyId)))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        return JsonPath.read(body, "$.admin.email");
     }
 
     private MockHttpServletRequestBuilder resend(String companyId) throws Exception {

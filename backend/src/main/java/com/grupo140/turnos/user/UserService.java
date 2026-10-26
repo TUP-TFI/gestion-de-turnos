@@ -1,10 +1,13 @@
 package com.grupo140.turnos.user;
 
+import com.grupo140.turnos.common.error.ApiException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +31,7 @@ public class UserService {
      * que a lo sumo hay uno; si aparece más de uno es un dato inconsistente y se devuelve vacío.
      */
     @Transactional(readOnly = true)
-    public Optional<PanelUserCredentials> findPanelUserByEmail(String email) {
+    public Optional<UserCredentials> findPanelUserByEmail(String email) {
         List<User> users = userRepository.findPanelUsersByEmail(email);
         if (users.size() > 1) {
             log.warn("Hay {} usuarios del panel con el mismo email: se rechaza el login", users.size());
@@ -76,12 +79,63 @@ public class UserService {
         return userRepository.save(admin).getId();
     }
 
-    /** Admin de la empresa, o vacío si no tiene (no debería pasar: el alta siempre crea uno). */
+    /**
+     * Admin de la empresa, o vacío si no tiene (no debería pasar: el alta siempre crea uno). Si hubiera más
+     * de uno, devuelve el más antiguo.
+     */
     @Transactional(readOnly = true)
     public Optional<CompanyAdmin> findCompanyAdmin(UUID companyId) {
         return userRepository
-                .findByCompanyIdAndRole(companyId, UserRole.COMPANY_ADMIN)
-                .map(admin -> new CompanyAdmin(admin.getId(), admin.getEmail(), admin.getPhone(), admin.getStatus()));
+                .findFirstByCompanyIdAndRoleOrderByCreatedAtAsc(companyId, UserRole.COMPANY_ADMIN)
+                .map(UserService::toCompanyAdmin);
+    }
+
+    /**
+     * Igual que {@link #findCompanyAdmin}, pero bloquea la fila del admin hasta el fin de la transacción.
+     * Hay que llamarlo dentro de una transacción de escritura.
+     */
+    @Transactional
+    public Optional<CompanyAdmin> lockCompanyAdmin(UUID companyId) {
+        return userRepository
+                .findFirstForUpdateByCompanyIdAndRoleOrderByCreatedAtAsc(companyId, UserRole.COMPANY_ADMIN)
+                .map(UserService::toCompanyAdmin);
+    }
+
+    /**
+     * Indica si el email ya está en uso en esa empresa, con cualquier rol: el índice único
+     * {@code ux_user_email_per_company} no distingue roles.
+     */
+    @Transactional(readOnly = true)
+    public boolean isEmailTakenInCompany(UUID companyId, String email) {
+        return userRepository.findByEmailAndCompanyId(email, companyId).isPresent();
+    }
+
+    /**
+     * Crea un cliente ya activo, con la contraseña que eligió (US-03.5).
+     *
+     * @param passwordHash hash BCrypt de la contraseña.
+     * @throws ApiException {@code EMAIL_ALREADY_IN_USE} (409) si otro registro simultáneo ganó el email.
+     */
+    @Transactional
+    public UserCredentials createClient(
+            UUID companyId, String firstName, String lastName, String email, String phone, String passwordHash) {
+        User client = new User(firstName, lastName, email, phone, UserRole.CLIENT, companyId, UserStatus.ACTIVE);
+        client.setPassword(passwordHash);
+        try {
+            return toCredentials(userRepository.saveAndFlush(client));
+        } catch (DataIntegrityViolationException ex) {
+            // Dos registros a la vez con el mismo email: el chequeo previo no alcanza, lo frena el índice único.
+            throw new ApiException(HttpStatus.CONFLICT, "EMAIL_ALREADY_IN_USE", "Ya existe una cuenta con ese email");
+        }
+    }
+
+    /** Cliente de la empresa por email. Un admin con ese email en la misma empresa no cuenta. */
+    @Transactional(readOnly = true)
+    public Optional<UserCredentials> findClientCredentials(UUID companyId, String email) {
+        return userRepository
+                .findByEmailAndCompanyId(email, companyId)
+                .filter(user -> user.getRole() == UserRole.CLIENT)
+                .map(UserService::toCredentials);
     }
 
     /**
@@ -93,8 +147,12 @@ public class UserService {
         return userRepository.findByIdAndCompanyId(userId, companyId).map(User::getPhone);
     }
 
-    private static PanelUserCredentials toCredentials(User user) {
-        return new PanelUserCredentials(
+    private static CompanyAdmin toCompanyAdmin(User admin) {
+        return new CompanyAdmin(admin.getId(), admin.getEmail(), admin.getPhone(), admin.getStatus());
+    }
+
+    private static UserCredentials toCredentials(User user) {
+        return new UserCredentials(
                 user.getId(),
                 user.getFirstName(),
                 user.getLastName(),

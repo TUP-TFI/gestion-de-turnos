@@ -390,7 +390,7 @@ Como superadmin, quiero desactivar una empresa, para dar de baja el negocio sin 
 
 Criterios de aceptación:
 - La empresa pasa a estado `INACTIVE` — el registro nunca se borra.
-- El login del admin de esa empresa queda bloqueado (derivado de `company.status` en el filtro de autenticación, sin tocar `User.status`).
+- El login del admin de esa empresa queda bloqueado (derivado de `company.status` en el filtro de autenticación, sin tocar `User.status`). El bloqueo también corta la sesión que ya estaba abierta, la del admin y la de sus clientes: cualquier request con ese token responde `403 COMPANY_INACTIVE` en el acto, sin esperar a que el token venza.
 - Los turnos pendientes de esa empresa se cancelan automáticamente, notificando a cada cliente afectado.
 - La página pública de esa empresa deja de ofrecer reservas y muestra un estado de "no disponible".
 
@@ -462,16 +462,19 @@ Dependencias: US-04.1 (mismo mecanismo de token/envío).
 Como superadmin, quiero editar la anticipación mínima para reservar, el plazo máximo de cancelación/reprogramación y el máximo de reprogramaciones por turno, para ajustar esas reglas sin necesitar un redeploy.
 
 Criterios de aceptación:
-- Los tres valores se leen y editan desde `PlatformSettings` (fila única), nunca desde un archivo de configuración.
+- Los cuatro valores se leen y editan desde `PlatformSettings` (fila única), nunca desde un archivo de configuración.
 - Al guardar, los nuevos valores rigen de inmediato para todas las empresas.
 - No se recalculan ni afectan retroactivamente turnos ya reservados — solo aplican a las validaciones de operaciones posteriores.
 - Se agrega un cuarto parámetro editable: **máximo de anticipación para reservar** (`maxBookingAdvanceDays`, en días).
 
-> ❓ **Valor pendiente de definir entre Nico y Brune.** La historia se puede implementar con un valor provisorio y ajustarlo después sin tocar código, ya que vive en `PlatformSettings`.
+- Cada valor tiene un tope máximo, validado en el backend (la base no lo exige): `minBookingNoticeMinutes` ≤ 1440, `cancellationDeadlineHours` ≤ 168, `maxRescheduleCount` ≤ 10 y `maxBookingAdvanceDays` ≤ 365.
+- Validación cruzada: `minBookingNoticeMinutes` no puede superar a `maxBookingAdvanceDays` expresado en minutos (`días × 1440`); si lo supera, se rechaza con `400 VALIDATION_ERROR`. Que sean iguales es válido. Con los topes de arriba esta combinación no se puede armar (1440 minutos es 1 día, el mínimo de `maxBookingAdvanceDays`): la regla queda como barrera por si los topes cambian.
+
+> `maxBookingAdvanceDays` queda en **90 días** por defecto, ya insertado por la migración V1. Se ajusta sin tocar código, porque vive en `PlatformSettings`.
 
 Tareas técnicas:
 - Backend (Brune): endpoint de lectura/edición de la fila única de `PlatformSettings`.
-- Frontend (Nico): pantalla con los tres campos, dentro del panel de superadmin.
+- Frontend (Nico): pantalla con los cuatro campos, dentro del panel de superadmin.
 
 Dependencias: Paso 2 (`PlatformSettings`, con su fila ya insertada por la migración inicial).
 
@@ -691,7 +694,7 @@ Como sistema, necesito rechazar reservas con menos de 30 minutos de anticipació
 Criterios de aceptación:
 - Un intento de reserva con menos de 30 minutos de anticipación sobre el horario elegido se rechaza con un mensaje claro.
 - Un intento de reserva sobre un horario ya pasado se rechaza igual.
-- Un intento de reserva con más de `maxBookingAdvanceDays` de anticipación (`PlatformSettings`) se rechaza con un mensaje claro. *(Valor a definir — ver US-04.9.)*
+- Un intento de reserva con más de `maxBookingAdvanceDays` de anticipación (`PlatformSettings`) se rechaza con un mensaje claro. *(90 días por defecto — ver US-04.9.)*
 - El valor de 30 minutos sale de `PlatformSettings`, no está hardcodeado.
 
 Tareas técnicas:
