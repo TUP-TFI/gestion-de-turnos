@@ -21,3 +21,8 @@ app:
   jwt:
     # Sin valor por defecto: si falta la variable, la app no arranca. Minimo 32 bytes
     secret: ${JWT_SECRET}
+  seed:
+    # Solo se leen si APP_SEED_ENABLED=true. Sin valor por defecto: con el seed prendido y sin estas
+    # variables, la app no arranca. Nunca usar los valores de application-dev.yml
+    password: ${SEED_PASSWORD}
+    activation-token: ${SEED_ACTIVATION_TOKEN}

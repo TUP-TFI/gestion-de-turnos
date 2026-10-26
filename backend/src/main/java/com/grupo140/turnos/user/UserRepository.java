@@ -1,8 +1,10 @@
 package com.grupo140.turnos.user;
 
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
@@ -21,8 +23,14 @@ public interface UserRepository extends Repository<User, UUID> {
 
     Optional<User> findByIdAndCompanyId(UUID id, UUID companyId);
 
-    // Admin de una empresa. Cada empresa tiene uno solo: lo crea el alta (US-04.1).
-    Optional<User> findByCompanyIdAndRole(UUID companyId, UserRole role);
+    // Admin de una empresa. Cada empresa tiene uno solo: lo crea el alta (US-04.1). Si hubiera más de uno
+    // por un dato inconsistente, se toma el más antiguo en lugar de fallar con un 500.
+    Optional<User> findFirstByCompanyIdAndRoleOrderByCreatedAtAsc(UUID companyId, UserRole role);
+
+    // Igual que la anterior, pero bloquea la fila hasta el fin de la transacción: el reenvío del link
+    // (US-04.8) la usa para que dos reenvíos simultáneos no dejen dos tokens vigentes.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<User> findFirstForUpdateByCompanyIdAndRoleOrderByCreatedAtAsc(UUID companyId, UserRole role);
 
     // Única búsqueda por id sin companyId: la usa la activación (US-03.4), donde el token del link ya
     // prueba la identidad del usuario. Filtrar por estado acota el acceso a cuentas pendientes.

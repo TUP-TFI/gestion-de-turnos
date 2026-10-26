@@ -1,9 +1,9 @@
 spring:
   application:
     name: turnos
-  profiles:
-    # Sin SPRING_PROFILES_ACTIVE se usa dev; Render define prod
-    default: dev
+  # Sin perfil por defecto, a proposito: el .jar sin SPRING_PROFILES_ACTIVE no arranca (no hay base ni
+  # secreto del JWT). Si fuera dev, en Render se conectaria a Neon con el secreto del JWT y la contraseña
+  # del seed que estan en el repo. Solo ./mvnw spring-boot:run y los tests usan dev por defecto (pom.xml)
   jackson:
     deserialization:
       # Un decimal en un campo entero (30.5 en minutos) da 400 en lugar de truncarse a 30

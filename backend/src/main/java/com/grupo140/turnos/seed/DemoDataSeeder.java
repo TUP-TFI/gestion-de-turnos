@@ -24,53 +24,54 @@ import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Carga los datos mínimos para probar el login, la activación de cuenta, los servicios y los horarios
- * sin tener que crear esos datos a mano.
+ * Carga los datos de prueba para usar el sistema sin crearlos a mano: en local, en los tests y en el
+ * despliegue que revisa el tutor.
  *
- * <p>Corre al arrancar solo si se cumplen dos condiciones: el perfil es {@code dev} y además se pide
- * con {@code app.seed.enabled=true}.
+ * <p>Corre al arrancar solo si se pide con {@code app.seed.enabled=true}, en cualquier perfil.
  *
  * <p>Decisiones:
  *
  * <ul>
- *   <li>El perfil solo no alcanza porque {@code dev} es el perfil por defecto: si en producción faltara
- *       {@code SPRING_PROFILES_ACTIVE}, la aplicación arrancaría en {@code dev} contra la base real y
- *       crearía usuarios con una contraseña que está escrita en este archivo. Por eso
- *       {@code app.seed.enabled} no se define en ningún {@code application*.yml}: se pasa a mano al
- *       arrancar en local.
- *   <li>Si la empresa de ejemplo ya existe, no hace nada: un segundo arranque no duplica datos.
+ *   <li>La contraseña de los usuarios activos ({@code app.seed.password}) y el token de activación del
+ *       admin pendiente ({@code app.seed.activation-token}) no están en el código. En {@code dev} tienen
+ *       valores fijos en {@code application-dev.yml}; en {@code prod} se leen de variables de entorno sin
+ *       valor por defecto. Así, en Neon nunca queda una contraseña que esté escrita en el repositorio.
+ *   <li>{@code app.seed.enabled} no se define en ningún {@code application*.yml}: se pasa a mano en local
+ *       y como variable de entorno en Render. Apagarlo es sacar la variable.
+ *   <li>Cada bloque revisa su propia clave (slug de la empresa, email del usuario) y crea solo lo que
+ *       falta. Una funcionalidad nueva suma su bloque, y el próximo arranque lo carga en una base que ya
+ *       tenía el resto, sin duplicar ni pisar lo que alguien haya cambiado desde la UI.
+ *   <li>Los servicios y el horario de una empresa se crean solo junto con la empresa. Si alguien los
+ *       borra después, no vuelven a aparecer.
  *   <li>Todo se guarda en una sola transacción: si algo falla, no queda un seed a medias.
  *   <li>Las contraseñas se encriptan con el {@link PasswordEncoder} del sistema, el mismo del login.
- *   <li>El token de activación tiene un valor fijo ({@link #DEV_ACTIVATION_TOKEN}) y no uno aleatorio,
- *       para poder probar la activación aunque la base se haya cargado hace días. Por lo mismo vence
- *       en un año y no en 48 horas.
+ *   <li>El token de activación tiene un valor conocido y no uno aleatorio, para poder probar la
+ *       activación aunque la base se haya cargado hace días. Por lo mismo vence en un año y no en 48 horas.
  *   <li>No toca {@code platform_settings}: esa fila la inserta la migración V1.
  * </ul>
  */
 @Component
-@Profile("dev")
 @ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true")
-public class DevDataSeeder implements CommandLineRunner {
+public class DemoDataSeeder implements CommandLineRunner {
 
-    private static final Logger log = LoggerFactory.getLogger(DevDataSeeder.class);
+    private static final Logger log = LoggerFactory.getLogger(DemoDataSeeder.class);
 
-    // Contraseña de todos los usuarios de prueba. Solo existe en dev.
-    public static final String DEV_PASSWORD = "Turnos.dev.2026";
+    // Mismo mínimo que la activación de cuenta: la contraseña del seed tiene que poder elegirse a mano.
+    private static final int MIN_PASSWORD_LENGTH = 8;
 
-    // Valor en claro del token de activación del admin pendiente. Solo existe en dev.
-    public static final String DEV_ACTIVATION_TOKEN = "dev-activation-token";
-
+    private static final String SUPERADMIN_EMAIL = "superadmin@example.com";
     private static final String COMPANY_SLUG = "barberia-central";
     // Empresa recién dada de alta, cuyo admin todavía no activó la cuenta. Cada empresa tiene un solo admin.
     private static final String PENDING_COMPANY_SLUG = "estetica-pendiente";
+    private static final String PENDING_ADMIN_EMAIL = "admin.pendiente@example.com";
     private static final int INTERVAL_MINUTES = 30;
     private static final LocalTime MORNING_START = LocalTime.of(9, 0);
     private static final LocalTime MORNING_END = LocalTime.of(13, 0);
@@ -84,15 +85,26 @@ public class DevDataSeeder implements CommandLineRunner {
     private final UserTokenRepository userTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final TokenGenerator tokenGenerator;
+    private final String password;
+    private final String activationToken;
 
-    public DevDataSeeder(
+    public DemoDataSeeder(
             CompanyRepository companyRepository,
             ServiceRepository serviceRepository,
             BusinessHoursRepository businessHoursRepository,
             UserRepository userRepository,
             UserTokenRepository userTokenRepository,
             PasswordEncoder passwordEncoder,
-            TokenGenerator tokenGenerator) {
+            TokenGenerator tokenGenerator,
+            @Value("${app.seed.password}") String password,
+            @Value("${app.seed.activation-token}") String activationToken) {
+        if (password.length() < MIN_PASSWORD_LENGTH) {
+            throw new IllegalStateException(
+                    "app.seed.password tiene que tener al menos " + MIN_PASSWORD_LENGTH + " caracteres");
+        }
+        if (activationToken.isBlank()) {
+            throw new IllegalStateException("app.seed.activation-token no puede estar vacío");
+        }
         this.companyRepository = companyRepository;
         this.serviceRepository = serviceRepository;
         this.businessHoursRepository = businessHoursRepository;
@@ -100,38 +112,49 @@ public class DevDataSeeder implements CommandLineRunner {
         this.userTokenRepository = userTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.tokenGenerator = tokenGenerator;
+        this.password = password;
+        this.activationToken = activationToken;
     }
 
     @Override
     @Transactional
     public void run(String... args) {
-        if (companyRepository.existsBySlug(COMPANY_SLUG)) {
-            log.info("Seed de dev: la empresa '{}' ya existe, no se carga nada.", COMPANY_SLUG);
-            return;
-        }
-
-        UUID companyId = seedCompany();
-        seedServices(companyId);
-        seedBusinessHours(companyId);
-        seedUsers(companyId);
+        seedSuperadmin();
+        seedBarberiaCentral();
         seedPendingCompany();
-
-        log.info(
-                "Seed de dev cargado: empresas '{}' (2 servicios, horario semanal, admin y 2 clientes) y '{}'"
-                        + " (admin pendiente), más el superadmin.",
-                COMPANY_SLUG,
-                PENDING_COMPANY_SLUG);
-        log.info("Seed de dev: token de activación del admin pendiente = {}", DEV_ACTIVATION_TOKEN);
+        log.info("Seed de demo revisado: se creó solo lo que faltaba.");
     }
 
-    private UUID seedCompany() {
+    private void seedSuperadmin() {
+        if (userRepository.findSuperadminByEmail(SUPERADMIN_EMAIL).isPresent()) {
+            return;
+        }
+        saveActiveUser("Ana", "Superadmin", SUPERADMIN_EMAIL, "+5493510000001", UserRole.SUPERADMIN, null);
+        log.info("Seed de demo: superadmin '{}' creado.", SUPERADMIN_EMAIL);
+    }
+
+    private void seedBarberiaCentral() {
+        UUID companyId =
+                companyRepository.findBySlug(COMPANY_SLUG).map(Company::getId).orElseGet(this::createBarberiaCentral);
+
+        // Emails de example.com y teléfonos inventados: no pertenecen a nadie.
+        seedActiveUser("Carlos", "Gómez", "admin@example.com", "+5493510000002", UserRole.COMPANY_ADMIN, companyId);
+        seedActiveUser("Lucía", "Pérez", "cliente1@example.com", "+5493510000004", UserRole.CLIENT, companyId);
+        seedActiveUser("Martín", "Sosa", "cliente2@example.com", "+5493510000005", UserRole.CLIENT, companyId);
+    }
+
+    private UUID createBarberiaCentral() {
         Company company = new Company("Barbería Central", COMPANY_SLUG, CompanyCategory.BARBERSHOP);
         company.setDescription("Empresa de ejemplo para desarrollo.");
         company.setAddress("Av. Colón 1234, Córdoba");
         company.setPhone("+5493510000000");
         company.setContactEmail("contacto@example.com");
         company.setPrimaryColor("#1F2937");
-        return companyRepository.save(company).getId();
+        UUID companyId = companyRepository.save(company).getId();
+        seedServices(companyId);
+        seedBusinessHours(companyId);
+        log.info("Seed de demo: empresa '{}' creada con 2 servicios y horario semanal.", COMPANY_SLUG);
+        return companyId;
     }
 
     // Duraciones distintas a propósito: con intervalo de 30, el servicio de 60 ocupa dos franjas.
@@ -155,40 +178,51 @@ public class DevDataSeeder implements CommandLineRunner {
         businessHoursRepository.save(new BusinessHours(companyId, day, start, end, INTERVAL_MINUTES));
     }
 
-    // Emails de example.com y teléfonos inventados: no pertenecen a nadie.
-    private void seedUsers(UUID companyId) {
-        saveActiveUser("Ana", "Superadmin", "superadmin@example.com", "+5493510000001", UserRole.SUPERADMIN, null);
-        saveActiveUser("Carlos", "Gómez", "admin@example.com", "+5493510000002", UserRole.COMPANY_ADMIN, companyId);
-        saveActiveUser("Lucía", "Pérez", "cliente1@example.com", "+5493510000004", UserRole.CLIENT, companyId);
-        saveActiveUser("Martín", "Sosa", "cliente2@example.com", "+5493510000005", UserRole.CLIENT, companyId);
-    }
-
     // Como queda una empresa recién dada de alta: sin servicios ni horarios, y con su admin pendiente de activación.
     private void seedPendingCompany() {
-        Company company = new Company("Estética Pendiente", PENDING_COMPANY_SLUG, CompanyCategory.BEAUTY_CENTER);
-        UUID companyId = companyRepository.save(company).getId();
+        UUID companyId = companyRepository
+                .findBySlug(PENDING_COMPANY_SLUG)
+                .map(Company::getId)
+                .orElseGet(() -> companyRepository
+                        .save(new Company("Estética Pendiente", PENDING_COMPANY_SLUG, CompanyCategory.BEAUTY_CENTER))
+                        .getId());
+        if (userRepository
+                .findByEmailAndCompanyId(PENDING_ADMIN_EMAIL, companyId)
+                .isPresent()) {
+            return;
+        }
 
         // Admin que todavía no activó su cuenta: no tiene contraseña, la define al activarla.
         // El token es lo que viaja en el link de activación; en la base se guarda solo su hash.
         User pendingAdmin = userRepository.save(new User(
                 "Marta",
                 "Ruiz",
-                "admin.pendiente@example.com",
+                PENDING_ADMIN_EMAIL,
                 "+5493510000003",
                 UserRole.COMPANY_ADMIN,
                 companyId,
                 UserStatus.PENDING_ACTIVATION));
         userTokenRepository.save(new UserToken(
                 pendingAdmin.getId(),
-                tokenGenerator.hash(DEV_ACTIVATION_TOKEN),
+                tokenGenerator.hash(activationToken),
                 TokenType.ACTIVATION,
                 Instant.now().plus(365, ChronoUnit.DAYS)));
+        log.info("Seed de demo: empresa '{}' con admin pendiente de activación creada.", PENDING_COMPANY_SLUG);
+    }
+
+    private void seedActiveUser(
+            String firstName, String lastName, String email, String phone, UserRole role, UUID companyId) {
+        if (userRepository.findByEmailAndCompanyId(email, companyId).isPresent()) {
+            return;
+        }
+        saveActiveUser(firstName, lastName, email, phone, role, companyId);
+        log.info("Seed de demo: usuario '{}' ({}) creado.", email, role);
     }
 
     private void saveActiveUser(
             String firstName, String lastName, String email, String phone, UserRole role, UUID companyId) {
         User user = new User(firstName, lastName, email, phone, role, companyId, UserStatus.ACTIVE);
-        user.setPassword(passwordEncoder.encode(DEV_PASSWORD));
+        user.setPassword(passwordEncoder.encode(password));
         userRepository.save(user);
     }
 }

@@ -21,6 +21,9 @@ public interface CompanyRepository extends Repository<Company, UUID> {
 
     boolean existsBySlug(String slug);
 
+    // Solo lo usa el seed de demo, para no duplicar una empresa que ya cargó.
+    Optional<Company> findBySlug(String slug);
+
     // Listado y edición del superadmin (US-04.2 y US-04.3). No llevan companyId: la empresa es el propio
     // tenant, y solo el superadmin llega a estas consultas.
     List<Company> findAllByOrderByNameAsc();
