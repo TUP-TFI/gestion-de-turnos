@@ -131,6 +131,22 @@ El admin personaliza su página pública con `GET /api/company/branding` y `PUT 
 
 El `PUT` reemplaza los dos campos: lo que llega en `null`, o no llega, se borra. `primaryColor` tiene el formato `#RRGGBB` (el mismo `CHECK` de la base) y `logoUrl` hasta 500 caracteres, la misma validación que usa el superadmin al crear o editar la empresa, porque los dos escriben el mismo campo. Un valor inválido responde `400 VALIDATION_ERROR`. No hay storage: el logo es una URL cargada a mano.
 
+### Feriados y días especiales
+
+Una excepción de calendario (`ScheduleException`) es una fecha puntual en la que la empresa no sigue su horario semanal: está cerrada todo el día o abre con un horario especial. Reemplaza por completo al horario semanal de esa fecha, no se combinan. Todas las rutas usan la empresa de la sesión:
+
+| Ruta | Respuesta |
+| :--- | :--- |
+| `GET /api/company/schedule-exceptions` | `200` con las excepciones de hoy en adelante, ordenadas por fecha. |
+| `POST /api/company/schedule-exceptions` | `201` con la excepción creada. |
+| `PUT /api/company/schedule-exceptions/{id}` | `200` con la excepción actualizada. |
+| `DELETE /api/company/schedule-exceptions/{id}` | `204`. Es un borrado físico: la fecha vuelve a regirse por el horario semanal. |
+| `POST /api/company/schedule-exceptions/affected-appointments` | `200` con `{ count }`: los turnos `PENDING` futuros de esa fecha que quedarían fuera de la excepción. Si el día queda cerrado, cuentan todos. No guarda nada. |
+
+El body del alta, la edición y el conteo es `{ exceptionDate, isClosed, startTime, endTime, intervalMinutes, reason }`. Si `isClosed` es `true`, las tres horas van vacías; si es `false`, son obligatorias y el fin tiene que ser posterior al inicio. `reason` es opcional, de hasta 200 caracteres. La fecha no puede ser anterior a hoy, calculado en `company.timezone` y no en la zona del servidor. Guardar una excepción nunca cancela turnos: el aviso de turnos afectados sirve para que el admin decida antes de guardar.
+
+El aviso de turnos fuera de rango del horario semanal (`POST /api/company/business-hours/out-of-range-appointments`) no cuenta los turnos de fechas con excepción, porque esas fechas se rigen por la excepción.
+
 ### Desactivar y reactivar una empresa
 
 `POST /api/superadmin/companies/{id}/deactivate` y `POST /api/superadmin/companies/{id}/reactivate`, sin body. Responden `200` con la empresa actualizada, o `404 COMPANY_NOT_FOUND`. Si la empresa ya estaba en ese estado, responden `200` igual y no hacen nada.
@@ -169,6 +185,9 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | `COMPANY_WITHOUT_ADMIN` | 409 | Se pidió reenviar el link de activación, pero la empresa no tiene un administrador |
 | `SERVICE_NOT_FOUND` | 404 | El servicio pedido no existe o es de otra empresa |
 | `INVALID_BUSINESS_HOURS` | 400 | El horario semanal tiene una franja que termina antes de empezar, o dos franjas del mismo día superpuestas |
+| `INVALID_SCHEDULE_EXCEPTION` | 400 | La excepción de calendario tiene una fecha pasada, un día cerrado con horario, o un día abierto sin las tres horas o con el fin antes del inicio |
+| `SCHEDULE_EXCEPTION_DATE_TAKEN` | 409 | Ya hay una excepción de calendario cargada para esa fecha |
+| `SCHEDULE_EXCEPTION_NOT_FOUND` | 404 | La excepción de calendario pedida no existe o es de otra empresa |
 | `UNAUTHORIZED` | 401 | Falta el token o es inválido |
 | `FORBIDDEN` | 403 | El rol no alcanza para la ruta |
 | `VALIDATION_ERROR` | 400 | Body inválido, o un valor de la dirección con formato incorrecto (por ejemplo, un id que no es UUID) |
