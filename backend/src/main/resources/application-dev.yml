@@ -17,3 +17,8 @@ app:
   jwt:
     # Solo dev: valor publico, no sirve para nada real. Minimo 32 bytes (HS256)
     secret: dev-only-secret-turnos-jwt-0123456789-abcdef
+  seed:
+    # Solo dev: valores publicos del seed de demo. Se usan si se arranca con APP_SEED_ENABLED=true.
+    # Los tests los repiten en SeedTestValues
+    password: Turnos.dev.2026
+    activation-token: dev-activation-token

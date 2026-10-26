@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ActivateAccountPage } from './pages/ActivateAccountPage'
 import { LoginPage } from './pages/LoginPage'
+import { BusinessHoursPage } from './pages/company/BusinessHoursPage'
 import { CompanyDashboardPage } from './pages/company/CompanyDashboardPage'
 import { CompanyLayout } from './pages/company/CompanyLayout'
 import { CreateServicePage } from './pages/company/CreateServicePage'
@@ -34,6 +35,7 @@ function App() {
           <Route path="/company/services" element={<ServicesPage />} />
           <Route path="/company/services/new" element={<CreateServicePage />} />
           <Route path="/company/services/:id/edit" element={<EditServicePage />} />
+          <Route path="/company/business-hours" element={<BusinessHoursPage />} />
         </Route>
       </Route>
 

@@ -12,7 +12,7 @@ Requisitos: **JDK 21** y **Docker**. Maven no hace falta: el proyecto usa el wra
 # 1. Levantar PostgreSQL 18 en el puerto 5433
 docker compose up -d
 
-# 2. Arrancar la API (perfil dev por defecto)
+# 2. Arrancar la API (con Maven, el perfil por defecto es dev)
 ./mvnw spring-boot:run
 
 # 3. Verificar
@@ -30,7 +30,7 @@ El perfil `dev` trae valores por defecto que coinciden con el `docker-compose.ym
 
 | Variable | Perfil | Descripción |
 | :--- | :--- | :--- |
-| `SPRING_PROFILES_ACTIVE` | ambos | `dev` (default) o `prod`. Va en el comando, no en el `.env`: ese archivo lo importa el perfil `prod`, que para leerlo ya tiene que estar activo. |
+| `SPRING_PROFILES_ACTIVE` | ambos | `dev` o `prod`. Con `./mvnw spring-boot:run`, sin la variable se usa `dev`; el `.jar` sin la variable no arranca (ver [Perfiles](#perfiles)). Va en el comando, no en el `.env`: ese archivo lo importa el perfil `prod`, que para leerlo ya tiene que estar activo. |
 | `DB_URL` | prod | URL JDBC de la base. En Neon, el host **directo** (sin `-pooler`): Flyway necesita locks de sesión. |
 | `DB_USERNAME` | prod | Usuario de la base. |
 | `DB_PASSWORD` | prod | Contraseña de la base. |
@@ -38,6 +38,9 @@ El perfil `dev` trae valores por defecto que coinciden con el `docker-compose.ym
 | `CORS_ALLOWED_ORIGINS` | prod | Origenes que el backend acepta por CORS, separados por coma. Esquema + host, sin path. |
 | `FRONTEND_URL` | prod | Dirección del frontend, sin barra final. Con ella se arma el link de activación (`{FRONTEND_URL}/activate?token=...`). En Render: `https://gestion-de-turnos-eight.vercel.app`. En dev está fija en `http://localhost:5173`. |
 | `JWT_SECRET` | prod | Secreto con el que se firma el JWT de sesión (HS256). Al menos 32 bytes; si es más corto, la app no arranca. En dev hay un valor fijo. |
+| `APP_SEED_ENABLED` | ambos | `true` carga el seed de demo al arrancar (ver [Seeds y datos de prueba](#seeds-y-datos-de-prueba)). Sin la variable, el seed no corre. |
+| `SEED_PASSWORD` | prod | Contraseña de los usuarios activos del seed. Obligatoria solo con `APP_SEED_ENABLED=true`; al menos 8 caracteres. Nunca la de dev. En dev hay un valor fijo. |
+| `SEED_ACTIVATION_TOKEN` | prod | Token del link de activación del admin pendiente del seed. Obligatorio solo con `APP_SEED_ENABLED=true`. En dev hay un valor fijo. |
 
 Para correr en local contra la base de producción, creá un `backend/.env` con esas variables: el perfil `prod` lo importa si existe (`spring.config.import: optional:file:.env[.properties]`).
 
@@ -54,8 +57,10 @@ SPRING_PROFILES_ACTIVE=prod ./mvnw spring-boot:run  # base de Neon, lee el .env
 
 | Perfil | Base | Notas |
 | :--- | :--- | :--- |
-| `dev` | `localhost:5433` (docker-compose) | `show-sql: true`. Es el default si no se define `SPRING_PROFILES_ACTIVE`. |
+| `dev` | `localhost:5433` (docker-compose) | `show-sql: true`. Es el default de `./mvnw spring-boot:run` y de los tests, si no se define `SPRING_PROFILES_ACTIVE`. |
 | `prod` | Neon, por variables de entorno | Sin defaults: si falta una variable, la app no arranca. Pool de Hikari limitado a 5 conexiones por el free tier. |
+
+> ⚠️ **No hay perfil por defecto en `application.yml`, a propósito.** El default `dev` lo ponen Maven (`spring-boot:run`) y failsafe (tests) en el `pom.xml`. El `.jar` que corre en Render no lo hereda: si ahí faltara `SPRING_PROFILES_ACTIVE=prod`, la app no arranca, en vez de arrancar en `dev` contra Neon con el secreto del JWT y la contraseña del seed que están en el repositorio. Si corrés la app desde el IDE (botón Run sobre `TurnosApplication`), definí el perfil `dev` en la configuración de ejecución.
 
 ## Deploy
 
@@ -73,7 +78,8 @@ Configuración del servicio en Render:
 | Root Directory | `backend` |
 | Dockerfile Path | `./Dockerfile` |
 | Health Check Path | `/actuator/health` |
-| Auto-Deploy | After CI Checks Pass |
+| Environment | `SPRING_PROFILES_ACTIVE=prod` y las variables `prod` de la tabla de [Variables de entorno](#variables-de-entorno) |
+| Auto-Deploy | On Commit |
 
 Probar la imagen antes de subirla:
 
@@ -177,7 +183,7 @@ src/main/java/com/<grupo>/turnos/
 ├── appointment/       # Appointment: disponibilidad, reserva, cancelación, reprogramación
 ├── notification/      # NotificationService desacoplado del canal + reintentos
 ├── reporting/         # dashboards del superadmin y del admin de empresa
-└── seed/              # datos de prueba, solo con el perfil dev
+└── seed/              # datos de prueba, solo con app.seed.enabled=true
 ```
 
 Dentro de cada feature:
@@ -246,7 +252,7 @@ auth ─────────────────────────
 
 notification   ← hoja: no depende de ningún feature de negocio
 common, config ← transversales: cualquiera puede usarlos, ellos no usan a nadie
-seed           ← solo perfil dev: fuera del grafo (ver excepción abajo)
+seed           ← solo con app.seed.enabled: fuera del grafo (ver excepción abajo)
 ```
 
 - ❌ Un feature **nunca** importa un repository de otro feature: se habla con su `Service`.
@@ -254,7 +260,7 @@ seed           ← solo perfil dev: fuera del grafo (ver excepción abajo)
 - ✅ `auth` depende de `user`: el login y la activación leen y actualizan `User`, pero a través de los services de `user`, nunca de `UserRepository`.
 - ✅ `appointment` depende de `user` y de `notification`: al cancelar turnos busca el teléfono del cliente con `UserService.findPhone` y lo avisa con `NotificationService`. Ninguno de los dos depende de `appointment`, así que no hay ciclo.
 - ⚠️ **Excepción: el alta de empresa** (US-04.1). `CompanyService.create` crea en una sola transacción la empresa, su admin y el token de activación, así que `company` usa `UserService` (de `user`), `ActivationService` (de `auth`) y `NotificationService`. Como `auth` ya usa `CompanyService` en el login, entre `auth` y `company` queda un ciclo de paquetes. Se acepta porque no hay ciclo entre clases (`ActivationService` no depende de `CompanyService`) y porque evitarlo obligaría a mover el token de activación fuera de `auth`. Sigue valiendo que `company` no importa los repositories de esos features.
-- ⚠️ **Otra excepción: el paquete `seed`** (T-02.4). Corre solo con `@Profile("dev")` y carga datos de prueba de varios features, así que puede usar sus repositories directamente. Nada de código de producción importa `seed`, y `seed` no expone nada para los demás features.
+- ⚠️ **Otra excepción: el paquete `seed`** (T-02.4). Corre solo con `app.seed.enabled=true` y carga datos de prueba de varios features, así que puede usar sus repositories directamente. Nada de código de producción importa `seed`, y `seed` no expone nada para los demás features.
 
 ### Los dos casos concretos que esta regla resuelve
 
@@ -376,8 +382,9 @@ Los jobs de `backend-ci.yml` se saltean si el PR no toca `backend/`; un job salt
 
 ## Seeds y datos de prueba
 
-`seed/DevDataSeeder` carga los datos mínimos al arrancar, para poder probar el login, la activación de cuenta, los servicios y los horarios sin crear esos datos a mano. 
-**No corre solo.** Necesita dos condiciones a la vez: el perfil `dev` y la propiedad `app.seed.enabled=true`. Si falta cualquiera de las dos, el bean no se crea.
+`seed/DemoDataSeeder` carga datos de prueba al arrancar, para poder probar el login, la activación de cuenta, los servicios y los horarios sin crear esos datos a mano. Corre en local, en los tests de integración y en Render, para que el tutor pruebe la UI desplegada.
+
+**No corre solo.** Necesita la propiedad `app.seed.enabled=true`, en cualquier perfil. Sin ella, el bean no se crea.
 
 ```bash
 # bash
@@ -389,9 +396,32 @@ APP_SEED_ENABLED=true ./mvnw spring-boot:run
 $env:APP_SEED_ENABLED='true'; .\mvnw.cmd spring-boot:run
 ```
 
-> ⚠️ `app.seed.enabled` **no se define en ningún `application*.yml`**, a propósito. `dev` es el perfil por defecto: si en Render faltara `SPRING_PROFILES_ACTIVE=prod`, la aplicación arrancaría en `dev` contra Neon. Con la propiedad en un archivo, el seed correría ahí y crearía usuarios con una contraseña que está en el repositorio. Pasándola a mano, solo existe en la máquina de quien la escribe.
+> ⚠️ `app.seed.enabled` **no se define en ningún `application*.yml`**, a propósito: se prende a mano en local y con la variable `APP_SEED_ENABLED` en Render. Apagarlo es sacar la variable.
+>
+> En Render tiene que estar `SPRING_PROFILES_ACTIVE=prod`. Sin perfil, la app no arranca (ver [Perfiles](#perfiles)), así que el seed nunca corre con los valores de dev contra Neon.
 
-Si la empresa `barberia-central` ya está en la base, no hace nada, así que un segundo arranque no duplica datos.
+### Contraseña y token
+
+La contraseña de los usuarios activos y el token de activación del admin pendiente no están en el código: salen de `app.seed.password` y `app.seed.activation-token`.
+
+| Perfil | De dónde salen |
+| :--- | :--- |
+| `dev` | Valores fijos en `application-dev.yml`: contraseña `Turnos.dev.2026`, token `dev-activation-token`. Los tests los repiten en `SeedTestValues`. |
+| `prod` | Variables `SEED_PASSWORD` y `SEED_ACTIVATION_TOKEN`, sin valor por defecto. Con el seed prendido y sin ellas, la app no arranca. |
+
+> ⚠️ En Render, **nunca** usar los valores de dev: están en el repositorio, y cualquiera podría entrar como superadmin. Las credenciales de Render se pasan por un canal privado, nunca por el repo ni por un issue.
+
+### Cada arranque crea solo lo que falta
+
+Cada bloque del seed revisa su propia clave (slug de la empresa, email del usuario) y crea solo lo que no existe. Render vuelve a correr el seed en cada deploy, así que:
+
+- Un segundo arranque no duplica datos.
+- Lo que alguien cambió desde la UI no se pisa. Los servicios y el horario de una empresa se crean solo junto con la empresa: si alguien los borra, no vuelven.
+- **Al agregar una funcionalidad**, sumá su bloque al seed con su propio chequeo de existencia (por ejemplo, `seedAppointments()` que no crea nada si la empresa ya tiene turnos). El próximo deploy lo carga en la base que ya tenía el resto. Actualizá también las tablas de abajo.
+
+`TurnosApplicationIT` corre el seed dos veces sobre la misma base para verificar que no choca con los índices únicos.
+
+### Recrear la base local
 
 Para recrear la base local desde cero con el seed cargado (por ejemplo, para volver a tener el token de activación sin usar), son tres comandos. Borran **toda** la base local, no solo los datos del seed:
 
@@ -408,6 +438,8 @@ docker compose down -v
 docker compose up -d --wait
 $env:APP_SEED_ENABLED='true'; .\mvnw.cmd spring-boot:run
 ```
+
+### Datos que carga
 
 | Dato | Detalle |
 | :--- | :--- |
@@ -426,9 +458,9 @@ Cada empresa tiene un solo admin, igual que las que crea el alta.
 | `cliente2@example.com` | `CLIENT` | Barbería Central | `ACTIVE` |
 | `admin.pendiente@example.com` | `COMPANY_ADMIN` | Estética Pendiente | `PENDING_ACTIVATION` (sin contraseña, con token de activación) |
 
-La contraseña de los usuarios activos y el valor del token de activación están en las constantes `DEV_PASSWORD` y `DEV_ACTIVATION_TOKEN` de `DevDataSeeder`.
+Los usuarios activos entran directo con la contraseña del seed, sin pasar por el link de activación. El admin pendiente se activa en `{FRONTEND_URL}/activate?token=<token del seed>`; el token sirve una sola vez.
 
-Los datos de demo para la presentación (más empresas y turnos en distintos estados) se cargan más adelante, antes del despliegue final.
+Los datos de demo para la presentación (más empresas y turnos en distintos estados) se suman a este mismo seed más adelante, antes del despliegue final.
 
 > La fila única de `platform_settings` **no es parte del seed**: la inserta la migración inicial, porque la aplicación la asume siempre presente.
 
@@ -439,4 +471,5 @@ Los datos de demo para la presentación (más empresas y turnos en distintos est
 - Proveedor de la API de WhatsApp Business.
 - Storage externo para los logos de empresa (`company.logoUrl`).
 - Frecuencia concreta de los jobs programados (cierre de turnos, reintento de notificaciones, purga de tokens).
+- Mostrar el link de activación en la UI del superadmin mientras no exista el envío por WhatsApp. Hoy el alta de empresa y el reenvío solo lo escriben en el log, y quien prueba el despliegue sin acceso a Render no puede activar al admin de una empresa nueva. Propuesta: que `POST /api/superadmin/companies` y `POST .../resend-activation` devuelvan el link en la respuesta (solo mientras `NotificationService` sea el de log) y que el frontend lo muestre para copiarlo. PR aparte, back y front.
 - Paginación del listado de empresas (`GET /api/superadmin/companies`). Por el tamaño del MVP devuelve todas juntas; se puede agregar después del MVP si la cantidad de empresas lo pide.

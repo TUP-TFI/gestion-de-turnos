@@ -1,6 +1,6 @@
 package com.grupo140.turnos.catalog;
 
-import static com.grupo140.turnos.seed.DevDataSeeder.DEV_PASSWORD;
+import static com.grupo140.turnos.seed.SeedTestValues.DEV_PASSWORD;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;

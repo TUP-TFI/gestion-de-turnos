@@ -4,6 +4,7 @@ import type { PanelNavItem } from '../../components/PanelLayout'
 const NAV_ITEMS: PanelNavItem[] = [
   { to: '/company/dashboard', label: 'Inicio' },
   { to: '/company/services', label: 'Servicios' },
+  { to: '/company/business-hours', label: 'Horario' },
 ]
 
 export function CompanyLayout() {

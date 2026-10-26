@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toErrorMessage } from '../api/client'
 import {
@@ -21,34 +22,48 @@ function deactivationMessage(name: string, count: number): string {
   return `"${name}" tiene ${turnos}. No se cancelan: siguen en pie. ¿Desactivar igual?`
 }
 
-// Reactiva un servicio inactivo. Uno activo se desactiva recién después de mostrar el conteo de turnos
-// futuros y de que el admin confirme (US-05.2). Devuelve null si el admin cancela.
-async function toggle(service: Service): Promise<Service | null> {
-  if (service.status === 'INACTIVE') {
-    return activateService(service.id)
-  }
-  const count = await countFutureAppointments(service.id)
-  if (!window.confirm(deactivationMessage(service.name, count))) {
-    return null
-  }
-  return deactivateService(service.id)
+function changeStatus(service: Service): Promise<Service> {
+  return service.status === 'INACTIVE'
+    ? activateService(service.id)
+    : deactivateService(service.id)
 }
 
 export function useServiceStatus(): UseServiceStatusResult {
   const queryClient = useQueryClient()
+  // El conteo se pide fuera de la mutación, así que su error se guarda aparte.
+  const [countError, setCountError] = useState<string | null>(null)
 
   const mutation = useMutation({
-    mutationFn: toggle,
-    onSuccess: (result) => {
-      if (result) {
-        return queryClient.invalidateQueries({ queryKey: ['services'] })
-      }
-    },
+    mutationFn: changeStatus,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['services'] }),
   })
 
+  // Reactiva un servicio inactivo. Uno activo se desactiva recién después de mostrar el conteo de turnos
+  // futuros y de que el admin confirme (US-05.2): mientras el aviso está abierto no hay mutación en curso.
+  async function toggleStatus(service: Service) {
+    setCountError(null)
+    mutation.reset()
+
+    if (service.status === 'INACTIVE') {
+      mutation.mutate(service)
+      return
+    }
+
+    let count: number
+    try {
+      count = await countFutureAppointments(service.id)
+    } catch (error) {
+      setCountError(toErrorMessage(error as Error))
+      return
+    }
+    if (window.confirm(deactivationMessage(service.name, count))) {
+      mutation.mutate(service)
+    }
+  }
+
   return {
-    toggleStatus: mutation.mutate,
-    error: mutation.error ? toErrorMessage(mutation.error) : null,
+    toggleStatus,
+    error: countError ?? (mutation.error ? toErrorMessage(mutation.error) : null),
     isLoading: mutation.isPending,
   }
 }
