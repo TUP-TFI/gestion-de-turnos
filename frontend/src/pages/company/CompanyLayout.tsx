@@ -6,6 +6,7 @@ const NAV_ITEMS: PanelNavItem[] = [
   { to: '/company/services', label: 'Servicios' },
   { to: '/company/business-hours', label: 'Horario' },
   { to: '/company/schedule-exceptions', label: 'Feriados' },
+  { to: '/company/branding', label: 'Marca' },
 ]
 
 export function CompanyLayout() {
