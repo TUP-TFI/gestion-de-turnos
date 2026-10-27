@@ -5,13 +5,16 @@ import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.company.CompanyService;
 import com.grupo140.turnos.notification.NotificationService;
 import com.grupo140.turnos.schedule.BusinessHoursRequest;
+import com.grupo140.turnos.schedule.ScheduleExceptionRequest;
 import com.grupo140.turnos.schedule.ScheduleService;
 import com.grupo140.turnos.user.UserService;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,7 +69,8 @@ public class AppointmentService {
     /**
      * Cantidad de turnos {@link AppointmentStatus#PENDING} futuros que quedarían fuera de un horario semanal
      * propuesto, para avisarle al admin antes de guardarlo (US-05.4). No guarda nada: guardar el horario
-     * nunca cancela ni modifica turnos.
+     * nunca cancela ni modifica turnos. Los turnos en fechas con excepción de calendario no cuentan: esas
+     * fechas se rigen por la excepción, no por el horario semanal (US-05.6).
      *
      * @throws ApiException {@code INVALID_BUSINESS_HOURS} (400) si el horario propuesto no es válido.
      */
@@ -74,14 +78,47 @@ public class AppointmentService {
     public long countOutOfRange(UUID companyId, BusinessHoursRequest request) {
         scheduleService.validate(request);
         ZoneId zone = companyService.zoneOf(companyId);
-        // TODO(US-05.6): un turno en una fecha con excepción de calendario se rige por la excepción, no por el
-        // horario semanal, así que no debería contar. Ajustarlo cuando exista la lectura de ScheduleException.
+        Set<LocalDate> exceptionDates = scheduleService.upcomingExceptionDates(companyId);
         return appointmentRepository
                 .findAllByCompanyIdAndStatusAndStartDateTimeAfter(
                         companyId, AppointmentStatus.PENDING, Instant.now(clock))
                 .stream()
+                .filter(appointment -> !exceptionDates.contains(localDate(appointment, zone)))
                 .filter(appointment -> !fitsInHours(appointment, zone, request.hours()))
                 .count();
+    }
+
+    /**
+     * Cantidad de turnos {@link AppointmentStatus#PENDING} futuros de la fecha de una excepción propuesta que
+     * quedarían fuera de ella, para avisarle al admin antes de guardarla (US-05.6). Si el día queda cerrado,
+     * cuentan todos los turnos de esa fecha. No guarda nada: guardar la excepción nunca cancela turnos.
+     *
+     * @throws ApiException {@code INVALID_SCHEDULE_EXCEPTION} (400) si la excepción propuesta no es válida.
+     */
+    @Transactional(readOnly = true)
+    public long countAffectedByException(UUID companyId, ScheduleExceptionRequest request) {
+        scheduleService.validateException(companyId, request);
+        ZoneId zone = companyService.zoneOf(companyId);
+        // El horario especial se arma como una franja de ese día de la semana para reusar fitsInHours.
+        List<BusinessHoursRequest.Slot> hours = request.isClosed()
+                ? List.of()
+                : List.of(new BusinessHoursRequest.Slot(
+                        request.exceptionDate().getDayOfWeek(),
+                        request.startTime(),
+                        request.endTime(),
+                        request.intervalMinutes()));
+        return appointmentRepository
+                .findAllByCompanyIdAndStatusAndStartDateTimeAfter(
+                        companyId, AppointmentStatus.PENDING, Instant.now(clock))
+                .stream()
+                .filter(appointment -> localDate(appointment, zone).equals(request.exceptionDate()))
+                .filter(appointment -> !fitsInHours(appointment, zone, hours))
+                .count();
+    }
+
+    // Fecha en que empieza el turno, en la hora local de la empresa.
+    private static LocalDate localDate(Appointment appointment, ZoneId zone) {
+        return appointment.getStartDateTime().atZone(zone).toLocalDate();
     }
 
     /**

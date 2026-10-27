@@ -1,10 +1,14 @@
 package com.grupo140.turnos.schedule;
 
 import com.grupo140.turnos.common.error.ApiException;
+import com.grupo140.turnos.company.CompanyService;
+import java.time.Clock;
 import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
@@ -31,9 +35,19 @@ public class ScheduleService {
             DayOfWeek.SUNDAY, "domingo");
 
     private final BusinessHoursRepository businessHoursRepository;
+    private final ScheduleExceptionRepository scheduleExceptionRepository;
+    private final CompanyService companyService;
+    private final Clock clock;
 
-    public ScheduleService(BusinessHoursRepository businessHoursRepository) {
+    public ScheduleService(
+            BusinessHoursRepository businessHoursRepository,
+            ScheduleExceptionRepository scheduleExceptionRepository,
+            CompanyService companyService,
+            Clock clock) {
         this.businessHoursRepository = businessHoursRepository;
+        this.scheduleExceptionRepository = scheduleExceptionRepository;
+        this.companyService = companyService;
+        this.clock = clock;
     }
 
     /** Las franjas de la empresa, ordenadas por día y hora de inicio (US-05.3). */
@@ -98,7 +112,137 @@ public class ScheduleService {
         });
     }
 
+    /** Las excepciones de calendario de hoy en adelante, de la más cercana a la más lejana (US-05.6). */
+    @Transactional(readOnly = true)
+    public List<ScheduleExceptionResponse> listExceptions(UUID companyId) {
+        return scheduleExceptionRepository
+                .findAllByCompanyIdAndExceptionDateGreaterThanEqualOrderByExceptionDateAsc(companyId, today(companyId))
+                .stream()
+                .map(ScheduleExceptionResponse::from)
+                .toList();
+    }
+
+    /**
+     * Alta de una excepción de calendario (US-05.6). Los turnos ya reservados en esa fecha no se tocan.
+     *
+     * @throws ApiException {@code INVALID_SCHEDULE_EXCEPTION} (400) o {@code SCHEDULE_EXCEPTION_DATE_TAKEN}
+     *     (409).
+     */
+    @Transactional
+    public ScheduleExceptionResponse createException(UUID companyId, ScheduleExceptionRequest request) {
+        validateException(companyId, request);
+        if (scheduleExceptionRepository.existsByCompanyIdAndExceptionDate(companyId, request.exceptionDate())) {
+            throw dateTaken();
+        }
+        ScheduleException exception = new ScheduleException(companyId, request.exceptionDate());
+        applyShape(exception, request);
+        return ScheduleExceptionResponse.from(scheduleExceptionRepository.saveAndFlush(exception));
+    }
+
+    /**
+     * Edición de una excepción de calendario (US-05.6). Los turnos ya reservados en esa fecha no se tocan.
+     *
+     * @throws ApiException {@code SCHEDULE_EXCEPTION_NOT_FOUND} (404), {@code INVALID_SCHEDULE_EXCEPTION} (400)
+     *     o {@code SCHEDULE_EXCEPTION_DATE_TAKEN} (409).
+     */
+    @Transactional
+    public ScheduleExceptionResponse updateException(
+            UUID companyId, UUID exceptionId, ScheduleExceptionRequest request) {
+        ScheduleException exception = requireOwnedException(companyId, exceptionId);
+        validateException(companyId, request);
+        if (scheduleExceptionRepository.existsByCompanyIdAndExceptionDateAndIdNot(
+                companyId, request.exceptionDate(), exceptionId)) {
+            throw dateTaken();
+        }
+        exception.setExceptionDate(request.exceptionDate());
+        applyShape(exception, request);
+        return ScheduleExceptionResponse.from(scheduleExceptionRepository.saveAndFlush(exception));
+    }
+
+    /**
+     * Borra una excepción de calendario (US-05.6); esa fecha vuelve a regirse por el horario semanal.
+     *
+     * @throws ApiException {@code SCHEDULE_EXCEPTION_NOT_FOUND} (404).
+     */
+    @Transactional
+    public void deleteException(UUID companyId, UUID exceptionId) {
+        scheduleExceptionRepository.delete(requireOwnedException(companyId, exceptionId));
+    }
+
+    /**
+     * Valida una excepción sin guardarla. Lo usan el guardado y el conteo de turnos afectados, así los dos
+     * rechazan los mismos casos. "Hoy" se calcula en la zona horaria de la empresa, no en la del servidor.
+     *
+     * @throws ApiException {@code INVALID_SCHEDULE_EXCEPTION} (400).
+     */
+    public void validateException(UUID companyId, ScheduleExceptionRequest request) {
+        if (request.exceptionDate().isBefore(today(companyId))) {
+            throw invalidException("La fecha no puede ser anterior a hoy");
+        }
+        boolean hasAnyTime =
+                request.startTime() != null || request.endTime() != null || request.intervalMinutes() != null;
+        if (request.isClosed()) {
+            if (hasAnyTime) {
+                throw invalidException("Un día cerrado no lleva horario");
+            }
+            return;
+        }
+        if (request.startTime() == null || request.endTime() == null || request.intervalMinutes() == null) {
+            throw invalidException("Para abrir con horario especial cargá la hora de inicio, la de fin y el intervalo");
+        }
+        if (!request.endTime().isAfter(request.startTime())) {
+            throw invalidException("La hora de fin tiene que ser posterior a la de inicio");
+        }
+    }
+
+    /**
+     * Fechas con excepción de hoy en adelante. La usa el aviso de turnos fuera de rango (US-05.4): un turno en
+     * una de esas fechas se rige por la excepción, no por el horario semanal.
+     */
+    @Transactional(readOnly = true)
+    public Set<LocalDate> upcomingExceptionDates(UUID companyId) {
+        return scheduleExceptionRepository
+                .findAllByCompanyIdAndExceptionDateGreaterThanEqualOrderByExceptionDateAsc(companyId, today(companyId))
+                .stream()
+                .map(ScheduleException::getExceptionDate)
+                .collect(Collectors.toSet());
+    }
+
+    private LocalDate today(UUID companyId) {
+        return LocalDate.now(clock.withZone(companyService.zoneOf(companyId)));
+    }
+
+    private ScheduleException requireOwnedException(UUID companyId, UUID exceptionId) {
+        return scheduleExceptionRepository
+                .findByIdAndCompanyId(exceptionId, companyId)
+                .orElseThrow(() -> new ApiException(
+                        HttpStatus.NOT_FOUND, "SCHEDULE_EXCEPTION_NOT_FOUND", "La excepción no existe"));
+    }
+
+    private static void applyShape(ScheduleException exception, ScheduleExceptionRequest request) {
+        if (request.isClosed()) {
+            exception.closeAllDay();
+        } else {
+            exception.openWith(request.startTime(), request.endTime(), request.intervalMinutes());
+        }
+        exception.setReason(blankToNull(request.reason()));
+    }
+
+    // Un motivo vacío o con solo espacios se guarda como "sin motivo".
+    private static String blankToNull(String text) {
+        return text == null || text.isBlank() ? null : text;
+    }
+
     private static ApiException invalid(String message) {
         return new ApiException(HttpStatus.BAD_REQUEST, "INVALID_BUSINESS_HOURS", message);
+    }
+
+    private static ApiException invalidException(String message) {
+        return new ApiException(HttpStatus.BAD_REQUEST, "INVALID_SCHEDULE_EXCEPTION", message);
+    }
+
+    private static ApiException dateTaken() {
+        return new ApiException(
+                HttpStatus.CONFLICT, "SCHEDULE_EXCEPTION_DATE_TAKEN", "Ya hay una excepción cargada para esa fecha");
     }
 }

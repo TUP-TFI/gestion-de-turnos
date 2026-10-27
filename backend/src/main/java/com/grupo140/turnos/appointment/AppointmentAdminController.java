@@ -2,6 +2,7 @@ package com.grupo140.turnos.appointment;
 
 import com.grupo140.turnos.common.security.SessionUser;
 import com.grupo140.turnos.schedule.BusinessHoursRequest;
+import com.grupo140.turnos.schedule.ScheduleExceptionRequest;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,5 +37,12 @@ public class AppointmentAdminController {
     public AppointmentCountResponse outOfRangeAppointments(
             SessionUser session, @Valid @RequestBody BusinessHoursRequest request) {
         return new AppointmentCountResponse(appointmentService.countOutOfRange(session.companyId(), request));
+    }
+
+    /** Cantidad de turnos pendientes futuros que quedan fuera de una excepción propuesta, sin guardarla (US-05.6). */
+    @PostMapping("/schedule-exceptions/affected-appointments")
+    public AppointmentCountResponse affectedAppointments(
+            SessionUser session, @Valid @RequestBody ScheduleExceptionRequest request) {
+        return new AppointmentCountResponse(appointmentService.countAffectedByException(session.companyId(), request));
     }
 }
