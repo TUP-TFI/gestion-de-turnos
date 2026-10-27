@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -196,8 +197,33 @@ public class ScheduleService {
     }
 
     /**
+     * Las franjas de atención de una fecha, ordenadas por hora de inicio (US-05.5). Si la fecha tiene una
+     * {@link ScheduleException}, reemplaza por completo al horario semanal: cerrada devuelve una lista vacía, y
+     * con horario especial devuelve una sola franja. Sin excepción, devuelve las franjas semanales del día de la
+     * semana de la fecha. No sabe nada de los turnos: es la base de la que parte {@code AvailabilityService}.
+     */
+    @Transactional(readOnly = true)
+    public List<DayWindow> windowsFor(UUID companyId, LocalDate date) {
+        Optional<ScheduleException> exception =
+                scheduleExceptionRepository.findByCompanyIdAndExceptionDate(companyId, date);
+        if (exception.isPresent()) {
+            ScheduleException found = exception.get();
+            if (found.isClosed()) {
+                return List.of();
+            }
+            return List.of(new DayWindow(found.getStartTime(), found.getEndTime(), found.getIntervalMinutes()));
+        }
+        return businessHoursRepository.findAllByCompanyId(companyId).stream()
+                .filter(slot -> slot.getDayOfWeek() == date.getDayOfWeek())
+                .sorted(Comparator.comparing(BusinessHours::getStartTime))
+                .map(slot -> new DayWindow(slot.getStartTime(), slot.getEndTime(), slot.getIntervalMinutes()))
+                .toList();
+    }
+
+    /**
      * Fechas con excepción de hoy en adelante. La usa el aviso de turnos fuera de rango (US-05.4): un turno en
-     * una de esas fechas se rige por la excepción, no por el horario semanal.
+     * una de esas fechas se rige por la excepción, no por el horario semanal. Solo devuelve las fechas; para
+     * saber qué horario rige en una fecha puntual, ver {@link #windowsFor}.
      */
     @Transactional(readOnly = true)
     public Set<LocalDate> upcomingExceptionDates(UUID companyId) {
