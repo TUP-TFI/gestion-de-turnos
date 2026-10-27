@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -42,6 +43,9 @@ public record CreateCompanyRequest(
             String contactEmail,
 
             @Size(max = 500, message = "La dirección del logo no puede superar los 500 caracteres")
+            @Pattern(
+                    regexp = "^https://\\S+$",
+                    message = "El logo tiene que ser una dirección que empiece con https://")
             String logoUrl) {}
 
     public record AdminData(
