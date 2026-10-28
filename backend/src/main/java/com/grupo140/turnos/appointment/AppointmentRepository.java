@@ -22,6 +22,13 @@ public interface AppointmentRepository extends Repository<Appointment, UUID> {
     // Turnos de una empresa en un estado. La desactivación de la empresa cancela todos los PENDING (US-04.4).
     List<Appointment> findByCompanyIdAndStatus(UUID companyId, AppointmentStatus status);
 
+    // "Mis turnos" del cliente (US-07.6), del más reciente al más antiguo. Llevan los dos ids: el cliente y su
+    // empresa. Usan idx_appointment_client_start.
+    List<Appointment> findAllByCompanyIdAndClientIdOrderByStartDateTimeDesc(UUID companyId, UUID clientId);
+
+    List<Appointment> findAllByCompanyIdAndClientIdAndStatusOrderByStartDateTimeDesc(
+            UUID companyId, UUID clientId, AppointmentStatus status);
+
     // Dashboard del superadmin (US-04.6): total de turnos de toda la plataforma, en cualquier estado. No
     // lleva companyId porque no devuelve datos de una empresa, solo un número agregado.
     long count();
