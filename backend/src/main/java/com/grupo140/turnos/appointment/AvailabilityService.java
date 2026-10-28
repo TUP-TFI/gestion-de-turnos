@@ -102,6 +102,19 @@ public class AvailabilityService {
         return List.copyOf(available);
     }
 
+    /**
+     * Horarios disponibles para la página pública (US-06.2), que llega por el slug y sin sesión. A diferencia de
+     * la página (US-06.1), una empresa desactivada da error: no se le ofrecen horarios.
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404), {@code COMPANY_INACTIVE} (403) o
+     *     {@code SERVICE_NOT_FOUND} (404).
+     */
+    @Transactional(readOnly = true)
+    public AvailabilityResponse publicAvailability(String slug, UUID serviceId, LocalDate date) {
+        UUID companyId = companyService.requireActiveIdBySlug(slug);
+        return new AvailabilityResponse(date, availableStarts(companyId, serviceId, date));
+    }
+
     private static boolean isFree(List<Appointment> occupied, Instant start, Instant end) {
         for (Appointment appointment : occupied) {
             if (appointment.getStartDateTime().isBefore(end)
