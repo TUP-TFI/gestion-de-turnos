@@ -94,6 +94,21 @@ public class CatalogService {
                         () -> new ApiException(HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "El servicio no existe"));
     }
 
+    /**
+     * Igual que {@link #requireOwnedService}, pero además exige que el servicio esté activo: uno inactivo no se
+     * puede reservar ni ofrecer horarios. Da el mismo 404 que uno inexistente.
+     *
+     * @throws ApiException {@code SERVICE_NOT_FOUND} (404).
+     */
+    @Transactional(readOnly = true)
+    public Service requireActiveService(UUID companyId, UUID serviceId) {
+        Service service = requireOwnedService(companyId, serviceId);
+        if (service.getStatus() != ServiceStatus.ACTIVE) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "SERVICE_NOT_FOUND", "El servicio no existe");
+        }
+        return service;
+    }
+
     private ServiceResponse changeStatus(UUID companyId, UUID serviceId, ServiceStatus status) {
         Service service = requireOwnedService(companyId, serviceId);
         service.setStatus(status);
