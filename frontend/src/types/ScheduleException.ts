@@ -12,3 +12,10 @@ export interface ScheduleException {
   createdAt: string
   updatedAt: string
 }
+
+// Cuerpo de POST y PUT /api/company/schedule-exceptions y del conteo de turnos afectados. La empresa sale
+// de la sesión.
+export type ScheduleExceptionData = Pick<
+  ScheduleException,
+  'exceptionDate' | 'isClosed' | 'startTime' | 'endTime' | 'intervalMinutes' | 'reason'
+>

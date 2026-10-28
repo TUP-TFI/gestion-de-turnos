@@ -23,6 +23,9 @@ public interface ScheduleExceptionRepository extends Repository<ScheduleExceptio
 
     Optional<ScheduleException> findByIdAndCompanyId(UUID id, UUID companyId);
 
+    // La excepción de una fecha puntual, para saber qué horario rige ese día (US-05.5).
+    Optional<ScheduleException> findByCompanyIdAndExceptionDate(UUID companyId, LocalDate exceptionDate);
+
     boolean existsByCompanyIdAndExceptionDate(UUID companyId, LocalDate exceptionDate);
 
     boolean existsByCompanyIdAndExceptionDateAndIdNot(UUID companyId, LocalDate exceptionDate, UUID id);

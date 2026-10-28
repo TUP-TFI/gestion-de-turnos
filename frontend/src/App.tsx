@@ -6,8 +6,11 @@ import { BrandingPage } from './pages/company/BrandingPage'
 import { BusinessHoursPage } from './pages/company/BusinessHoursPage'
 import { CompanyDashboardPage } from './pages/company/CompanyDashboardPage'
 import { CompanyLayout } from './pages/company/CompanyLayout'
+import { CreateScheduleExceptionPage } from './pages/company/CreateScheduleExceptionPage'
 import { CreateServicePage } from './pages/company/CreateServicePage'
+import { EditScheduleExceptionPage } from './pages/company/EditScheduleExceptionPage'
 import { EditServicePage } from './pages/company/EditServicePage'
+import { ScheduleExceptionsPage } from './pages/company/ScheduleExceptionsPage'
 import { ServicesPage } from './pages/company/ServicesPage'
 import { CompaniesPage } from './pages/superadmin/CompaniesPage'
 import { CreateCompanyPage } from './pages/superadmin/CreateCompanyPage'
@@ -39,6 +42,15 @@ function App() {
           <Route path="/company/services/new" element={<CreateServicePage />} />
           <Route path="/company/services/:id/edit" element={<EditServicePage />} />
           <Route path="/company/business-hours" element={<BusinessHoursPage />} />
+          <Route path="/company/schedule-exceptions" element={<ScheduleExceptionsPage />} />
+          <Route
+            path="/company/schedule-exceptions/new"
+            element={<CreateScheduleExceptionPage />}
+          />
+          <Route
+            path="/company/schedule-exceptions/:id/edit"
+            element={<EditScheduleExceptionPage />}
+          />
           <Route path="/company/branding" element={<BrandingPage />} />
         </Route>
       </Route>
