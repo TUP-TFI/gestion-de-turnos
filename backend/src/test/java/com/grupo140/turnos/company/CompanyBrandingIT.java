@@ -99,6 +99,22 @@ class CompanyBrandingIT {
     }
 
     @Test
+    void logoWithoutHttpsReturns400() throws Exception {
+        // Solo https: javascript: y data: serían peligrosos en la página pública, y http: sería contenido mixto.
+        for (String logo : List.of(
+                "javascript:alert(1)",
+                "data:image/png;base64,AAAA",
+                "http://example.com/logo.png",
+                "example.com/logo.png",
+                "https://example.com/mi logo.png",
+                "")) {
+            mockMvc.perform(update(body(logo, "#1A2B3C")))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+        }
+    }
+
+    @Test
     void superadminCannotUseCompanyBranding() throws Exception {
         mockMvc.perform(as("superadmin@example.com", get(BRANDING)))
                 .andExpect(status().isForbidden())
