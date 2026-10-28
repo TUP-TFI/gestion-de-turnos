@@ -1,6 +1,7 @@
 package com.grupo140.turnos.appointment;
 
 import com.grupo140.turnos.catalog.CatalogService;
+import com.grupo140.turnos.catalog.ServiceResponse;
 import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.company.CompanyService;
 import com.grupo140.turnos.notification.NotificationService;
@@ -13,9 +14,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -135,6 +139,33 @@ public class AppointmentService {
                 .filter(slot -> slot.dayOfWeek() == start.getDayOfWeek())
                 .anyMatch(slot -> !start.toLocalTime().isBefore(slot.startTime())
                         && !end.toLocalTime().isAfter(slot.endTime()));
+    }
+
+    /**
+     * Los turnos del cliente en su empresa, del más reciente al más antiguo, con el nombre del servicio (US-07.6).
+     * Si {@code status} es nulo, trae todos. Los nombres salen de un solo listado de la empresa, sin una consulta
+     * por turno; incluye los servicios inactivos, que siguen figurando en turnos ya reservados.
+     *
+     * @param companyId empresa de la sesión.
+     * @param clientId cliente de la sesión: nunca uno que llegue en la request.
+     */
+    @Transactional(readOnly = true)
+    public List<ClientAppointmentResponse> listForClient(UUID companyId, UUID clientId, AppointmentStatus status) {
+        List<Appointment> appointments;
+        if (status == null) {
+            appointments =
+                    appointmentRepository.findAllByCompanyIdAndClientIdOrderByStartDateTimeDesc(companyId, clientId);
+        } else {
+            appointments = appointmentRepository.findAllByCompanyIdAndClientIdAndStatusOrderByStartDateTimeDesc(
+                    companyId, clientId, status);
+        }
+        Map<UUID, String> serviceNames = catalogService.list(companyId).stream()
+                .collect(Collectors.toMap(ServiceResponse::id, ServiceResponse::name));
+        List<ClientAppointmentResponse> result = new ArrayList<>();
+        for (Appointment appointment : appointments) {
+            result.add(ClientAppointmentResponse.from(appointment, serviceNames.get(appointment.getServiceId())));
+        }
+        return result;
     }
 
     /**

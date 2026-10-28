@@ -147,6 +147,12 @@ El body del alta, la edición y el conteo es `{ exceptionDate, isClosed, startTi
 
 El aviso de turnos fuera de rango del horario semanal (`POST /api/company/business-hours/out-of-range-appointments`) no cuenta los turnos de fechas con excepción, porque esas fechas se rigen por la excepción.
 
+### Mis turnos del cliente
+
+`GET /api/client/appointments` devuelve los turnos del cliente de la sesión, del más reciente al más antiguo. Se puede filtrar con `?status=PENDING|COMPLETED|CANCELLED`; un estado que no existe responde `400 VALIDATION_ERROR`. El cliente y la empresa salen siempre de la sesión: no hay forma de pedir los turnos de otro.
+
+Cada turno trae `id`, `serviceId`, `serviceName`, `startDateTime`, `endDateTime` (en UTC, el front las convierte a la hora local), `status`, `rescheduleCount`, `priceSnapshot` y `durationMinutesSnapshot`. El precio y la duración son los copiados al reservar, no los actuales del servicio.
+
 ### Desactivar y reactivar una empresa
 
 `POST /api/superadmin/companies/{id}/deactivate` y `POST /api/superadmin/companies/{id}/reactivate`, sin body. Responden `200` con la empresa actualizada, o `404 COMPANY_NOT_FOUND`. Si la empresa ya estaba en ese estado, responden `200` igual y no hacen nada.
