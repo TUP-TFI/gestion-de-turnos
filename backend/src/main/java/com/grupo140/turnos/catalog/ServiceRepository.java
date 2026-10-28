@@ -19,5 +19,8 @@ public interface ServiceRepository extends Repository<Service, UUID> {
 
     List<Service> findAllByCompanyIdOrderByNameAsc(UUID companyId);
 
+    // Página pública (US-06.1): solo los servicios que se pueden reservar.
+    List<Service> findAllByCompanyIdAndStatusOrderByNameAsc(UUID companyId, ServiceStatus status);
+
     Optional<Service> findByIdAndCompanyId(UUID id, UUID companyId);
 }

@@ -125,6 +125,15 @@ El cliente final entra desde la página pública de la empresa, por su `slug`. L
 
 En las dos, un slug inexistente responde `404 COMPANY_NOT_FOUND` y una empresa desactivada `403 COMPANY_INACTIVE`. El email es único por empresa, sin distinguir mayúsculas: la misma persona puede registrarse en dos empresas distintas con cuentas separadas. El token trae `role = CLIENT` y `companyId`, y sirve para las rutas `/api/client/**`.
 
+### Página pública de la empresa
+
+`GET /api/public/companies/{slug}` no pide sesión y responde `200` con `{ company, services }`:
+
+- `company`: `name`, `slug`, `category`, `description`, `address`, `phone`, `contactEmail`, `timezone`, `logoUrl`, `primaryColor` y `status`. El front usa `timezone` para mostrar en hora local los horarios, que viajan en UTC.
+- `services`: los servicios activos, ordenados por nombre, con `id`, `name`, `description`, `price` y `durationMinutes`.
+
+Una empresa desactivada no da error, a diferencia del registro y el login: responde `200` con `status: "INACTIVE"` y `services` vacío, para que la página muestre que el negocio no está disponible. Un slug inexistente responde `404 COMPANY_NOT_FOUND`.
+
 ### Marca de la empresa
 
 El admin personaliza su página pública con `GET /api/company/branding` y `PUT /api/company/branding`. Las dos usan la empresa de la sesión, nunca una del body ni de la URL. Responden `200` con `{ slug, logoUrl, primaryColor }`. `logoUrl` y `primaryColor` pueden ser `null`; `slug` es de solo lectura y sirve para armar el link a la página pública, porque la sesión del admin solo trae el `companyId`.
@@ -168,7 +177,7 @@ La autorización se define por prefijo en `SecurityConfig`. Los endpoints nuevos
 
 | Prefijo | Acceso |
 | :--- | :--- |
-| `/ping`, `/actuator/health`, `POST /api/auth/login`, `POST /api/auth/activate`, `/api/public/**` (incluye el registro y el login de clientes) | Sin sesión |
+| `/ping`, `/actuator/health`, `POST /api/auth/login`, `POST /api/auth/activate`, `/api/public/**` (incluye la página pública y el registro y el login de clientes) | Sin sesión |
 | `/api/superadmin/**` | Solo `SUPERADMIN` |
 | `/api/company/**` | Solo `COMPANY_ADMIN` |
 | `/api/client/**` | Solo `CLIENT` |
@@ -186,7 +195,7 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | `INVALID_ACTIVATION_TOKEN` | 400 | El token de activación no existe, ya se usó o la cuenta ya no está pendiente |
 | `ACTIVATION_TOKEN_EXPIRED` | 400 | El token de activación venció: hay que pedir el reenvío al superadmin |
 | `EMAIL_ALREADY_IN_USE` | 409 | El email del admin de la empresa nueva ya es de otro admin o de un superadmin, o el cliente que se registra ya tiene cuenta en esa empresa |
-| `COMPANY_NOT_FOUND` | 404 | La empresa pedida no existe: el detalle o la edición del superadmin, o el slug del registro y el login de clientes |
+| `COMPANY_NOT_FOUND` | 404 | La empresa pedida no existe: el detalle o la edición del superadmin, o el slug de la página pública y del registro y el login de clientes |
 | `ADMIN_ALREADY_ACTIVE` | 409 | Se pidió reenviar el link de activación, pero el admin ya activó su cuenta |
 | `COMPANY_WITHOUT_ADMIN` | 409 | Se pidió reenviar el link de activación, pero la empresa no tiene un administrador |
 | `SERVICE_NOT_FOUND` | 404 | El servicio pedido no existe o es de otra empresa |

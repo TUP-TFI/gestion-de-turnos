@@ -75,6 +75,20 @@ public class CompanyService implements CompanyStatusChecker {
     }
 
     /**
+     * Datos de la página pública de una empresa (US-06.1). A diferencia de {@link #requireActiveIdBySlug}, una
+     * empresa desactivada no da error: la página muestra que no está disponible.
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404).
+     */
+    @Transactional(readOnly = true)
+    public PublicCompanyResponse getPublicBySlug(String slug) {
+        return companyRepository
+                .findBySlug(slug)
+                .map(PublicCompanyResponse::from)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "COMPANY_NOT_FOUND", "La empresa no existe"));
+    }
+
+    /**
      * Zona horaria de la empresa, con la que se interpretan las horas de su horario de atención. La usan el
      * aviso de turnos fuera de rango (US-05.4) y el cálculo de disponibilidad (US-05.5).
      *
