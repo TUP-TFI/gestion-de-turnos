@@ -16,6 +16,17 @@ export interface LoginResponse {
   user: SessionUser
 }
 
+// Cuerpo de POST /api/public/companies/{slug}/register. Responde lo mismo que el login.
+export type ClientRegisterRequest = Pick<
+  User,
+  'firstName' | 'lastName' | 'email' | 'phone'
+> & { password: string }
+
+// Sesión del cliente. Guarda el slug porque la cuenta sirve solo en esa empresa.
+export interface ClientSession extends LoginResponse {
+  slug: string
+}
+
 // token es el valor que llega en el link de activación.
 export interface ActivationRequest {
   token: string
