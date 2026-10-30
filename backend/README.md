@@ -162,6 +162,18 @@ El aviso de turnos fuera de rango del horario semanal (`POST /api/company/busine
 
 Cada turno trae `id`, `serviceId`, `serviceName`, `startDateTime`, `endDateTime` (en UTC, el front las convierte a la hora local), `status`, `rescheduleCount`, `priceSnapshot` y `durationMinutesSnapshot`. El precio y la duración son los copiados al reservar, no los actuales del servicio.
 
+### Horarios disponibles
+
+`GET /api/public/companies/{slug}/services/{serviceId}/availability?date=AAAA-MM-DD` no pide sesión y responde `200` con `{ date, starts }`: los horarios de inicio libres de ese servicio en esa fecha local de la empresa, ordenados y en UTC. Aplica el horario semanal o la excepción de esa fecha, la anticipación mínima y máxima, y los turnos ya ocupados. Si no queda ninguno, o la fecha ya pasó o está fuera de la anticipación máxima, `starts` viene vacío: el front muestra que no hay horarios para ese día.
+
+| Caso | Respuesta |
+| :--- | :--- |
+| Slug inexistente | `404 COMPANY_NOT_FOUND` |
+| Empresa desactivada | `403 COMPANY_INACTIVE`: no se ofrecen horarios |
+| Servicio inexistente, inactivo o de otra empresa | `404 SERVICE_NOT_FOUND` |
+| `date` con otro formato | `400 VALIDATION_ERROR` |
+| Sin `date` | `400 BAD_REQUEST` |
+
 ### Desactivar y reactivar una empresa
 
 `POST /api/superadmin/companies/{id}/deactivate` y `POST /api/superadmin/companies/{id}/reactivate`, sin body. Responden `200` con la empresa actualizada, o `404 COMPANY_NOT_FOUND`. Si la empresa ya estaba en ese estado, responden `200` igual y no hacen nada.
