@@ -1,6 +1,9 @@
 package com.grupo140.turnos.catalog;
 
 import com.grupo140.turnos.common.error.ApiException;
+import com.grupo140.turnos.company.CompanyService;
+import com.grupo140.turnos.company.CompanyStatus;
+import com.grupo140.turnos.company.PublicCompanyResponse;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -13,9 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class CatalogService {
 
     private final ServiceRepository serviceRepository;
+    private final CompanyService companyService;
 
-    public CatalogService(ServiceRepository serviceRepository) {
+    public CatalogService(ServiceRepository serviceRepository, CompanyService companyService) {
         this.serviceRepository = serviceRepository;
+        this.companyService = companyService;
     }
 
     /** Todos los servicios de la empresa, activos e inactivos, ordenados por nombre (US-05.1). */
@@ -24,6 +29,26 @@ public class CatalogService {
         return serviceRepository.findAllByCompanyIdOrderByNameAsc(companyId).stream()
                 .map(ServiceResponse::from)
                 .toList();
+    }
+
+    /**
+     * Página pública de una empresa (US-06.1): sus datos y sus servicios activos. Si está desactivada, los
+     * servicios vienen vacíos y la página muestra que no está disponible.
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404).
+     */
+    @Transactional(readOnly = true)
+    public PublicPageResponse publicPage(String slug) {
+        PublicCompanyResponse company = companyService.getPublicBySlug(slug);
+        if (company.status() != CompanyStatus.ACTIVE) {
+            return new PublicPageResponse(company, List.of());
+        }
+
+        List<PublicServiceResponse> services =
+                serviceRepository.findAllByCompanyIdAndStatusOrderByNameAsc(company.id(), ServiceStatus.ACTIVE).stream()
+                        .map(PublicServiceResponse::from)
+                        .toList();
+        return new PublicPageResponse(company, services);
     }
 
     /**
