@@ -1,8 +1,10 @@
 package com.grupo140.turnos.company;
 
+import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
@@ -30,6 +32,10 @@ public interface CompanyRepository extends Repository<Company, UUID> {
     List<Company> findAllByOrderByNameAsc();
 
     Optional<Company> findById(UUID id);
+
+    // SELECT ... FOR UPDATE: serializa las reservas de una empresa hasta el commit (US-07.3).
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<Company> findForUpdateById(UUID id);
 
     @Query("select c.status from Company c where c.id = :id")
     Optional<CompanyStatus> findStatusById(@Param("id") UUID id);

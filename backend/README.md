@@ -162,6 +162,28 @@ El aviso de turnos fuera de rango del horario semanal (`POST /api/company/busine
 
 Cada turno trae `id`, `serviceId`, `serviceName`, `startDateTime`, `endDateTime` (en UTC, el front las convierte a la hora local), `status`, `rescheduleCount`, `priceSnapshot` y `durationMinutesSnapshot`. El precio y la duración son los copiados al reservar, no los actuales del servicio.
 
+### Reservar un turno
+
+`POST /api/client/appointments` con `{ serviceId, startDateTime }`, donde `startDateTime` es un instante ISO en UTC, uno de los `starts` de [Horarios disponibles](#horarios-disponibles). Responde `201` con el turno en `PENDING`, en el mismo formato que "Mis turnos". El cliente y la empresa salen de la sesión.
+
+| Caso | Respuesta |
+| :--- | :--- |
+| Falta un campo o tiene otro formato | `400 VALIDATION_ERROR` |
+| Empresa desactivada | `403 COMPANY_INACTIVE` |
+| Servicio inexistente, inactivo o de otra empresa | `404 SERVICE_NOT_FOUND` |
+| Inicio pasado o antes de la anticipación mínima | `400 BOOKING_TOO_SOON` |
+| Fecha local más allá de la anticipación máxima | `400 BOOKING_TOO_FAR` |
+| Horario ocupado, fuera del horario de atención o fuera de la grilla del intervalo | `409 SLOT_UNAVAILABLE` |
+
+Todo pasa en una transacción, que empieza con un `SELECT ... FOR UPDATE` sobre la empresa: dos reservas simultáneas de una misma empresa se atienden de a una. La constraint `excl_appointment_overlap` queda como segunda barrera, y `GlobalExceptionHandler` la traduce al mismo `409 SLOT_UNAVAILABLE`.
+
+El aviso tiene dos fases, en `NotificationRequestedListener`:
+
+1. **Dentro de la transacción del turno**, escribe la fila de `notification` en `PENDING`, con `attemptCount = 0`. Si el proceso se cae después del commit, la fila queda para el reintento. Un fallo al guardarla revierte la reserva o la cancelación en cascada, y si la transacción se revierte, no queda fila ni se envía nada.
+2. **Después del commit**, en una transacción propia, despacha el aviso y deja la fila en `SENT` o, si falla, en `FAILED` con el error. El turno sigue reservado. Hasta el Paso 10, el despacho se escribe en el log.
+
+Pendiente para US-10.4: la fila no guarda el mensaje, así que el reintento lo tiene que rearmar con el turno y `eventType`.
+
 ### Horarios disponibles
 
 `GET /api/public/companies/{slug}/services/{serviceId}/availability?date=AAAA-MM-DD` no pide sesión y responde `200` con `{ date, starts }`: los horarios de inicio libres de ese servicio en esa fecha local de la empresa, ordenados y en UTC. Aplica el horario semanal o la excepción de esa fecha, la anticipación mínima y máxima, y los turnos ya ocupados. Si no queda ninguno, o la fecha ya pasó o está fuera de la anticipación máxima, `starts` viene vacío: el front muestra que no hay horarios para ese día.
@@ -178,7 +200,7 @@ Cada turno trae `id`, `serviceId`, `serviceName`, `startDateTime`, `endDateTime`
 
 `POST /api/superadmin/companies/{id}/deactivate` y `POST /api/superadmin/companies/{id}/reactivate`, sin body. Responden `200` con la empresa actualizada, o `404 COMPANY_NOT_FOUND`. Si la empresa ya estaba en ese estado, responden `200` igual y no hacen nada.
 
-- **Desactivar** nunca borra la empresa: pasa a `INACTIVE`. El login de su admin queda bloqueado (`403 COMPANY_INACTIVE`), porque se deriva del estado de la empresa y no del usuario. El bloqueo también corta las sesiones abiertas: `ActiveCompanyFilter` revisa el estado de la empresa en cada request con token de un admin o un cliente y responde `403 COMPANY_INACTIVE`, sin esperar a que el token venza. Cuesta una consulta por request; el filtro solo conoce la interfaz `CompanyStatusChecker` (en `common/security`), que implementa `CompanyService`, porque `common` y `config` no pueden depender de `company`. Todos sus turnos `PENDING` se cancelan (`cancelledBy = COMPANY`, con fecha y motivo) y cada cliente recibe un aviso; hasta el Paso 10, el aviso se escribe en el log, igual que el link de activación.
+- **Desactivar** nunca borra la empresa: pasa a `INACTIVE`. El login de su admin queda bloqueado (`403 COMPANY_INACTIVE`), porque se deriva del estado de la empresa y no del usuario. El bloqueo también corta las sesiones abiertas: `ActiveCompanyFilter` revisa el estado de la empresa en cada request con token de un admin o un cliente y responde `403 COMPANY_INACTIVE`, sin esperar a que el token venza. Cuesta una consulta por request; el filtro solo conoce la interfaz `CompanyStatusChecker` (en `common/security`), que implementa `CompanyService`, porque `common` y `config` no pueden depender de `company`. Todos sus turnos `PENDING` se cancelan (`cancelledBy = COMPANY`, con fecha y motivo) y cada cliente recibe un aviso: la fila de `notification` se escribe en la misma transacción y el envío ocurre después del commit (ver [Reservar un turno](#reservar-un-turno)); hasta el Paso 10, el aviso se escribe en el log, igual que el link de activación.
 - **Reactivar** la devuelve a `ACTIVE` con los servicios y horarios que ya tenía, y el admin vuelve a entrar con su contraseña. Los turnos cancelados no se recuperan.
 
 La cancelación vive en `appointment`, que no puede ser llamado desde `company` (formaría un ciclo, ver [Regla de dependencias entre features](#regla-de-dependencias-entre-features-horizontal)). `CompanyService` publica `CompanyDeactivatedEvent` y `appointment/CompanyDeactivationListener` lo escucha con `@EventListener`, dentro de la misma transacción: si la cancelación falla, la empresa no queda desactivada.
@@ -211,6 +233,9 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | `ADMIN_ALREADY_ACTIVE` | 409 | Se pidió reenviar el link de activación, pero el admin ya activó su cuenta |
 | `COMPANY_WITHOUT_ADMIN` | 409 | Se pidió reenviar el link de activación, pero la empresa no tiene un administrador |
 | `SERVICE_NOT_FOUND` | 404 | El servicio pedido no existe o es de otra empresa |
+| `BOOKING_TOO_SOON` | 400 | El inicio del turno ya pasó o no cumple la anticipación mínima para reservar |
+| `BOOKING_TOO_FAR` | 400 | La fecha del turno supera la anticipación máxima para reservar |
+| `SLOT_UNAVAILABLE` | 409 | El horario pedido no está disponible: ya está ocupado o no se ofrece para ese servicio |
 | `INVALID_BUSINESS_HOURS` | 400 | El horario semanal tiene una franja que termina antes de empezar, o dos franjas del mismo día superpuestas |
 | `INVALID_SCHEDULE_EXCEPTION` | 400 | La excepción de calendario tiene una fecha pasada, un día cerrado con horario, o un día abierto sin las tres horas o con el fin antes del inicio |
 | `SCHEDULE_EXCEPTION_DATE_TAKEN` | 409 | Ya hay una excepción de calendario cargada para esa fecha |
@@ -321,7 +346,7 @@ seed           ← solo con app.seed.enabled: fuera del grafo (ver excepción ab
 - ❌ Un feature **nunca** importa un repository de otro feature: se habla con su `Service`.
 - ❌ No se permiten ciclos. Si aparece uno, se resuelve invirtiendo la dependencia o moviendo la lógica.
 - ✅ `auth` depende de `user`: el login y la activación leen y actualizan `User`, pero a través de los services de `user`, nunca de `UserRepository`.
-- ✅ `appointment` depende de `user` y de `notification`: al cancelar turnos busca el teléfono del cliente con `UserService.findPhone` y lo avisa con `NotificationService`. Ninguno de los dos depende de `appointment`, así que no hay ciclo.
+- ✅ `appointment` depende de `user` y de `notification`: al reservar o cancelar turnos busca el teléfono del cliente con `UserService.findPhone` y publica `NotificationRequestedEvent`, definido en `notification`. Ninguno de los dos depende de `appointment`, así que no hay ciclo.
 - ⚠️ **Excepción: el alta de empresa** (US-04.1). `CompanyService.create` crea en una sola transacción la empresa, su admin y el token de activación, así que `company` usa `UserService` (de `user`), `ActivationService` (de `auth`) y `NotificationService`. Como `auth` ya usa `CompanyService` en el login, entre `auth` y `company` queda un ciclo de paquetes. Se acepta porque no hay ciclo entre clases (`ActivationService` no depende de `CompanyService`) y porque evitarlo obligaría a mover el token de activación fuera de `auth`. Sigue valiendo que `company` no importa los repositories de esos features.
 - ⚠️ **Otra excepción: el paquete `seed`** (T-02.4). Corre solo con `app.seed.enabled=true` y carga datos de prueba de varios features, así que puede usar sus repositories directamente. Nada de código de producción importa `seed`, y `seed` no expone nada para los demás features.
 
@@ -340,15 +365,21 @@ Cada módulo queda con una sola responsabilidad y el grafo sin ciclos.
 
 **2. ¿Cómo avisa `appointment` a `notification` sin depender de él?**
 
-No lo hace directamente. `appointment` publica un evento de dominio y `notification` lo escucha:
+No lo hace directamente. `appointment` publica un evento definido en `notification`, y `notification` lo escucha sin conocer a `appointment`:
 
 ```java
 // en appointment/
-events.publishEvent(new AppointmentBookedEvent(appointmentId));
+events.publishEvent(new NotificationRequestedEvent(appointmentId, userId, phone, eventType, message));
 
-// en notification/
+// en notification/: guarda la fila en PENDING, en la misma transacción
+@EventListener
+@Transactional(propagation = MANDATORY)
+public void onNotificationRequested(NotificationRequestedEvent event) { ... }
+
+// en notification/: despacha después del commit
 @TransactionalEventListener(phase = AFTER_COMMIT)
-void on(AppointmentBookedEvent event) { ... }
+@Transactional(propagation = REQUIRES_NEW)
+public void onNotificationPending(NotificationPendingEvent event) { ... }
 ```
 
 Así `notification` queda como hoja del grafo, y el "desacoplado" de la documentación deja de ser solo una intención de diseño para volverse una propiedad estructural verificable. El `AFTER_COMMIT` además garantiza que la llamada HTTP al proveedor no ocurra dentro de la transacción que tiene tomado el lock de la empresa.

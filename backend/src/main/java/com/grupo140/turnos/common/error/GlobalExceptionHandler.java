@@ -2,6 +2,7 @@ package com.grupo140.turnos.common.error;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -23,6 +24,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String APPOINTMENT_OVERLAP_CONSTRAINT = "excl_appointment_overlap";
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiError> handleApi(ApiException ex) {
@@ -61,6 +63,19 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(new ApiError("FORBIDDEN", "No tenés permisos para esta operación"));
+    }
+
+    // Segunda barrera de la reserva (US-07.3): si dos turnos superpuestos llegan a la base, responde lo mismo que la
+    // validación del service. Se mira el mensaje de Postgres porque Hibernate no extrae el nombre de una constraint
+    // de exclusión (SQLState 23P01): getConstraintName() viene nulo. El resto sigue como un error no controlado.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
+        String databaseMessage = ex.getMostSpecificCause().getMessage();
+        if (databaseMessage != null && databaseMessage.contains(APPOINTMENT_OVERLAP_CONSTRAINT)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ApiError("SLOT_UNAVAILABLE", "El horario ya no está disponible"));
+        }
+        return handleUnexpected(ex);
     }
 
     @ExceptionHandler(Exception.class)

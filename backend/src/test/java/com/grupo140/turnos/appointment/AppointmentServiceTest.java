@@ -9,28 +9,37 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.grupo140.turnos.catalog.CatalogService;
+import com.grupo140.turnos.catalog.Service;
 import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.company.CompanyService;
-import com.grupo140.turnos.notification.NotificationService;
+import com.grupo140.turnos.notification.NotificationEventType;
+import com.grupo140.turnos.notification.NotificationRequestedEvent;
 import com.grupo140.turnos.schedule.BusinessHoursRequest;
 import com.grupo140.turnos.schedule.ScheduleService;
+import com.grupo140.turnos.settings.PlatformSettingsResponse;
+import com.grupo140.turnos.settings.PlatformSettingsService;
 import com.grupo140.turnos.user.UserService;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 import java.util.TimeZone;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,6 +48,9 @@ class AppointmentServiceTest {
     private final Instant now = Instant.parse("2026-10-10T12:00:00Z");
     private final UUID companyId = UUID.randomUUID();
     private final UUID serviceId = UUID.randomUUID();
+    private final UUID clientId = UUID.randomUUID();
+
+    private static final ZoneId CORDOBA = ZoneId.of("America/Argentina/Cordoba");
 
     @Mock
     private AppointmentRepository appointmentRepository;
@@ -56,7 +68,13 @@ class AppointmentServiceTest {
     private UserService userService;
 
     @Mock
-    private NotificationService notificationService;
+    private AvailabilityService availabilityService;
+
+    @Mock
+    private PlatformSettingsService platformSettingsService;
+
+    @Mock
+    private ApplicationEventPublisher events;
 
     private AppointmentService appointmentService;
 
@@ -69,17 +87,118 @@ class AppointmentServiceTest {
         TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         appointmentService = new AppointmentService(
                 appointmentRepository,
+                availabilityService,
                 catalogService,
                 scheduleService,
                 companyService,
                 userService,
-                notificationService,
+                platformSettingsService,
+                events,
                 Clock.fixed(now, ZoneOffset.UTC));
     }
 
     @AfterEach
     void restoreProcessZone() {
         TimeZone.setDefault(processZone);
+    }
+
+    @Test
+    void bookRejectsStartBeforeMinimumNotice() {
+        givenBookableService();
+
+        assertBookingRejected(now.plus(Duration.ofMinutes(29)), "BOOKING_TOO_SOON");
+        assertBookingRejected(now.minus(Duration.ofHours(1)), "BOOKING_TOO_SOON");
+        verify(appointmentRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void bookAcceptsStartExactlyAtMinimumNotice() {
+        givenBookableService();
+        Instant start = now.plus(Duration.ofMinutes(30));
+        givenAvailable(start);
+        when(appointmentRepository.saveAndFlush(any())).thenAnswer(call -> call.getArgument(0));
+
+        ClientAppointmentResponse response =
+                appointmentService.book(companyId, clientId, new BookAppointmentRequest(serviceId, start));
+
+        assertThat(response.status()).isEqualTo(AppointmentStatus.PENDING);
+    }
+
+    @Test
+    void bookRejectsDateAfterMaximumAdvance() {
+        givenBookableService();
+
+        // 10/10 + 90 días = 8/1 en Córdoba; el 9/1 a las 10:00 ya queda afuera.
+        assertBookingRejected(Instant.parse("2027-01-09T13:00:00Z"), "BOOKING_TOO_FAR");
+        verify(appointmentRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void bookUsesCompanyDateForMaximumAdvance() {
+        givenBookableService();
+        // 8/1 a las 23:30 en Córdoba es 9/1 en UTC: sigue dentro de la ventana y pasa a la disponibilidad.
+        Instant start = Instant.parse("2027-01-09T02:30:00Z");
+        when(availabilityService.availableStarts(companyId, serviceId, LocalDate.parse("2027-01-08")))
+                .thenReturn(List.of());
+
+        assertBookingRejected(start, "SLOT_UNAVAILABLE");
+    }
+
+    @Test
+    void bookRejectsStartNotAvailable() {
+        givenBookableService();
+        Instant start = now.plus(Duration.ofDays(1));
+        when(availabilityService.availableStarts(companyId, serviceId, localDate(start)))
+                .thenReturn(List.of(start.plus(Duration.ofMinutes(30))));
+
+        assertBookingRejected(start, "SLOT_UNAVAILABLE");
+        verify(appointmentRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void bookCopiesServiceDataAndRequestsNotification() {
+        givenBookableService();
+        Instant start = now.plus(Duration.ofDays(1));
+        givenAvailable(start);
+        when(appointmentRepository.saveAndFlush(any())).thenAnswer(call -> call.getArgument(0));
+
+        ClientAppointmentResponse response =
+                appointmentService.book(companyId, clientId, new BookAppointmentRequest(serviceId, start));
+
+        verify(companyService).lockActive(companyId);
+        assertThat(response.priceSnapshot()).isEqualByComparingTo("8000");
+        assertThat(response.durationMinutesSnapshot()).isEqualTo(45);
+        assertThat(response.endDateTime()).isEqualTo(start.plus(Duration.ofMinutes(45)));
+        ArgumentCaptor<NotificationRequestedEvent> event = ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(events).publishEvent(event.capture());
+        assertThat(event.getValue().eventType()).isEqualTo(NotificationEventType.BOOKING_CONFIRMED);
+        assertThat(event.getValue().recipientPhone()).isEqualTo("+5493510000001");
+        assertThat(event.getValue().userId()).isEqualTo(clientId);
+        assertThat(event.getValue().message()).contains("Corte").contains("11/10/2026 09:00");
+    }
+
+    private void givenBookableService() {
+        when(catalogService.requireActiveService(companyId, serviceId))
+                .thenReturn(new Service(companyId, "Corte", new BigDecimal("8000"), 45));
+        when(companyService.zoneOf(companyId)).thenReturn(CORDOBA);
+        when(platformSettingsService.get()).thenReturn(new PlatformSettingsResponse(30, 3, 2, 90));
+    }
+
+    private void givenAvailable(Instant start) {
+        when(availabilityService.availableStarts(companyId, serviceId, localDate(start)))
+                .thenReturn(List.of(start));
+        when(userService.findPhone(clientId, companyId)).thenReturn(Optional.of("+5493510000001"));
+    }
+
+    private LocalDate localDate(Instant start) {
+        return start.atZone(CORDOBA).toLocalDate();
+    }
+
+    private void assertBookingRejected(Instant start, String code) {
+        BookAppointmentRequest request = new BookAppointmentRequest(serviceId, start);
+        assertThatThrownBy(() -> appointmentService.book(companyId, clientId, request))
+                .isInstanceOfSatisfying(
+                        ApiException.class, ex -> assertThat(ex.getCode()).isEqualTo(code));
     }
 
     @Test

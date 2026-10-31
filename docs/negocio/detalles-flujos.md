@@ -181,15 +181,18 @@ La página pública (`plataforma.com/{slug}`) es visible sin login: cualquiera v
 3. valida contra BusinessHours / ScheduleException
 4. valida superposición por rango contra los turnos de esa empresa
 5. INSERT del turno, copiando precio y duración del servicio
-6. COMMIT                                          -- recién acá se libera el lock
-7. (después del commit) se emite la notificación
+6. INSERT de la notificación en estado PENDING
+7. COMMIT                                          -- recién acá se libera el lock
+8. (después del commit) se envía la notificación y queda en SENT o FAILED
 ```
 
 > **Por qué se bloquea la fila de `company` y no otra cosa:** el turno que se quiere crear todavía no existe, así que no hay una fila propia para bloquear. Sin un objeto de bloqueo explícito, dos personas reservando el mismo horario al mismo tiempo leerían ambas "está libre" e insertarían las dos. Bloquear la empresa serializa las reservas de ese negocio — que es exactamente el grano que hace falta — sin frenar a las demás empresas de la plataforma.
 >
 > Como red de seguridad, la base declara además una constraint de exclusión que impide físicamente dos turnos superpuestos en la misma empresa. El lock da el mensaje de error claro; la constraint garantiza que ningún camino del código pueda romper la invariante.
 
-> **Por qué la notificación va después del commit:** llamar a la API de WhatsApp dentro de la transacción mantendría tomado el lock de la empresa durante toda la latencia de la red. Un proveedor lento serializaría las reservas de todo el negocio detrás suyo.
+> **Por qué el envío va después del commit:** llamar a la API de WhatsApp dentro de la transacción mantendría tomado el lock de la empresa durante toda la latencia de la red. Un proveedor lento serializaría las reservas de todo el negocio detrás suyo.
+>
+> **Por qué la fila de la notificación va dentro de la transacción:** si el proceso se cae entre el commit y el envío, la fila queda en `PENDING` y se puede reintentar; si se escribiera después del commit, el aviso se perdería sin dejar rastro. A cambio, un fallo al guardar la fila revierte la reserva. Si la transacción se revierte, no queda fila ni se envía nada.
 
 ---
 
@@ -225,7 +228,7 @@ El caso más sensible es la desactivación de una empresa: se cancelan N turnos 
 
 Además, para la defensa del trabajo, es lo que permite **mostrar** que el flujo de notificaciones funciona, en lugar de afirmarlo.
 
-**Momento del envío:** siempre después de confirmada la transacción del turno (`@TransactionalEventListener(AFTER_COMMIT)`), nunca dentro de ella. Ver la explicación en 7.4.
+**Momento del registro y del envío:** la fila se escribe en `PENDING` dentro de la transacción del turno. El envío ocurre siempre después de confirmada esa transacción (`@TransactionalEventListener(AFTER_COMMIT)`), nunca dentro de ella. Ver la explicación en 7.4.
 
 ---
 
