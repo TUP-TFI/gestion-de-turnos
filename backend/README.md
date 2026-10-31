@@ -196,6 +196,14 @@ Pendiente para US-10.4: la fila no guarda el mensaje, así que el reintento lo t
 | `date` con otro formato | `400 VALIDATION_ERROR` |
 | Sin `date` | `400 BAD_REQUEST` |
 
+### Horario de atención público
+
+`GET /api/public/companies/{slug}/business-hours` no pide sesión y responde `200` con una lista de `{ dayOfWeek, startTime, endTime }`: los días y las franjas en que opera la empresa, ordenados por día y hora de inicio, en hora local de la empresa. Una jornada partida trae dos filas, y un día sin filas está cerrado. Una empresa sin horario cargado responde una lista vacía.
+
+No dice qué turnos están libres, eso es [Horarios disponibles](#horarios-disponibles). Tampoco incluye las excepciones de calendario, que solo se reflejan en los horarios disponibles de esa fecha.
+
+Un slug inexistente responde `404 COMPANY_NOT_FOUND` y una empresa desactivada, `403 COMPANY_INACTIVE`.
+
 ### Desactivar y reactivar una empresa
 
 `POST /api/superadmin/companies/{id}/deactivate` y `POST /api/superadmin/companies/{id}/reactivate`, sin body. Responden `200` con la empresa actualizada, o `404 COMPANY_NOT_FOUND`. Si la empresa ya estaba en ese estado, responden `200` igual y no hacen nada.
