@@ -792,12 +792,13 @@ Dependencias: US-08.1 (mismo plazo), US-05.5 (cálculo de disponibilidad), US-07
 Como cliente, quiero ver en "Mis turnos" si puedo cancelar o reprogramar cada turno, para saber qué opciones tengo sin tener que intentarlo.
 
 Criterios de aceptación:
-- Cada turno muestra sus botones de cancelar/reprogramar habilitados o deshabilitados según falte más o menos de 3 horas para el horario.
+- Cada turno muestra sus botones de cancelar/reprogramar habilitados o deshabilitados según lo que informa el back, por plazo y tope de reprogramaciones.
 - Los turnos `CANCELLED` o `COMPLETED` no muestran acciones sobre ese registro.
 - Un turno reprogramado se distingue visualmente por `rescheduleCount > 0`, según el modelo de `diccionario-datos.md`.
 
 Tareas técnicas:
-- Frontend (Nico): lógica de habilitado/deshabilitado en el listado, basada en `startDateTime - now()`, y badge de "reprogramado" según `rescheduleCount`.
+- Backend (Brune): sumar `canCancel`, `canReschedule` y `rescheduleBlockedReason` a `ClientAppointment`, calculados con `PlatformSettings`.
+- Frontend (Nico): lógica de habilitado/deshabilitado en el listado, basada en `canCancel`, `canReschedule` y `rescheduleBlockedReason`, que calcula el back (D1 en `contratos-api.md`), y badge de "reprogramado" según `rescheduleCount`.
 
 Dependencias: US-08.1, US-08.2.
 
