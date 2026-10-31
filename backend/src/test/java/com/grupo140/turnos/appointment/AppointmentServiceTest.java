@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.grupo140.turnos.catalog.CatalogService;
@@ -49,6 +50,7 @@ class AppointmentServiceTest {
     private final UUID companyId = UUID.randomUUID();
     private final UUID serviceId = UUID.randomUUID();
     private final UUID clientId = UUID.randomUUID();
+    private final UUID appointmentId = UUID.randomUUID();
 
     private static final ZoneId CORDOBA = ZoneId.of("America/Argentina/Cordoba");
 
@@ -274,6 +276,44 @@ class AppointmentServiceTest {
         when(appointmentRepository.findAllByCompanyIdAndStatusAndStartDateTimeAfter(
                         companyId, AppointmentStatus.PENDING, now))
                 .thenReturn(List.of(appointments));
+    }
+
+    @Test
+    void clientCancelsExactlyAtDeadlineWithoutNotification() {
+        Appointment appointment = givenClientAppointment(now.plus(Duration.ofHours(3)));
+        when(catalogService.requireOwnedService(companyId, serviceId))
+                .thenReturn(new Service(companyId, "Corte", new BigDecimal("8000"), 45));
+
+        ClientAppointmentResponse response = appointmentService.cancelByClient(companyId, clientId, appointmentId);
+
+        verify(companyService).lockActive(companyId);
+        assertThat(response.status()).isEqualTo(AppointmentStatus.CANCELLED);
+        assertThat(response.canCancel()).isFalse();
+        assertThat(appointment.getCancelledBy()).isEqualTo(CancelledBy.CLIENT);
+        assertThat(appointment.getCancelledAt()).isEqualTo(now);
+        verifyNoInteractions(events);
+    }
+
+    @Test
+    void clientCannotCancelOneSecondAfterDeadline() {
+        Appointment appointment =
+                givenClientAppointment(now.plus(Duration.ofHours(3)).minusSeconds(1));
+
+        assertThatThrownBy(() -> appointmentService.cancelByClient(companyId, clientId, appointmentId))
+                .isInstanceOfSatisfying(
+                        ApiException.class, ex -> assertThat(ex.getCode()).isEqualTo("CANCELLATION_DEADLINE_PASSED"));
+        assertThat(appointment.getStatus()).isEqualTo(AppointmentStatus.PENDING);
+    }
+
+    private Appointment givenClientAppointment(Instant start) {
+        Appointment appointment = appointment(start.toString(), 45);
+        appointment.setServiceId(serviceId);
+        appointment.setDurationMinutesSnapshot(45);
+        appointment.setStatus(AppointmentStatus.PENDING);
+        when(appointmentRepository.findByIdAndCompanyIdAndClientId(appointmentId, companyId, clientId))
+                .thenReturn(Optional.of(appointment));
+        when(platformSettingsService.get()).thenReturn(new PlatformSettingsResponse(30, 3, 2, 90));
+        return appointment;
     }
 
     private static Appointment appointment(String startUtc, int durationMinutes) {

@@ -114,7 +114,8 @@ public class AppointmentService {
                 saved,
                 NotificationEventType.BOOKING_CONFIRMED,
                 "Tu turno de %s del %s quedó confirmado.".formatted(service.getName(), formatForNotice(start, zone)));
-        return ClientAppointmentResponse.from(saved, service.getName());
+        boolean canCancel = canCancel(saved, platformSettingsService.get(), Instant.now(clock));
+        return ClientAppointmentResponse.from(saved, service.getName(), canCancel);
     }
 
     // Anticipación mínima y máxima (US-07.4). Va separada de la disponibilidad, que solo diría "no hay horario",
@@ -243,9 +244,12 @@ public class AppointmentService {
         }
         Map<UUID, String> serviceNames = catalogService.list(companyId).stream()
                 .collect(Collectors.toMap(ServiceResponse::id, ServiceResponse::name));
+        PlatformSettingsResponse settings = platformSettingsService.get();
+        Instant now = Instant.now(clock);
         List<ClientAppointmentResponse> result = new ArrayList<>();
         for (Appointment appointment : appointments) {
-            result.add(ClientAppointmentResponse.from(appointment, serviceNames.get(appointment.getServiceId())));
+            result.add(ClientAppointmentResponse.from(
+                    appointment, serviceNames.get(appointment.getServiceId()), canCancel(appointment, settings, now)));
         }
         return result;
     }
@@ -263,10 +267,7 @@ public class AppointmentService {
         List<Appointment> pending =
                 appointmentRepository.findByCompanyIdAndStatus(companyId, AppointmentStatus.PENDING);
         for (Appointment appointment : pending) {
-            appointment.setStatus(AppointmentStatus.CANCELLED);
-            appointment.setCancelledBy(CancelledBy.COMPANY);
-            appointment.setCancelledAt(now);
-            appointment.setCancellationReason(COMPANY_DEACTIVATED_REASON);
+            markCancelled(appointment, CancelledBy.COMPANY, COMPANY_DEACTIVATED_REASON, now);
             publishNotification(
                     appointment,
                     NotificationEventType.APPOINTMENT_CANCELLED,
@@ -275,6 +276,60 @@ public class AppointmentService {
                                     formatForNotice(appointment.getStartDateTime(), zone), COMPANY_DEACTIVATED_REASON));
         }
         return pending.size();
+    }
+
+    /**
+     * Cancela un turno a pedido de su cliente, hasta el plazo configurado antes de que empiece (US-08.1). El lock de
+     * la empresa evita que dos pedidos simultáneos lean el turno como pendiente. No publica un aviso: el admin avisa
+     * desde su panel (ver {@code docs/contratos-api.md}, Paso 10).
+     *
+     * @param companyId empresa de la sesión.
+     * @param clientId cliente de la sesión: nunca uno que llegue en la request.
+     * @throws ApiException {@code COMPANY_INACTIVE} (403), {@code APPOINTMENT_NOT_FOUND} (404),
+     *     {@code APPOINTMENT_NOT_PENDING} (409) o {@code CANCELLATION_DEADLINE_PASSED} (400).
+     */
+    @Transactional
+    public ClientAppointmentResponse cancelByClient(UUID companyId, UUID clientId, UUID appointmentId) {
+        companyService.lockActive(companyId);
+        Appointment appointment = appointmentRepository
+                .findByIdAndCompanyIdAndClientId(appointmentId, companyId, clientId)
+                .orElseThrow(
+                        () -> new ApiException(HttpStatus.NOT_FOUND, "APPOINTMENT_NOT_FOUND", "El turno no existe"));
+        if (appointment.getStatus() != AppointmentStatus.PENDING) {
+            throw new ApiException(HttpStatus.CONFLICT, "APPOINTMENT_NOT_PENDING", "El turno ya no está pendiente");
+        }
+        PlatformSettingsResponse settings = platformSettingsService.get();
+        Instant now = Instant.now(clock);
+        if (isPastCancellationDeadline(appointment, settings, now)) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "CANCELLATION_DEADLINE_PASSED",
+                    "El turno se puede cancelar hasta %d horas antes".formatted(settings.cancellationDeadlineHours()));
+        }
+
+        markCancelled(appointment, CancelledBy.CLIENT, null, now);
+        String serviceName = catalogService
+                .requireOwnedService(companyId, appointment.getServiceId())
+                .getName();
+        return ClientAppointmentResponse.from(appointment, serviceName, canCancel(appointment, settings, now));
+    }
+
+    private static boolean canCancel(Appointment appointment, PlatformSettingsResponse settings, Instant now) {
+        return appointment.getStatus() == AppointmentStatus.PENDING
+                && !isPastCancellationDeadline(appointment, settings, now);
+    }
+
+    private static boolean isPastCancellationDeadline(
+            Appointment appointment, PlatformSettingsResponse settings, Instant now) {
+        Instant deadline = appointment.getStartDateTime().minus(Duration.ofHours(settings.cancellationDeadlineHours()));
+        return now.isAfter(deadline);
+    }
+
+    private static void markCancelled(Appointment appointment, CancelledBy cancelledBy, String reason, Instant now) {
+        appointment.setStatus(AppointmentStatus.CANCELLED);
+        appointment.setCancelledBy(cancelledBy);
+        appointment.setCancelledAt(now);
+        appointment.setCancellationReason(reason);
     }
 
     // Pide el aviso al cliente del turno, que se registra y se envía después del commit (US-07.5). Si no hay
