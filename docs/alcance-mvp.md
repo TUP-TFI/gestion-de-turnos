@@ -616,6 +616,8 @@ Criterios de aceptación:
 - Muestra el listado de servicios activos con nombre, descripción, precio y duración.
 - Si la empresa está `INACTIVE`, en vez de servicios muestra el estado "no disponible" (ver US-04.4).
 
+> 📝 **Agregado a pedido de Nico:** `GET /api/public/companies/{slug}/business-hours` expone el horario semanal para mostrarlo en la página: días y franjas en que opera la empresa. Solo lee `BusinessHours`, sin turnos ni `ScheduleException`. El detalle está en `backend/README.md`.
+
 Tareas técnicas:
 - Backend (Brune): endpoint público (sin login) que resuelve datos de empresa + servicios activos a partir del slug.
 - Frontend (Nico): página pública con el layout base, aplicando logo/color dinámicamente. Todas las empresas comparten el mismo componente — solo cambia lo que trae el slug.

@@ -61,6 +61,19 @@ public class ScheduleService {
     }
 
     /**
+     * Horario semanal para la página pública, que llega por el slug y sin sesión, ordenado por día y hora de
+     * inicio. Un día sin franjas está cerrado. No aplica las excepciones de calendario. A diferencia de la página
+     * (US-06.1), una empresa desactivada da error, igual que sus horarios disponibles (US-06.2).
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404) o {@code COMPANY_INACTIVE} (403).
+     */
+    @Transactional(readOnly = true)
+    public List<PublicBusinessHoursResponse> publicBusinessHours(String slug) {
+        UUID companyId = companyService.requireActiveIdBySlug(slug);
+        return list(companyId).stream().map(PublicBusinessHoursResponse::from).toList();
+    }
+
+    /**
      * Reemplaza la semana entera de la empresa (US-05.3). Los turnos ya reservados no se tocan, aunque
      * queden fuera del horario nuevo (US-05.4).
      *
