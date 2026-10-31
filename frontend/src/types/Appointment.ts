@@ -26,3 +26,16 @@ export interface Appointment {
   createdAt: string
   updatedAt: string
 }
+
+// Un turno de "Mis turnos" (GET /api/client/appointments).
+export type ClientAppointment = Pick<
+  Appointment,
+  | 'id'
+  | 'serviceId'
+  | 'startDateTime'
+  | 'endDateTime'
+  | 'status'
+  | 'rescheduleCount'
+  | 'priceSnapshot'
+  | 'durationMinutesSnapshot'
+> & { serviceName: string }
