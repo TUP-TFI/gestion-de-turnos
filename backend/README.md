@@ -564,6 +564,6 @@ Los datos de demo para la presentación (más empresas y turnos en distintos est
 - Documentación de la API (Swagger / OpenAPI).
 - Proveedor de la API de WhatsApp Business.
 - Storage externo para los logos de empresa (`company.logoUrl`).
-- Frecuencia concreta de los jobs programados (cierre de turnos, reintento de notificaciones, purga de tokens).
+- Frecuencia concreta de los jobs de reintento de notificaciones y de purga de tokens. El cierre de turnos ya quedó en cada 5 minutos: se cambia con `app.jobs.complete-appointments.cron`, y `app.jobs.enabled=false` apaga todos los jobs. A confirmar en el despliegue final (T-14.1): un job tan seguido podría impedir que Neon suspenda la base y consumir horas de cómputo. Todavía no se verificó contra el plan de Neon del proyecto; si hace falta, la frecuencia se ajusta con esa misma propiedad.
 - Mostrar el link de activación en la UI del superadmin mientras no exista el envío por WhatsApp. Hoy el alta de empresa y el reenvío solo lo escriben en el log, y quien prueba el despliegue sin acceso a Render no puede activar al admin de una empresa nueva. Propuesta: que `POST /api/superadmin/companies` y `POST .../resend-activation` devuelvan el link en la respuesta (solo mientras `NotificationService` sea el de log) y que el frontend lo muestre para copiarlo. PR aparte, back y front.
 - Paginación del listado de empresas (`GET /api/superadmin/companies`). Por el tamaño del MVP devuelve todas juntas; se puede agregar después del MVP si la cantidad de empresas lo pide.

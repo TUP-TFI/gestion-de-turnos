@@ -307,4 +307,15 @@ public class AppointmentService {
     public long countAll() {
         return appointmentRepository.count();
     }
+
+    /**
+     * Pasa a {@link AppointmentStatus#COMPLETED} los turnos pendientes que ya terminaron (US-11.1). Lo llama el
+     * job de cierre.
+     *
+     * @return cuántos turnos se completaron.
+     */
+    @Transactional
+    public int completeFinished() {
+        return appointmentRepository.completeFinished(Instant.now(clock));
+    }
 }
