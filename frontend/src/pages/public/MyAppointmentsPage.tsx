@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useParams } from 'react-router'
+import { Link, Navigate, useParams } from 'react-router'
 import { useClientAppointments } from '../../hooks/useClientAppointments'
 import { useClientAuth } from '../../hooks/useClientAuth'
 import { usePublicCompany } from '../../hooks/usePublicCompany'
@@ -12,6 +12,7 @@ import {
   LABEL_CLASSES,
   MUTED_TEXT_CLASSES,
   PAGE_TITLE_CLASSES,
+  ROW_BUTTON_CLASSES,
   TABLE_CELL_CLASSES,
   TABLE_HEAD_CLASSES,
   TABLE_WRAPPER_CLASSES,
@@ -56,6 +57,10 @@ export function MyAppointmentsPage() {
   return (
     <main className="min-h-screen bg-surface px-4 py-8">
       <section className="mx-auto max-w-4xl space-y-6">
+        <Link to={`/${slug}`} className={ROW_BUTTON_CLASSES}>
+          ← Volver
+        </Link>
+
         <div>
           <h1 className={PAGE_TITLE_CLASSES}>Mis turnos</h1>
           {company && <p className={MUTED_TEXT_CLASSES}>{company.name}</p>}
