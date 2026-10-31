@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ApiRequestError, toErrorMessage } from '../api/client'
-import { getPublicPage } from '../api/publicPage'
-import type { PublicCompany, PublicService } from '../types/PublicPage'
+import { getPublicCompany } from '../api/publicCompany'
+import type { PublicCompany, PublicService } from '../types/PublicCompany'
 
 interface UsePublicCompanyResult {
   company: PublicCompany | null
@@ -22,8 +22,8 @@ function isNotFoundError(error: Error | null): boolean {
 
 export function usePublicCompany(slug: string): UsePublicCompanyResult {
   const query = useQuery({
-    queryKey: ['public-page', slug],
-    queryFn: () => getPublicPage(slug),
+    queryKey: ['public-company', slug],
+    queryFn: () => getPublicCompany(slug),
     retry: (failureCount, error) =>
       !isApiResponseError(error) && failureCount < 3,
   })

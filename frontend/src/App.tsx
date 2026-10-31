@@ -14,6 +14,7 @@ import { ScheduleExceptionsPage } from './pages/company/ScheduleExceptionsPage'
 import { ServicesPage } from './pages/company/ServicesPage'
 import { ClientLoginPage } from './pages/public/ClientLoginPage'
 import { ClientRegisterPage } from './pages/public/ClientRegisterPage'
+import { MyAppointmentsPage } from './pages/public/MyAppointmentsPage'
 import { PublicCompanyPage } from './pages/public/PublicCompanyPage'
 import { CompaniesPage } from './pages/superadmin/CompaniesPage'
 import { CreateCompanyPage } from './pages/superadmin/CreateCompanyPage'
@@ -32,6 +33,7 @@ function App() {
       <Route path="/:slug" element={<PublicCompanyPage />} />
       <Route path="/:slug/login" element={<ClientLoginPage />} />
       <Route path="/:slug/register" element={<ClientRegisterPage />} />
+      <Route path="/:slug/my-appointments" element={<MyAppointmentsPage />} />
 
       {/* Prefijos de los paneles sin página propia: sin esto, /:slug los mostraría como una empresa que no existe. */}
       <Route path="/company" element={<Navigate to="/login" replace />} />

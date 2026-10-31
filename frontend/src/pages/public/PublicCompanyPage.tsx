@@ -18,7 +18,7 @@ import {
   SECONDARY_BUTTON_CLASSES,
 } from '../../lib/formStyles'
 import { getDashboardPath } from '../../lib/panelRoutes'
-import type { PublicCompany, PublicService } from '../../types/PublicPage'
+import type { PublicCompany, PublicService } from '../../types/PublicCompany'
 
 const PRICE_FORMAT = new Intl.NumberFormat('es-AR', {
   style: 'currency',
@@ -181,6 +181,12 @@ export function PublicCompanyPage() {
               <span className="text-sm font-medium">
                 {session.user.firstName} {session.user.lastName}
               </span>
+              <Link
+                to={`/${slug}/my-appointments`}
+                className={SECONDARY_BUTTON_CLASSES}
+              >
+                Mis turnos
+              </Link>
               <button
                 type="button"
                 onClick={handleLogout}

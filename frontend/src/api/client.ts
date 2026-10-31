@@ -1,3 +1,4 @@
+import { clearClientSession, readClientSession } from '../lib/clientSession'
 import { clearPanelSession, readPanelSession } from '../lib/panelSession'
 import type { ApiError } from '../types/Auth'
 
@@ -21,7 +22,8 @@ export function toErrorMessage(error: Error): string {
 
 interface RequestOptions extends RequestInit {
   // false en los endpoints sin sesión (login, activación): no se manda el token.
-  auth?: boolean
+  // 'client' en /api/client/**: se manda el token del cliente, no el del panel.
+  auth?: boolean | 'client'
 }
 
 // Único punto que habla con el backend: arma la URL, agrega el token y traduce los errores.
@@ -33,7 +35,7 @@ export async function request<T>(
   if (init.body) {
     headers.set('Content-Type', 'application/json')
   }
-  const token = auth ? readPanelSession()?.token : undefined
+  const token = readToken(auth)
   if (token) {
     headers.set('Authorization', `Bearer ${token}`)
   }
@@ -50,16 +52,24 @@ export async function request<T>(
 
   // 401 en un pedido con sesión: el token venció o no es válido. Se cierra la sesión y se vuelve al login.
   if (response.status === 401 && token) {
-    clearPanelSession()
-    window.location.assign('/login')
+    if (auth === 'client') {
+      endClientSession('/login')
+    } else {
+      clearPanelSession()
+      window.location.assign('/login')
+    }
   }
 
   if (!response.ok) {
     const error = await readError(response)
     // COMPANY_INACTIVE en un pedido con sesión: la empresa se desactivó con la sesión abierta (US-04.4).
     if (error.code === 'COMPANY_INACTIVE' && token) {
-      clearPanelSession()
-      window.location.assign('/login?reason=company-inactive')
+      if (auth === 'client') {
+        endClientSession('')
+      } else {
+        clearPanelSession()
+        window.location.assign('/login?reason=company-inactive')
+      }
     }
     throw new ApiRequestError(error)
   }
@@ -70,6 +80,20 @@ export async function request<T>(
   }
 
   return response.json()
+}
+
+function readToken(auth: RequestOptions['auth']): string | undefined {
+  if (auth === 'client') {
+    return readClientSession()?.token
+  }
+  return auth ? readPanelSession()?.token : undefined
+}
+
+// Cierra la sesión del cliente y lo lleva a una pantalla de su empresa. La sesión del panel no se toca.
+function endClientSession(path: string): void {
+  const slug = readClientSession()?.slug
+  clearClientSession()
+  window.location.assign(`/${slug}${path}`)
 }
 
 async function readError(response: Response): Promise<ApiError> {
