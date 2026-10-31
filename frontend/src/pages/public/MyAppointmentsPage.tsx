@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Navigate, useParams } from 'react-router'
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router'
 import { useClientAppointments } from '../../hooks/useClientAppointments'
 import { useClientAuth } from '../../hooks/useClientAuth'
 import { usePublicCompany } from '../../hooks/usePublicCompany'
@@ -34,6 +34,8 @@ const STATUS_CLASSES: Record<AppointmentStatus, string> = {
 // Turnos del cliente en esta empresa (US-07.6). Los COMPLETED cumplen la función de historial.
 export function MyAppointmentsPage() {
   const { slug = '' } = useParams()
+  const navigate = useNavigate()
+  const location = useLocation()
   const { session } = useClientAuth(slug)
   const {
     company,
@@ -54,12 +56,25 @@ export function MyAppointmentsPage() {
   const error = companyError ?? appointmentsError
   const isLoading = isLoadingCompany || isLoadingAppointments
 
+  // Un link a la empresa sumaría una entrada al historial, y su "← Volver" regresaría acá en bucle.
+  function handleBack() {
+    if (location.key !== 'default') {
+      navigate(-1)
+    } else {
+      navigate(`/${slug}`)
+    }
+  }
+
   return (
     <main className="min-h-screen bg-surface px-4 py-8">
       <section className="mx-auto max-w-4xl space-y-6">
-        <Link to={`/${slug}`} className={ROW_BUTTON_CLASSES}>
+        <button
+          type="button"
+          onClick={handleBack}
+          className={ROW_BUTTON_CLASSES}
+        >
           ← Volver
-        </Link>
+        </button>
 
         <div>
           <h1 className={PAGE_TITLE_CLASSES}>Mis turnos</h1>
