@@ -13,6 +13,10 @@ public interface AppointmentRepository extends Repository<Appointment, UUID> {
 
     Appointment save(Appointment appointment);
 
+    // Guarda y ejecuta el INSERT en el momento: la constraint excl_appointment_overlap salta dentro de la
+    // transacción de la reserva (US-07.3), no al hacer commit.
+    Appointment saveAndFlush(Appointment appointment);
+
     long countByCompanyIdAndServiceIdAndStatusAndStartDateTimeAfter(
             UUID companyId, UUID serviceId, AppointmentStatus status, Instant after);
 

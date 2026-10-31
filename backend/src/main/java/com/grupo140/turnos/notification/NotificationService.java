@@ -1,6 +1,5 @@
 package com.grupo140.turnos.notification;
 
-import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -22,9 +21,12 @@ public class NotificationService {
         log.info("Link de activación para {}: {}", phone, link);
     }
 
-    /** Aviso al cliente de que su turno se canceló, con el motivo (US-04.4). */
-    public void sendAppointmentCancelled(String phone, Instant startDateTime, String reason) {
+    /**
+     * Despacha por el canal actual el aviso de un turno. Lo llama {@link NotificationRequestedListener}, que deja el
+     * registro en {@link Notification}: si falla, lanza la excepción para que la fila quede en {@code FAILED}.
+     */
+    public void dispatch(String phone, String message) {
         // Temporal: en el Paso 10 se reemplaza por el envío real.
-        log.info("Aviso para {}: el turno del {} fue cancelado. Motivo: {}", phone, startDateTime, reason);
+        log.info("Aviso para {}: {}", phone, message);
     }
 }

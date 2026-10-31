@@ -31,8 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
  * {@code cliente2} de Barbería Central. Para probar el aislamiento entre empresas se registra un cliente en
  * Estética Pendiente, que no tiene ninguno.
  *
- * <p>Todavía no existe la reserva (Paso 7), así que los turnos se guardan directo con el repositorio. Cada test
- * hace rollback ({@code @Transactional}).
+ * <p>Los turnos se guardan directo con el repositorio: hacen falta fechas y estados que la reserva no permite. Cada
+ * test hace rollback ({@code @Transactional}).
  */
 @SpringBootTest(properties = "app.seed.enabled=true")
 @AutoConfigureMockMvc

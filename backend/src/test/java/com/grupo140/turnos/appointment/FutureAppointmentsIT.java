@@ -29,8 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
  * Conteos de turnos con turnos reales en la base, sobre la empresa del seed: futuros de un servicio (US-05.2),
  * fuera de un horario semanal (US-05.4) y afectados por una excepción de calendario (US-05.6).
  *
- * <p>Todavía no existe la reserva (Paso 7), así que los turnos se guardan directo con el repositorio. Cada test
- * hace rollback ({@code @Transactional}).
+ * <p>Los turnos se guardan directo con el repositorio: hacen falta fechas y estados que la reserva no permite. Cada
+ * test hace rollback ({@code @Transactional}).
  */
 @SpringBootTest(properties = "app.seed.enabled=true")
 @AutoConfigureMockMvc

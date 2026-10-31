@@ -710,11 +710,12 @@ Criterios de aceptación:
 - El mensaje es informativo, no requiere que el cliente responda ni confirme nada.
 - **Cada notificación se persiste como una fila en `Notification`** con su `eventType`, `channel`, `recipientPhone`, estado (`PENDING` → `SENT`/`FAILED`), `attemptCount` y `errorMessage`. La tabla ya existe desde el Paso 2 y hasta acá nadie escribía en ella.
 - `recipientPhone` se copia en la fila, no se lee por FK: el registro histórico tiene que reflejar a dónde se envió realmente, aunque el cliente cambie su teléfono después.
+- La fila se escribe en `PENDING` dentro de la transacción del turno: si el proceso se cae antes del envío, queda para el reintento del Paso 10. Un fallo al guardarla revierte la reserva. Si la transacción se revierte, no queda fila ni se envía nada.
 - Si el envío falla, el turno igual queda guardado y la notificación queda en `FAILED` para que el reintento del Paso 10 la levante.
 
 Tareas técnicas:
-- Backend (Nico): `NotificationService` que persiste la fila y despacha por el canal, invocado con `@TransactionalEventListener(AFTER_COMMIT)` desde `appointment` — así `notification` queda como hoja del grafo de dependencias (ver `backend/README.md`).
-- Backend (Nico): pasar a `AFTER_COMMIT` también el aviso de la cascada de US-04.4. Hoy `AppointmentService.cancelPendingByCompany` llama a `NotificationService` dentro de la transacción de la desactivación. Mientras el envío sea solo un log no pasa nada, pero con el canal real del Paso 10 un rollback dejaría a los clientes avisados de una cancelación que no ocurrió, y un fallo de envío revertiría la desactivación de la empresa. Surgió en la revisión de #52.
+- Backend (Nico): `appointment` publica `NotificationRequestedEvent` y `notification` lo atiende en dos fases: guarda la fila dentro de la transacción del turno y despacha por el canal con `@TransactionalEventListener(AFTER_COMMIT)` — así `notification` queda como hoja del grafo de dependencias (ver `backend/README.md`).
+- Backend (Nico): usar las mismas dos fases en el aviso de la cascada de US-04.4, para que `AppointmentService.cancelPendingByCompany` no envíe dentro de la transacción de la desactivación. Con el canal real del Paso 10, un rollback dejaría a los clientes avisados de una cancelación que no ocurrió, y un fallo de envío revertiría la desactivación de la empresa. Un fallo al guardar la fila sí la revierte. Surgió en la revisión de #52.
 
 Dependencias: el canal real de WhatsApp se integra recién en el Paso 10 — hasta entonces el despacho va mockeado/logueado, **pero la fila en `Notification` se escribe igual desde acá**.
 

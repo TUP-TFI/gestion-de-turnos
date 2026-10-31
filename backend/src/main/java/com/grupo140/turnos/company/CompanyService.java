@@ -58,6 +58,23 @@ public class CompanyService implements CompanyStatusChecker {
     }
 
     /**
+     * Toma el lock de la empresa hasta el fin de la transacción, para que dos reservas simultáneas no lean el mismo
+     * horario como libre (US-07.3).
+     *
+     * @throws ApiException {@code COMPANY_INACTIVE} (403) si la empresa no está activa.
+     */
+    @Transactional
+    public void lockActive(UUID companyId) {
+        boolean active = companyRepository
+                .findForUpdateById(companyId)
+                .map(company -> company.getStatus() == CompanyStatus.ACTIVE)
+                .orElse(false);
+        if (!active) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "COMPANY_INACTIVE", "La empresa está desactivada");
+        }
+    }
+
+    /**
      * Id de la empresa dueña de una página pública, para el registro y el login de clientes (US-03.5 y
      * US-03.6), que llegan por el slug y no tienen sesión todavía.
      *
