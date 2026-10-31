@@ -1,6 +1,6 @@
-# Contratos de lo que falta: Pasos 6 a 10
+# Contratos: Pasos 6 a 10
 
-Borrador para acordar entre Nico y Brune. Las decisiones marcadas **D1** a **D7** están al final.
+Contrato acordado entre Nico y Brune. Las decisiones marcadas **D1** a **D7** están al final.
 
 ## Reglas comunes
 
@@ -16,9 +16,11 @@ Borrador para acordar entre Nico y Brune. Las decisiones marcadas **D1** a **D7*
 | Endpoint | Historia |
 | :--- | :--- |
 | `GET /api/public/companies/{slug}` | US-06.1 |
+| `GET /api/public/companies/{slug}/business-hours` | US-06.1 |
 | `GET /api/public/companies/{slug}/services/{id}/availability?date=` | US-06.2 |
 | `POST /api/public/companies/{slug}/register` y `/login` | US-03.5, 03.6 |
 | `GET /api/client/appointments?status=` | US-07.6 |
+| `POST /api/client/appointments` | US-07.3, 07.4, 07.5 |
 
 ## Paso 7: reserva (back Nico, front Brune)
 
@@ -132,34 +134,16 @@ Body de la carga manual, con una sola de las dos identidades:
 
 ### Zona horaria en el panel (D6)
 
-El panel tiene que mostrar los turnos en hora local, y hoy no conoce la zona de la empresa. Propuesta: sumar `timezone` a `GET /api/company/branding`.
+El panel muestra los turnos en hora local de la empresa. `GET /api/company/branding` suma `timezone`. Lo implementa Brune en su PR de US-09.1.
 
-## Paso 10: notificaciones (back Nico y Brune)
+## Paso 10: avisos por WhatsApp (Nico)
 
-No agrega endpoints. Es un contrato interno entre la integración de WhatsApp (US-10.1 a 10.3, Nico) y el reintento (US-10.4, Brune). Parte del diseño de #73: la fila `PENDING` se escribe en la transacción del turno y el envío va después del commit.
-
-### Publicar un aviso
-
-Dentro de la transacción del cambio, quien cambia el turno publica `NotificationRequestedEvent(appointmentId, userId, recipientPhone, eventType, message)`. Sin transacción, el listener falla (`MANDATORY`). Sin teléfono, no se publica.
-
-| Evento | Quién lo publica | Historia |
-| :--- | :--- | :--- |
-| `BOOKING_CONFIRMED` | Reserva online (#73) y carga manual | US-07.5, 09.5, 09.6 |
-| `APPOINTMENT_CANCELLED` | Cascada (#73), cancelación del cliente y del admin | US-04.4, 08.1, 09.3 |
-| `APPOINTMENT_RESCHEDULED` | Reprogramación, con la fecha nueva en el mensaje | US-08.2 |
-
-En un turno manual sin cuenta, `userId` es `null` y el teléfono es `manualClientPhone`.
-
-### Enviar
-
-`NotificationService.dispatch(phone, message)` es el único punto de envío. Lanza una excepción si el proveedor falla. Lo implementa Nico, y el reintento lo usa sin conocer al proveedor. **La firma puede cambiar:** WhatsApp Business suele exigir plantillas aprobadas para los mensajes que inicia el negocio. Nico la confirma al elegir el proveedor y avisa antes de cambiarla.
-
-### Reintentar
-
-- **Toma:** filas `PENDING` o `FAILED`, con `attemptCount` menor al tope y `message` no nulo. Las `PENDING` recién creadas se saltean, para no competir con el envío después del commit.
-- **Cada intento:** suma `attemptCount`. Si sale bien, queda `SENT` con `sentAt`. Si falla, queda `FAILED` con `errorMessage`.
-- **Nunca reenvía** una fila `SENT`.
-- **En el tope:** queda `FAILED` y no se reintenta más.
+- **Canal:** Click to Chat. Un link `https://wa.me/<número>?text=<mensaje>` abre WhatsApp, y una persona toca enviar.
+- **Límite del sistema:** no envía mensajes ni sabe si salieron.
+- **Quién avisa:** el admin, desde su panel. El superadmin avisa la cascada de una empresa desactivada desde una lista.
+- **Paso 8:** no publica `NotificationRequestedEvent`.
+- **Endpoints:** este documento no agrega ninguno. Los define el plan de implementación.
+- **Código actual:** `notification` sigue en `main` hasta el PR que lo quite.
 
 ## Contratos internos
 
@@ -168,7 +152,7 @@ En un turno manual sin cuenta, `userId` es `null` y el teléfono es `manualClien
 | Pieza | Dueño | Contrato |
 | :--- | :--- | :--- |
 | `usePublicCompany(slug)` y `api/publicCompany.ts` | Brune (#76) | `{ company, services, error, isLoading }`. También lo usan el login y el registro para el nombre de la empresa y el slug inválido. Nico suma `notFound` para la página pública, sin romper "Mis turnos" |
-| `ServiceSlotPicker` | Nico | Props: `services`, `timezone`, `queryKey(serviceId, date)`, `fetchAvailability(serviceId, date)`, `onSelect({ service, startDateTime })`. Se reutiliza al reprogramar y en la carga manual, cambiando `queryKey` y `fetchAvailability` |
+| `ServiceSlotPicker` | Nico | Props: `services`, `timezone`, `queryKey(serviceId, date)`, `fetchAvailability(serviceId, date)`, `onSelect({ service, startDateTime })` y, opcional, `onAvailabilityError(error)`. Se reutiliza al reprogramar y en la carga manual, cambiando `queryKey` y `fetchAvailability` |
 | Query key de disponibilidad pública | Nico y Brune | `['availability', slug, serviceId, date]`. Después de un `409`, se invalida `['availability', slug]` para refrescar los horarios sin recargar la página. Reprogramación y carga manual usan keys propias, porque devuelven horarios distintos |
 | Página `/:slug` | Nico | Renderiza el picker y le pasa el `onSelect` que da Brune |
 | `useBookingFlow(slug)` | Brune | Recibe la selección, pide login si hace falta, abre el modal y reserva |
@@ -180,17 +164,17 @@ En un turno manual sin cuenta, `userId` es `null` y el teléfono es `manualClien
 ### Back: lo que Brune reutiliza del Paso 7
 
 - **Reserva:** en #73 la secuencia de lock, validaciones e insert está dentro de `book`. Brune la separa en US-09.5, en un método interno de `AppointmentService` que también usa la carga manual. Cambian `origin` y la identidad del cliente.
-- **Notificaciones:** cancelar y reprogramar publican el mismo evento de notificación que define #73, y `notification` lo escucha después del commit.
+- **Notificaciones:** cancelar y reprogramar no publican el evento de notificación que define #73 (ver Paso 10).
 - **Disponibilidad:** se agrega una variante de `availableStarts` que recibe la duración y el turno a excluir, y no rechaza servicios inactivos. El método actual sigue igual para los demás usos.
 
 ## Decisiones
 
-| # | Tema | Problema | Propuesta |
+| # | Tema | Problema | Decisión |
 | :--- | :--- | :--- | :--- |
-| D1 | Botones de "Mis turnos" | `cancellationDeadlineHours` y `maxRescheduleCount` solo se leen en `/api/superadmin/settings`. El front del cliente no los conoce, y no se pueden hardcodear | El back calcula `canCancel`, `canReschedule` y `rescheduleBlockedReason`. Cambia la tarea técnica de US-08.3 |
+| D1 | Botones de "Mis turnos" | `cancellationDeadlineHours` y `maxRescheduleCount` solo se leen en `/api/superadmin/settings`. El front del cliente no los conoce, y no se pueden hardcodear | El back calcula `canCancel`, `canReschedule` y `rescheduleBlockedReason`, que llegan con el Paso 8. Cambia la tarea técnica de US-08.3 |
 | D2 | Disponibilidad al reprogramar | `availableStarts` cuenta el propio turno como ocupado: no se puede correr 30 minutos un turno de 60. Además usa la duración actual del servicio, no la copiada, y rechaza servicios inactivos | Endpoint propio que excluye el turno y usa `durationMinutesSnapshot`. Un servicio inactivo se puede reprogramar, por la regla 23 |
 | D3 | Disponibilidad en el panel | El admin podría usar la ruta pública, pero tendría que conseguir su slug | Ruta propia bajo `/api/company`, con la empresa de la sesión |
 | D4 | "Próximos turnos" | `alcance-mvp.md` lo deja sin definir | `upcoming`: los próximos 5 turnos después de hoy, en hora local de la empresa |
-| D5 | Paginado | US-09.7 lo pide para clientes. US-09.2 no lo menciona, pero la agenda crece sin límite | Paginar agenda y clientes con el mismo DTO |
-| D6 | Zona en el panel | Falta el dato | `timezone` en `GET /api/company/branding` |
-| D7 | Datos del reintento | La fila no guarda el mensaje, y `notification` no puede leer el turno para rearmarlo sin dejar de ser hoja del grafo. US-10.4 tampoco define el tope ni cuándo una `PENDING` se considera abandonada | Migración `V2` con una columna `message` nullable en `notification`, porque las filas anteriores a la migración no lo tienen. Tope de 5 intentos. Una `PENDING` se reintenta a los 5 minutos de creada. Si el proveedor exige plantillas, la columna guarda los parámetros |
+| D5 | Paginado | US-09.7 lo pide para clientes. US-09.2 no lo menciona, pero la agenda crece sin límite | Paginar agenda y clientes con el mismo DTO. La agenda se ordena por `startDateTime` descendente, sin `from` ni `to` |
+| D6 | Zona en el panel | Falta el dato | `timezone` en `GET /api/company/branding`. Lo implementa Brune en su PR de US-09.1 |
+| D7 | Datos del reintento | La fila no guarda el mensaje, y `notification` no puede leer el turno para rearmarlo sin dejar de ser hoja del grafo. US-10.4 tampoco define el tope ni cuándo una `PENDING` se considera abandonada | Retirada. Con Click to Chat no hay reintento: sin `V2`, sin columna `message` y sin job |
