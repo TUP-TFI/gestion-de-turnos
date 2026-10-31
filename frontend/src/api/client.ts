@@ -13,6 +13,11 @@ export class ApiRequestError extends Error {
   }
 }
 
+// Una respuesta de error de la API no se arregla reintentando; una falla de conexión, sí.
+export function isApiResponseError(error: Error): boolean {
+  return error instanceof ApiRequestError && error.code !== 'NETWORK_ERROR'
+}
+
 // Texto para mostrarle al usuario: el del backend si lo hay, o uno genérico.
 export function toErrorMessage(error: Error): string {
   return error instanceof ApiRequestError

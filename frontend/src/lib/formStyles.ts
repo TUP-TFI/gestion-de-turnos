@@ -61,3 +61,27 @@ export const MUTED_TEXT_CLASSES = 'text-sm text-muted'
 // Encabezado de la página pública. Las variables las define companyThemeStyle, en el wrapper de la página.
 export const COMPANY_BAND_CLASSES =
   'bg-(--company-accent) text-(--company-on-accent)'
+
+// Botones sobre la banda: transparentes, con el color de texto que ya contrasta con el de la empresa.
+export const COMPANY_BAND_BUTTON_CLASSES =
+  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-(--company-on-accent) bg-transparent px-4 text-sm font-semibold text-(--company-on-accent) focus:outline-none focus:ring-2 focus:ring-(--company-on-accent)'
+
+// Botón principal con el color de la empresa. Sin hover propio: oscurecer un color cualquiera puede romper el contraste.
+export const COMPANY_BUTTON_CLASSES =
+  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-(--company-accent) px-4 text-sm font-semibold text-(--company-on-accent) focus:outline-none focus:ring-2 focus:ring-brand-light focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
+
+// Tarjeta de servicio que se puede elegir. La elegida suma el borde con el color de la empresa.
+export const SERVICE_CARD_CLASSES =
+  'flex h-full w-full cursor-pointer flex-col gap-3 rounded-xl border bg-white p-4 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-light sm:p-6'
+
+export const SERVICE_CARD_SELECTED_CLASSES =
+  'border-(--company-accent) ring-2 ring-(--company-accent)'
+
+export const SLOT_BUTTON_CLASSES =
+  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-hairline bg-white text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-brand-light'
+
+export const SLOT_BUTTON_SELECTED_CLASSES =
+  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-(--company-accent) bg-(--company-accent) text-sm font-semibold text-(--company-on-accent) focus:outline-none focus:ring-2 focus:ring-brand-light focus:ring-offset-2'
+
+export const NOTICE_CLASSES =
+  'rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700'

@@ -96,7 +96,7 @@ Para acciones destructivas (desactivar empresa, cancelar turno). El botón destr
 
 El color de acción de la página pública `/{slug}` es el `primaryColor` de la empresa; si no tiene, el neutro (`ink`). El wrapper de la página lo aplica con `style`.
 
-El color de texto sobre ese fondo es blanco o negro, el que tenga más contraste (`lib/companyTheme.ts`). El acento solo va en el botón principal, los elementos elegidos y la banda del encabezado.
+El color de texto sobre ese fondo es blanco si su contraste llega a 4.5 (AA de WCAG); si no, el que tenga más contraste entre blanco y negro (`lib/companyTheme.ts`). Los botones sobre la banda son transparentes, con borde y texto de ese mismo color (`COMPANY_BAND_BUTTON_CLASSES`). El acento solo va en el botón principal, los elementos elegidos, la acción de elegir de cada tarjeta de servicio y la banda del encabezado. El nombre de la empresa, en la banda, es el único título más grande que los 22px de §3 (30–36px / 600).
 
 ## 12. Cómo usarlo
 

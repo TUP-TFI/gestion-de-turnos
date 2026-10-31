@@ -1,29 +1,27 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
+import { ApiRequestError } from '../../api/client'
+import { getAvailability } from '../../api/publicCompany'
 import { CompanyNotFoundCard } from '../../components/CompanyNotFoundCard'
+import { ServiceSlotPicker } from '../../components/ServiceSlotPicker'
+import type { SlotSelection } from '../../components/ServiceSlotPicker'
 import { useAuth } from '../../hooks/useAuth'
 import { useClientAuth } from '../../hooks/useClientAuth'
 import { usePublicCompany } from '../../hooks/usePublicCompany'
 import { COMPANY_CATEGORY_LABELS } from '../../lib/companyCategories'
 import { companyThemeStyle } from '../../lib/companyTheme'
 import {
-  CARD_TITLE_CLASSES,
+  COMPANY_BAND_BUTTON_CLASSES,
   COMPANY_BAND_CLASSES,
   ERROR_CLASSES,
   FIELDSET_CLASSES,
   LINK_CLASSES,
   MUTED_TEXT_CLASSES,
-  PAGE_TITLE_CLASSES,
-  ROW_BUTTON_CLASSES,
-  SECONDARY_BUTTON_CLASSES,
+  NOTICE_CLASSES,
 } from '../../lib/formStyles'
 import { getDashboardPath } from '../../lib/panelRoutes'
-import type { PublicCompany, PublicService } from '../../types/PublicCompany'
-
-const PRICE_FORMAT = new Intl.NumberFormat('es-AR', {
-  style: 'currency',
-  currency: 'ARS',
-})
+import type { PublicCompany } from '../../types/PublicCompany'
 
 // Si la imagen no carga, se oculta en lugar de mostrar el ícono roto. La página le pone una key con la URL, para que
 // un logo nuevo vuelva a intentar. El alt va vacío porque el nombre de la empresa está al lado.
@@ -39,36 +37,14 @@ function CompanyLogo({ url }: { url: string }) {
       src={url}
       alt=""
       onError={() => setFailed(true)}
-      className="h-14 w-14 shrink-0 rounded-lg bg-white object-contain"
+      className="h-20 w-20 shrink-0 rounded-xl bg-white object-contain sm:h-24 sm:w-24"
     />
   )
 }
 
-function ServiceList({ services }: { services: PublicService[] }) {
+function CompanyContact({ company }: { company: PublicCompany }) {
   return (
-    <ul className="grid gap-4 sm:grid-cols-2">
-      {services.map((service) => (
-        <li key={service.id} className={FIELDSET_CLASSES}>
-          <h3 className={CARD_TITLE_CLASSES}>{service.name}</h3>
-          {service.description && (
-            <p className="text-sm text-body">{service.description}</p>
-          )}
-          <p className="flex flex-wrap justify-between gap-2 text-sm font-medium text-ink">
-            <span>{PRICE_FORMAT.format(service.price)}</span>
-            <span>{service.durationMinutes} min</span>
-          </p>
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function UnavailableNotice({ company }: { company: PublicCompany }) {
-  return (
-    <div className={FIELDSET_CLASSES}>
-      <p className="text-body">
-        {company.name} no está disponible por este medio.
-      </p>
+    <>
       {company.phone && (
         <p className={MUTED_TEXT_CLASSES}>
           Teléfono:{' '}
@@ -85,19 +61,33 @@ function UnavailableNotice({ company }: { company: PublicCompany }) {
           </a>
         </p>
       )}
+    </>
+  )
+}
+
+function UnavailableNotice({ company }: { company: PublicCompany }) {
+  return (
+    <div className={FIELDSET_CLASSES}>
+      <p className="text-body">
+        {company.name} no está disponible por este medio.
+      </p>
+      <CompanyContact company={company} />
     </div>
   )
 }
 
-// Página pública de una empresa (US-06.1), sin sesión. Es la misma para todas: solo cambia lo que trae el slug.
+// Página pública de una empresa (US-06.1 y US-06.2), sin sesión. Es la misma para todas: solo cambia lo que trae el
+// slug.
 export function PublicCompanyPage() {
   const { slug = '' } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
+  const queryClient = useQueryClient()
   const { session: panelSession } = useAuth()
   const { session, logout } = useClientAuth(slug)
   const { company, services, notFound, error, isLoading } =
     usePublicCompany(slug)
+  const [bookingNotice, setBookingNotice] = useState<string | null>(null)
 
   // 'default' es la primera pantalla de la pestaña: no hay adónde volver dentro de la app. Pasa al entrar directo o
   // desde "Marca", que abre otra pestaña; ahí un admin vuelve a su panel y un visitante no ve el botón.
@@ -118,6 +108,30 @@ export function PublicCompanyPage() {
   function handleLogout() {
     if (window.confirm('¿Cerrar sesión?')) {
       logout()
+    }
+  }
+
+  // Provisorio, hasta que exista la confirmación de la reserva: Brune lo reemplaza por useBookingFlow.
+  function handleSelect({ service, startDateTime }: SlotSelection) {
+    if (!session) {
+      const params = new URLSearchParams({
+        serviceId: service.id,
+        start: startDateTime,
+      })
+      navigate(`/${slug}/login?${params}`)
+      return
+    }
+    setBookingNotice('La confirmación de la reserva todavía no está disponible.')
+  }
+
+  // La empresa se desactivó o el servicio dejó de estar: se vuelve a pedir la página para mostrar lo que hay ahora.
+  function handleAvailabilityError(availabilityError: Error) {
+    if (
+      availabilityError instanceof ApiRequestError &&
+      (availabilityError.code === 'COMPANY_INACTIVE' ||
+        availabilityError.code === 'SERVICE_NOT_FOUND')
+    ) {
+      queryClient.invalidateQueries({ queryKey: ['public-company', slug] })
     }
   }
 
@@ -150,82 +164,111 @@ export function PublicCompanyPage() {
       style={companyThemeStyle(company.primaryColor)}
     >
       <header className={COMPANY_BAND_CLASSES}>
-        {canGoBack && (
-          <div className="mx-auto max-w-5xl px-4 pt-4">
-            <button
-              type="button"
-              onClick={handleBack}
-              className={ROW_BUTTON_CLASSES}
-            >
-              ← Volver
-            </button>
+        <div className="mx-auto max-w-5xl space-y-8 px-4 py-6 sm:py-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {canGoBack ? (
+              <button
+                type="button"
+                onClick={handleBack}
+                className={COMPANY_BAND_BUTTON_CLASSES}
+              >
+                ← Volver
+              </button>
+            ) : (
+              <span />
+            )}
+
+            {/* En una empresa desactivada no se puede iniciar sesión, pero sí cerrar una que quedó abierta. */}
+            {session ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-medium">
+                  {session.user.firstName} {session.user.lastName}
+                </span>
+                <Link
+                  to={`/${slug}/my-appointments`}
+                  className={COMPANY_BAND_BUTTON_CLASSES}
+                >
+                  Mis turnos
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className={COMPANY_BAND_BUTTON_CLASSES}
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            ) : (
+              isActive && (
+                <Link
+                  to={`/${slug}/login`}
+                  className={COMPANY_BAND_BUTTON_CLASSES}
+                >
+                  Iniciar sesión
+                </Link>
+              )
+            )}
           </div>
-        )}
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-4 py-6">
-          <div className="flex items-center gap-4">
+
+          <div className="flex items-center gap-4 sm:gap-6">
             {company.logoUrl && (
               <CompanyLogo key={company.logoUrl} url={company.logoUrl} />
             )}
-            <div>
+            <div className="min-w-0 space-y-1">
               {/* Sin text-ink: el color del texto sale de la banda, según el contraste con el de la empresa. */}
-              <h1 className="text-[22px] font-semibold">{company.name}</h1>
-              <p className="text-sm">
+              <h1 className="text-3xl font-semibold break-words sm:text-4xl">
+                {company.name}
+              </h1>
+              <p className="text-sm font-medium">
                 {COMPANY_CATEGORY_LABELS[company.category]}
               </p>
             </div>
           </div>
 
-          {/* En una empresa desactivada no se puede iniciar sesión, pero sí cerrar una que quedó abierta. */}
-          {session ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="text-sm font-medium">
-                {session.user.firstName} {session.user.lastName}
-              </span>
-              <Link
-                to={`/${slug}/my-appointments`}
-                className={SECONDARY_BUTTON_CLASSES}
-              >
-                Mis turnos
-              </Link>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className={SECONDARY_BUTTON_CLASSES}
-              >
-                Cerrar sesión
-              </button>
-            </div>
-          ) : (
-            isActive && (
-              <Link to={`/${slug}/login`} className={SECONDARY_BUTTON_CLASSES}>
-                Iniciar sesión
-              </Link>
-            )
+          {company.description && (
+            <p className="max-w-prose">{company.description}</p>
           )}
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl space-y-6 px-4 py-8">
+      <main className="mx-auto max-w-5xl space-y-8 px-4 py-8">
         {isActive ? (
           <>
-            {(company.description || company.address) && (
-              <div className="space-y-1">
-                {company.description && (
-                  <p className="text-body">{company.description}</p>
-                )}
+            {(company.address || company.phone || company.contactEmail) && (
+              <div className="flex flex-wrap gap-x-8 gap-y-1">
                 {company.address && (
                   <p className={MUTED_TEXT_CLASSES}>{company.address}</p>
                 )}
+                <CompanyContact company={company} />
               </div>
             )}
 
-            <h2 className={PAGE_TITLE_CLASSES}>Servicios</h2>
             {services.length === 0 ? (
               <p className={`${MUTED_TEXT_CLASSES} text-center`}>
                 Todavía no hay servicios cargados
               </p>
             ) : (
-              <ServiceList services={services} />
+              <ServiceSlotPicker
+                services={services}
+                timezone={company.timezone}
+                queryKey={(serviceId, date) => [
+                  'availability',
+                  slug,
+                  serviceId,
+                  date,
+                ]}
+                fetchAvailability={(serviceId, date) =>
+                  getAvailability(slug, serviceId, date)
+                }
+                onSelect={handleSelect}
+                onAvailabilityError={handleAvailabilityError}
+              />
+            )}
+
+            {bookingNotice && (
+              <p role="status" className={NOTICE_CLASSES}>
+                {bookingNotice}
+              </p>
             )}
           </>
         ) : (
