@@ -19,3 +19,10 @@ export interface Availability {
   date: string
   starts: string[]
 }
+
+// Servicio y horario elegidos en ServiceSlotPicker.
+export interface SlotSelection {
+  service: PublicService
+  // Instante UTC, tal como lo devolvió el backend.
+  startDateTime: string
+}

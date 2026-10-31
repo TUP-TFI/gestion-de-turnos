@@ -25,18 +25,16 @@ import {
   SLOT_BUTTON_CLASSES,
   SLOT_BUTTON_SELECTED_CLASSES,
 } from '../lib/formStyles'
-import type { Availability, PublicService } from '../types/PublicCompany'
+import type {
+  Availability,
+  PublicService,
+  SlotSelection,
+} from '../types/PublicCompany'
 
 const PRICE_FORMAT = new Intl.NumberFormat('es-AR', {
   style: 'currency',
   currency: 'ARS',
 })
-
-export interface SlotSelection {
-  service: PublicService
-  // Instante UTC, tal como lo devolvió el backend.
-  startDateTime: string
-}
 
 interface ServiceSlotPickerProps {
   services: PublicService[]
