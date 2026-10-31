@@ -4,6 +4,8 @@ import jakarta.persistence.LockModeType;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
@@ -55,4 +57,17 @@ public interface UserRepository extends Repository<User, UUID> {
                              com.grupo140.turnos.user.UserRole.COMPANY_ADMIN)
             """)
     List<User> findPanelUsersByEmail(@Param("email") String email);
+
+    // Clientes de la empresa (US-09.4 y US-09.7). pattern es un patrón de like en minúsculas: '%' trae todos. El id
+    // desempata el orden, para que un cliente no se repita ni falte entre dos páginas.
+    @Query("""
+            select u from User u
+            where u.companyId = :companyId
+              and u.role = com.grupo140.turnos.user.UserRole.CLIENT
+              and (lower(concat(u.firstName, ' ', u.lastName)) like :pattern escape '\\'
+                   or lower(u.email) like :pattern escape '\\'
+                   or u.phone like :pattern escape '\\')
+            order by u.lastName, u.firstName, u.id
+            """)
+    Page<User> searchClients(@Param("companyId") UUID companyId, @Param("pattern") String pattern, Pageable pageable);
 }
