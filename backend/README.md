@@ -204,6 +204,18 @@ No dice qué turnos están libres, eso es [Horarios disponibles](#horarios-dispo
 
 Un slug inexistente responde `404 COMPANY_NOT_FOUND` y una empresa desactivada, `403 COMPANY_INACTIVE`.
 
+### Clientes de la empresa
+
+`GET /api/company/clients?q=&page=&size=` lista los clientes de la empresa de la sesión, ordenados por apellido y nombre. Solo lo puede usar `COMPANY_ADMIN`, y es de solo lectura.
+
+| Parámetro | Por defecto | Qué hace |
+| :--- | :--- | :--- |
+| `q` | Vacío: trae todos | Busca en el nombre completo, el email y el teléfono. No distingue mayúsculas, pero sí acentos |
+| `page` | `0` | Número de página, desde 0 |
+| `size` | `20` | Elementos por página, de 1 a 100 |
+
+Responde `200` con `{ content, page, size, totalElements, totalPages }`, y cada elemento trae `id`, `firstName`, `lastName`, `email` y `phone`. Un `page` o un `size` inválidos responden `400 VALIDATION_ERROR`.
+
 ### Desactivar y reactivar una empresa
 
 `POST /api/superadmin/companies/{id}/deactivate` y `POST /api/superadmin/companies/{id}/reactivate`, sin body. Responden `200` con la empresa actualizada, o `404 COMPANY_NOT_FOUND`. Si la empresa ya estaba en ese estado, responden `200` igual y no hacen nada.
