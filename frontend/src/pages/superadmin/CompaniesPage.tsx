@@ -106,14 +106,12 @@ export function CompaniesPage() {
                       >
                         Editar
                       </Link>
-                      <a
-                        href={`/${company.slug}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <Link
+                        to={`/${company.slug}`}
                         className={ROW_BUTTON_CLASSES}
                       >
                         Ver página pública
-                      </a>
+                      </Link>
                       <button
                         type="button"
                         onClick={() => toggleStatus(company)}
