@@ -14,6 +14,7 @@ import { ScheduleExceptionsPage } from './pages/company/ScheduleExceptionsPage'
 import { ServicesPage } from './pages/company/ServicesPage'
 import { ClientLoginPage } from './pages/public/ClientLoginPage'
 import { ClientRegisterPage } from './pages/public/ClientRegisterPage'
+import { MyAppointmentsPage } from './pages/public/MyAppointmentsPage'
 import { CompaniesPage } from './pages/superadmin/CompaniesPage'
 import { CreateCompanyPage } from './pages/superadmin/CreateCompanyPage'
 import { EditCompanyPage } from './pages/superadmin/EditCompanyPage'
@@ -30,6 +31,7 @@ function App() {
       {/* Página pública de cada empresa, sin sesión del panel. Las rutas fijas (/login, /activate) tienen prioridad. */}
       <Route path="/:slug/login" element={<ClientLoginPage />} />
       <Route path="/:slug/register" element={<ClientRegisterPage />} />
+      <Route path="/:slug/my-appointments" element={<MyAppointmentsPage />} />
 
       <Route element={<ProtectedRoute allowedRole="SUPERADMIN" />}>
         <Route element={<SuperadminLayout />}>
