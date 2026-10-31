@@ -3,8 +3,10 @@ import type { FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import { AuthCard } from '../../components/AuthCard'
 import { ClientSessionCard } from '../../components/ClientSessionCard'
+import { CompanyNotFoundCard } from '../../components/CompanyNotFoundCard'
 import { useClientAuth } from '../../hooks/useClientAuth'
 import { useClientRegister } from '../../hooks/useClientRegister'
+import { usePublicCompany } from '../../hooks/usePublicCompany'
 import {
   ERROR_CLASSES,
   INPUT_CLASSES,
@@ -23,10 +25,15 @@ export function ClientRegisterPage() {
   const { slug = '' } = useParams()
   const { session, logout } = useClientAuth(slug)
   const { register, error, isLoading } = useClientRegister(slug)
+  const { company, notFound } = usePublicCompany(slug)
   const [passwordsMismatch, setPasswordsMismatch] = useState(false)
 
   if (session) {
     return <ClientSessionCard session={session} onLogout={logout} />
+  }
+
+  if (notFound) {
+    return <CompanyNotFoundCard />
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -51,7 +58,15 @@ export function ClientRegisterPage() {
   const message = passwordsMismatch ? 'Las contraseñas no coinciden' : error
 
   return (
-    <AuthCard title="Creá tu cuenta" subtitle="Para reservar tus turnos" wide>
+    <AuthCard
+      title="Creá tu cuenta"
+      subtitle={
+        company
+          ? `Para reservar tus turnos en ${company.name}`
+          : 'Para reservar tus turnos'
+      }
+      wide
+    >
       {/* De a dos campos por fila desde tablet; en el celular, uno abajo del otro. */}
       <form
         className="mt-6 grid gap-4 sm:grid-cols-2"

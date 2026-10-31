@@ -1,8 +1,10 @@
 import { Link, useParams } from 'react-router'
 import { AuthCard } from '../../components/AuthCard'
 import { ClientSessionCard } from '../../components/ClientSessionCard'
+import { CompanyNotFoundCard } from '../../components/CompanyNotFoundCard'
 import { useClientAuth } from '../../hooks/useClientAuth'
 import { useClientLogin } from '../../hooks/useClientLogin'
+import { usePublicCompany } from '../../hooks/usePublicCompany'
 import {
   ERROR_CLASSES,
   INPUT_CLASSES,
@@ -17,13 +19,25 @@ export function ClientLoginPage() {
   const { slug = '' } = useParams()
   const { session, logout } = useClientAuth(slug)
   const { login, error, isLoading } = useClientLogin(slug)
+  const { company, notFound } = usePublicCompany(slug)
 
   if (session) {
     return <ClientSessionCard session={session} onLogout={logout} />
   }
 
+  if (notFound) {
+    return <CompanyNotFoundCard />
+  }
+
   return (
-    <AuthCard title="Iniciá sesión" subtitle="Para reservar tus turnos">
+    <AuthCard
+      title="Iniciá sesión"
+      subtitle={
+        company
+          ? `Para reservar tus turnos en ${company.name}`
+          : 'Para reservar tus turnos'
+      }
+    >
       <form
         className="mt-6 space-y-4"
         onSubmit={(event) => {

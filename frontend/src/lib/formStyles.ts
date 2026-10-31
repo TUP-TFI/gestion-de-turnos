@@ -57,3 +57,7 @@ export const PAGE_TITLE_CLASSES = 'text-[22px] font-semibold text-ink'
 export const CARD_TITLE_CLASSES = 'text-lg font-semibold text-ink'
 
 export const MUTED_TEXT_CLASSES = 'text-sm text-muted'
+
+// Encabezado de la página pública. Las variables las define companyThemeStyle, en el wrapper de la página.
+export const COMPANY_BAND_CLASSES =
+  'bg-(--company-accent) text-(--company-on-accent)'
