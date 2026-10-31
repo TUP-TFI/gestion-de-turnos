@@ -160,7 +160,7 @@ El aviso de turnos fuera de rango del horario semanal (`POST /api/company/busine
 
 `GET /api/client/appointments` devuelve los turnos del cliente de la sesión, del más reciente al más antiguo. Se puede filtrar con `?status=PENDING|COMPLETED|CANCELLED`; un estado que no existe responde `400 VALIDATION_ERROR`. El cliente y la empresa salen siempre de la sesión: no hay forma de pedir los turnos de otro.
 
-Cada turno trae `id`, `serviceId`, `serviceName`, `startDateTime`, `endDateTime` (en UTC, el front las convierte a la hora local), `status`, `rescheduleCount`, `priceSnapshot` y `durationMinutesSnapshot`. El precio y la duración son los copiados al reservar, no los actuales del servicio.
+Cada turno trae `id`, `serviceId`, `serviceName`, `startDateTime`, `endDateTime` (en UTC, el front las convierte a la hora local), `status`, `rescheduleCount`, `priceSnapshot`, `durationMinutesSnapshot` y `canCancel`. El precio y la duración son los copiados al reservar, no los actuales del servicio. `canCancel` es `true` si el turno está `PENDING` y sigue dentro del plazo: lo calcula el back, porque el cliente no puede leer `PlatformSettings`.
 
 ### Reservar un turno
 
@@ -183,6 +183,19 @@ El aviso tiene dos fases, en `NotificationRequestedListener`:
 2. **Después del commit**, en una transacción propia, despacha el aviso y deja la fila en `SENT` o, si falla, en `FAILED` con el error. El turno sigue reservado. Hasta el Paso 10, el despacho se escribe en el log.
 
 Pendiente para US-10.4: la fila no guarda el mensaje, así que el reintento lo tiene que rearmar con el turno y `eventType`.
+
+### Cancelar un turno del cliente
+
+`POST /api/client/appointments/{id}/cancel`, sin body. Responde `200` con el turno en `CANCELLED`, en el mismo formato que "Mis turnos", y `cancelledBy = CLIENT`. El horario queda libre para otra reserva.
+
+| Caso | Respuesta |
+| :--- | :--- |
+| Empresa desactivada | `403 COMPANY_INACTIVE` |
+| Turno inexistente, o de otro cliente u otra empresa | `404 APPOINTMENT_NOT_FOUND` |
+| Turno cancelado o completado | `409 APPOINTMENT_NOT_PENDING` |
+| Pasó `cancellationDeadlineHours` | `400 CANCELLATION_DEADLINE_PASSED` |
+
+Se puede cancelar hasta el instante exacto del plazo. Toma el mismo lock de la empresa que la reserva, así dos pedidos simultáneos no cancelan el mismo turno dos veces. No publica `NotificationRequestedEvent`: el aviso pasa a Click to Chat (`docs/contratos-api.md`, Paso 10).
 
 ### Horarios disponibles
 

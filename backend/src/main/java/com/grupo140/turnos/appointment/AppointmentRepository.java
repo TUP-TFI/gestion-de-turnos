@@ -2,6 +2,7 @@ package com.grupo140.turnos.appointment;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -35,6 +36,9 @@ public interface AppointmentRepository extends Repository<Appointment, UUID> {
 
     List<Appointment> findAllByCompanyIdAndClientIdAndStatusOrderByStartDateTimeDesc(
             UUID companyId, UUID clientId, AppointmentStatus status);
+
+    // Un turno del cliente (US-08.1). Lleva los tres ids: el turno de otro cliente o de otra empresa no aparece.
+    Optional<Appointment> findByIdAndCompanyIdAndClientId(UUID id, UUID companyId, UUID clientId);
 
     // Turnos de la empresa que ocupan algún tramo entre dos instantes, sin los de un estado (CANCELLED). Un turno
     // se superpone con el rango si empieza antes de su fin y termina después de su inicio: el mismo criterio que
