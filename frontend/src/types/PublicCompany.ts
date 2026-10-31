@@ -13,3 +13,9 @@ export interface PublicPage {
   company: PublicCompany
   services: PublicService[]
 }
+
+// Horarios libres de una fecha local de la empresa (YYYY-MM-DD). Los inicios llegan en UTC y ordenados.
+export interface Availability {
+  date: string
+  starts: string[]
+}

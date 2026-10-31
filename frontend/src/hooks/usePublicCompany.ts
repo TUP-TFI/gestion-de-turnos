@@ -1,5 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { ApiRequestError, toErrorMessage } from '../api/client'
+import {
+  ApiRequestError,
+  isApiResponseError,
+  toErrorMessage,
+} from '../api/client'
 import { getPublicCompany } from '../api/publicCompany'
 import type { PublicCompany, PublicService } from '../types/PublicCompany'
 
@@ -9,11 +13,6 @@ interface UsePublicCompanyResult {
   notFound: boolean
   error: string | null
   isLoading: boolean
-}
-
-// Una respuesta de error de la API no se arregla reintentando; una falla de conexión, sí.
-function isApiResponseError(error: Error): boolean {
-  return error instanceof ApiRequestError && error.code !== 'NETWORK_ERROR'
 }
 
 function isNotFoundError(error: Error | null): boolean {
