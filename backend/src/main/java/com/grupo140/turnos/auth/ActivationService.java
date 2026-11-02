@@ -93,6 +93,16 @@ public class ActivationService {
         token.markUsed(clock.instant());
     }
 
+    /**
+     * Borra los tokens vencidos y los ya usados (US-11.3). Las cuentas no se tocan.
+     *
+     * @return la cantidad de tokens borrados.
+     */
+    @Transactional
+    public int purgeDeadTokens() {
+        return userTokenRepository.deleteExpiredOrUsed(clock.instant());
+    }
+
     private static ApiException invalidToken() {
         return new ApiException(
                 HttpStatus.BAD_REQUEST, "INVALID_ACTIVATION_TOKEN", "El link de activación no es válido o ya se usó");
