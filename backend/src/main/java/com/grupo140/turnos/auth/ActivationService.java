@@ -105,6 +105,9 @@ public class ActivationService {
 
     private static ApiException invalidToken() {
         return new ApiException(
-                HttpStatus.BAD_REQUEST, "INVALID_ACTIVATION_TOKEN", "El link de activación no es válido o ya se usó");
+                HttpStatus.BAD_REQUEST,
+                "INVALID_ACTIVATION_TOKEN",
+                "El link de activación no es válido o ya se usó. Si todavía no activaste tu cuenta, pedí uno nuevo"
+                        + " al administrador de la plataforma");
     }
 }
