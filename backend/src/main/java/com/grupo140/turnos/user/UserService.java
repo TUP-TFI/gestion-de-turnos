@@ -1,12 +1,15 @@
 package com.grupo140.turnos.user;
 
+import com.grupo140.turnos.common.PageResponse;
 import com.grupo140.turnos.common.error.ApiException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -145,6 +148,29 @@ public class UserService {
     @Transactional(readOnly = true)
     public Optional<String> findPhone(UUID userId, UUID companyId) {
         return userRepository.findByIdAndCompanyId(userId, companyId).map(User::getPhone);
+    }
+
+    /**
+     * Clientes de la empresa, por página (US-09.4 y US-09.7). Busca {@code query} en el nombre completo, el email y
+     * el teléfono, sin distinguir mayúsculas. Con {@code query} vacío, trae todos.
+     *
+     * @param companyId empresa de la sesión.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<ClientResponse> searchClients(UUID companyId, String query, int page, int size) {
+        return PageResponse.from(userRepository
+                .searchClients(companyId, toLikePattern(query), PageRequest.of(page, size))
+                .map(ClientResponse::from));
+    }
+
+    // Lo que escribe el admin se busca como texto: sin esto, un % o un _ funcionarían como comodines del like.
+    private static String toLikePattern(String query) {
+        String text = query.strip()
+                .toLowerCase(Locale.ROOT)
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
+        return "%" + text + "%";
     }
 
     private static CompanyAdmin toCompanyAdmin(User admin) {
