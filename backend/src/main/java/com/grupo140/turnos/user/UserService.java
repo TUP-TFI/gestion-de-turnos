@@ -2,6 +2,7 @@ package com.grupo140.turnos.user;
 
 import com.grupo140.turnos.common.PageResponse;
 import com.grupo140.turnos.common.error.ApiException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -142,12 +143,17 @@ public class UserService {
     }
 
     /**
-     * Teléfono de un cliente de la empresa, para avisarle de un cambio en su turno (US-04.4). Vacío si el
-     * usuario no existe o es de otra empresa.
+     * Datos de contacto de varios clientes de la empresa, en una sola consulta, para la lista de avisos de la
+     * desactivación (US-04.4). Los ids que no existen o son de otra empresa no vienen.
      */
     @Transactional(readOnly = true)
-    public Optional<String> findPhone(UUID userId, UUID companyId) {
-        return userRepository.findByIdAndCompanyId(userId, companyId).map(User::getPhone);
+    public List<ClientResponse> findClients(UUID companyId, Collection<UUID> userIds) {
+        if (userIds.isEmpty()) {
+            return List.of();
+        }
+        return userRepository.findAllByCompanyIdAndIdIn(companyId, userIds).stream()
+                .map(ClientResponse::from)
+                .toList();
     }
 
     /**

@@ -30,7 +30,7 @@ public class CompanyController {
     /** Alta de empresa con su admin (US-04.1). */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public CompanyResponse create(@Valid @RequestBody CreateCompanyRequest request) {
+    public CreatedCompanyResponse create(@Valid @RequestBody CreateCompanyRequest request) {
         return companyService.create(request);
     }
 
@@ -46,11 +46,10 @@ public class CompanyController {
         return companyService.get(id);
     }
 
-    /** Reenvío del link de activación al admin que todavía no activó su cuenta (US-04.8). */
+    /** Link de activación nuevo para el admin que todavía no activó su cuenta (US-04.8). */
     @PostMapping("/{id}/resend-activation")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void resendActivation(@PathVariable UUID id) {
-        companyService.resendActivation(id);
+    public ActivationLinkResponse resendActivation(@PathVariable UUID id) {
+        return companyService.resendActivation(id);
     }
 
     /** Desactivación de una empresa: cancela sus turnos pendientes y bloquea el login de su admin (US-04.4). */

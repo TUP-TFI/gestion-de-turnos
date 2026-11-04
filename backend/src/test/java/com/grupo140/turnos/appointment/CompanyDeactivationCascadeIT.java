@@ -4,6 +4,7 @@ import static com.grupo140.turnos.seed.SeedTestValues.DEV_PASSWORD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.grupo140.turnos.TestcontainersConfiguration;
@@ -13,7 +14,6 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +23,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -31,7 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Los turnos se guardan directo con el repositorio, como en {@code FutureAppointmentsIT}: hacen falta fechas
  * pasadas y estados que la reserva no permite. Va en este paquete porque el constructor de {@link Appointment} no es
- * público. Cada test hace rollback ({@code @Transactional}), salvo el de los avisos, que necesita un commit real.
+ * público. Cada test hace rollback ({@code @Transactional}).
+ *
+ * <p>También cubre la lista de avisos de la desactivación, que el superadmin usa para mandar cada WhatsApp.
  */
 @SpringBootTest(properties = "app.seed.enabled=true")
 @AutoConfigureMockMvc
@@ -95,10 +96,10 @@ class CompanyDeactivationCascadeIT {
         assertThat(completed.getStatus()).isEqualTo(AppointmentStatus.COMPLETED);
     }
 
-    // Sin rollback: el aviso se escribe después del commit (US-07.5), así que este test limpia lo que deja.
+    // El sistema no avisa: devuelve la lista para que el superadmin mande cada WhatsApp. Solo trae los turnos que
+    // cancela la baja y todavía no pasaron, ordenados por fecha, con el contacto de la cuenta o del propio turno.
     @Test
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    void deactivationWritesOneNotificationPerCancelledAppointmentAfterCommit() throws Exception {
+    void deactivationListsFutureCancelledAppointmentsForNotices() throws Exception {
         String services = mockMvc.perform(
                         get("/api/company/services").header("Authorization", "Bearer " + tokenOf("admin@example.com")))
                 .andExpect(status().isOk())
@@ -115,42 +116,65 @@ class CompanyDeactivationCascadeIT {
                 .getId();
         String superadminToken = tokenOf("superadmin@example.com");
 
-        try {
-            Instant now = Instant.now();
-            UUID manual = save(companyId, serviceId, now.plus(Duration.ofDays(2)), AppointmentStatus.PENDING, null)
-                    .getId();
-            UUID online = save(companyId, serviceId, now.plus(Duration.ofDays(3)), AppointmentStatus.PENDING, clientId)
-                    .getId();
+        Instant now = Instant.now();
+        Appointment online =
+                save(companyId, serviceId, now.plus(Duration.ofDays(3)), AppointmentStatus.PENDING, clientId);
+        Appointment manual = save(companyId, serviceId, now.plus(Duration.ofDays(2)), AppointmentStatus.PENDING, null);
+        // Quedan afuera: uno pendiente que ya pasó, y uno que el cliente había cancelado antes de la baja.
+        save(companyId, serviceId, now.minus(Duration.ofDays(1)), AppointmentStatus.PENDING, null);
+        Appointment cancelledByClient =
+                save(companyId, serviceId, now.plus(Duration.ofDays(4)), AppointmentStatus.CANCELLED, clientId);
+        cancelledByClient.setCancelledBy(CancelledBy.CLIENT);
+        cancelledByClient.setCancelledAt(now);
+        appointmentRepository.save(cancelledByClient);
 
-            mockMvc.perform(post("/api/superadmin/companies/" + companyId + "/deactivate")
-                            .header("Authorization", "Bearer " + superadminToken))
-                    .andExpect(status().isOk());
+        mockMvc.perform(post("/api/superadmin/companies/" + companyId + "/deactivate")
+                        .header("Authorization", "Bearer " + superadminToken))
+                .andExpect(status().isOk());
 
-            assertThat(notificationOf(manual))
-                    .containsEntry("event_type", "APPOINTMENT_CANCELLED")
-                    .containsEntry("status", "SENT")
-                    .containsEntry("recipient_phone", "+5493510000123")
-                    .containsEntry("user_id", null);
-            assertThat(notificationOf(online))
-                    .containsEntry("event_type", "APPOINTMENT_CANCELLED")
-                    .containsEntry("status", "SENT")
-                    .containsEntry("user_id", clientId);
-        } finally {
-            mockMvc.perform(post("/api/superadmin/companies/" + companyId + "/reactivate")
-                            .header("Authorization", "Bearer " + superadminToken))
-                    .andExpect(status().isOk());
-            jdbcTemplate.update(
-                    "delete from notification"
-                            + " where appointment_id in (select id from appointment where company_id = ?)",
-                    companyId);
-            jdbcTemplate.update("delete from appointment where company_id = ?", companyId);
-        }
+        mockMvc.perform(get("/api/superadmin/companies/" + companyId + "/cancellation-notices")
+                        .header("Authorization", "Bearer " + superadminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.timezone").value("America/Argentina/Cordoba"))
+                .andExpect(jsonPath("$.notices.length()").value(2))
+                .andExpect(jsonPath("$.notices[0].appointmentId").value(manual.getId().toString()))
+                .andExpect(jsonPath("$.notices[0].clientName").value("Cliente de prueba"))
+                .andExpect(jsonPath("$.notices[0].phone").value("+5493510000123"))
+                .andExpect(jsonPath("$.notices[0].serviceName").value("Corte de pelo"))
+                .andExpect(jsonPath("$.notices[0].startDateTime").isNotEmpty())
+                .andExpect(jsonPath("$.notices[1].appointmentId").value(online.getId().toString()))
+                .andExpect(jsonPath("$.notices[1].clientName").value("Lucía Pérez"))
+                .andExpect(jsonPath("$.notices[1].phone").value("+5493510000004"));
+
+        assertThat(jdbcTemplate.queryForObject(
+                        "select count(*) from notification where appointment_id in (?, ?)",
+                        Long.class,
+                        manual.getId(),
+                        online.getId()))
+                .isZero();
     }
 
-    private Map<String, Object> notificationOf(UUID appointmentId) {
-        return jdbcTemplate.queryForMap(
-                "select event_type, status, recipient_phone, user_id from notification where appointment_id = ?",
-                appointmentId);
+    @Test
+    void cancellationNoticesAreOnlyForSuperadmin() throws Exception {
+        String services = mockMvc.perform(
+                        get("/api/company/services").header("Authorization", "Bearer " + tokenOf("admin@example.com")))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        List<String> companyIds = JsonPath.read(services, "$[?(@.name == 'Corte de pelo')].companyId");
+
+        mockMvc.perform(get("/api/superadmin/companies/" + companyIds.getFirst() + "/cancellation-notices")
+                        .header("Authorization", "Bearer " + tokenOf("admin@example.com")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void cancellationNoticesOfUnknownCompanyReturn404() throws Exception {
+        mockMvc.perform(get("/api/superadmin/companies/" + UUID.randomUUID() + "/cancellation-notices")
+                        .header("Authorization", "Bearer " + tokenOf("superadmin@example.com")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("COMPANY_NOT_FOUND"));
     }
 
     // Con clientId, el turno es de un cliente registrado; sin él, es un turno cargado a mano con nombre y teléfono.

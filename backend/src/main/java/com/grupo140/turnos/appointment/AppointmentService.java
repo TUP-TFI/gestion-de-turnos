@@ -4,13 +4,12 @@ import com.grupo140.turnos.catalog.CatalogService;
 import com.grupo140.turnos.catalog.ServiceResponse;
 import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.company.CompanyService;
-import com.grupo140.turnos.notification.NotificationEventType;
-import com.grupo140.turnos.notification.NotificationRequestedEvent;
 import com.grupo140.turnos.schedule.BusinessHoursRequest;
 import com.grupo140.turnos.schedule.ScheduleExceptionRequest;
 import com.grupo140.turnos.schedule.ScheduleService;
 import com.grupo140.turnos.settings.PlatformSettingsResponse;
 import com.grupo140.turnos.settings.PlatformSettingsService;
+import com.grupo140.turnos.user.ClientResponse;
 import com.grupo140.turnos.user.UserService;
 import java.time.Clock;
 import java.time.Duration;
@@ -18,14 +17,14 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,9 +38,6 @@ public class AppointmentService {
     // Motivo que queda guardado en los turnos cancelados por la baja de la empresa (US-04.4).
     static final String COMPANY_DEACTIVATED_REASON = "La empresa fue dada de baja";
 
-    // Fecha y hora de un turno en los avisos al cliente, en la hora local de la empresa.
-    private static final DateTimeFormatter NOTICE_DATE_TIME = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-
     private final AppointmentRepository appointmentRepository;
     private final AvailabilityService availabilityService;
     private final CatalogService catalogService;
@@ -49,7 +45,6 @@ public class AppointmentService {
     private final CompanyService companyService;
     private final UserService userService;
     private final PlatformSettingsService platformSettingsService;
-    private final ApplicationEventPublisher events;
     private final Clock clock;
 
     public AppointmentService(
@@ -60,7 +55,6 @@ public class AppointmentService {
             CompanyService companyService,
             UserService userService,
             PlatformSettingsService platformSettingsService,
-            ApplicationEventPublisher events,
             Clock clock) {
         this.appointmentRepository = appointmentRepository;
         this.availabilityService = availabilityService;
@@ -69,14 +63,14 @@ public class AppointmentService {
         this.companyService = companyService;
         this.userService = userService;
         this.platformSettingsService = platformSettingsService;
-        this.events = events;
         this.clock = clock;
     }
 
     /**
      * Reserva un turno a nombre del cliente (US-07.3). El lock de la empresa serializa sus reservas hasta el commit,
      * así que dos clientes no pueden leer el mismo horario como libre; la constraint
-     * {@code excl_appointment_overlap} queda como segunda barrera. El aviso se envía después del commit (US-07.5).
+     * {@code excl_appointment_overlap} queda como segunda barrera. No publica un aviso: el admin avisa desde su panel
+     * (ver {@code docs/contratos-api.md}, Paso 10).
      *
      * @param companyId empresa de la sesión.
      * @param clientId cliente de la sesión: nunca uno que llegue en la request.
@@ -110,10 +104,6 @@ public class AppointmentService {
         appointment.setStatus(AppointmentStatus.PENDING);
         Appointment saved = appointmentRepository.saveAndFlush(appointment);
 
-        publishNotification(
-                saved,
-                NotificationEventType.BOOKING_CONFIRMED,
-                "Tu turno de %s del %s quedó confirmado.".formatted(service.getName(), formatForNotice(start, zone)));
         boolean canCancel = canCancel(saved, platformSettingsService.get(), Instant.now(clock));
         return ClientAppointmentResponse.from(saved, service.getName(), canCancel);
     }
@@ -256,26 +246,61 @@ public class AppointmentService {
 
     /**
      * Cancela todos los turnos pendientes de una empresa que se desactivó (US-04.4). Quedan cancelados por la
-     * empresa, con la fecha y el motivo; al reactivarla no se recuperan (US-04.5).
+     * empresa, con la fecha y el motivo; al reactivarla no se recuperan (US-04.5). No publica avisos: el superadmin
+     * avisa a cada cliente desde {@link #listCancellationNotices}.
      *
      * @return cuántos turnos se cancelaron.
      */
     @Transactional
     public int cancelPendingByCompany(UUID companyId) {
         Instant now = Instant.now(clock);
-        ZoneId zone = companyService.zoneOf(companyId);
         List<Appointment> pending =
                 appointmentRepository.findByCompanyIdAndStatus(companyId, AppointmentStatus.PENDING);
         for (Appointment appointment : pending) {
             markCancelled(appointment, CancelledBy.COMPANY, COMPANY_DEACTIVATED_REASON, now);
-            publishNotification(
-                    appointment,
-                    NotificationEventType.APPOINTMENT_CANCELLED,
-                    "Tu turno del %s fue cancelado. Motivo: %s"
-                            .formatted(
-                                    formatForNotice(appointment.getStartDateTime(), zone), COMPANY_DEACTIVATED_REASON));
         }
         return pending.size();
+    }
+
+    /**
+     * Turnos futuros que se cancelaron al desactivar la empresa, para que el superadmin avise a cada cliente por
+     * WhatsApp (US-04.4). Ordenados por fecha. No registra a quién ya se avisó: la lista sale completa cada vez.
+     *
+     * <p>El nombre y el teléfono salen de la cuenta del cliente, o del propio turno si lo cargó el admin. Los
+     * clientes se leen en una sola consulta, igual que los nombres de los servicios.
+     *
+     * @throws ApiException {@code COMPANY_NOT_FOUND} (404).
+     */
+    @Transactional(readOnly = true)
+    public CancellationNoticesResponse listCancellationNotices(UUID companyId) {
+        ZoneId zone = companyService.zoneOf(companyId);
+        List<Appointment> cancelled = appointmentRepository
+                .findAllByCompanyIdAndStatusAndCancellationReasonAndStartDateTimeAfterOrderByStartDateTimeAsc(
+                        companyId, AppointmentStatus.CANCELLED, COMPANY_DEACTIVATED_REASON, Instant.now(clock));
+        Map<UUID, String> serviceNames = catalogService.list(companyId).stream()
+                .collect(Collectors.toMap(ServiceResponse::id, ServiceResponse::name));
+        Set<UUID> clientIds = cancelled.stream()
+                .map(Appointment::getClientId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<UUID, ClientResponse> clients = userService.findClients(companyId, clientIds).stream()
+                .collect(Collectors.toMap(ClientResponse::id, Function.identity()));
+
+        List<CancellationNoticesResponse.Notice> notices = new ArrayList<>();
+        for (Appointment appointment : cancelled) {
+            ClientResponse client = clients.get(appointment.getClientId());
+            String clientName = client != null
+                    ? client.firstName() + " " + client.lastName()
+                    : appointment.getManualClientName();
+            String phone = client != null ? client.phone() : appointment.getManualClientPhone();
+            notices.add(new CancellationNoticesResponse.Notice(
+                    appointment.getId(),
+                    clientName,
+                    phone,
+                    serviceNames.get(appointment.getServiceId()),
+                    appointment.getStartDateTime()));
+        }
+        return new CancellationNoticesResponse(zone.getId(), notices);
     }
 
     /**
@@ -330,31 +355,6 @@ public class AppointmentService {
         appointment.setCancelledBy(cancelledBy);
         appointment.setCancelledAt(now);
         appointment.setCancellationReason(reason);
-    }
-
-    // Pide el aviso al cliente del turno, que se registra y se envía después del commit (US-07.5). Si no hay
-    // teléfono, no hay a quién avisar.
-    private void publishNotification(Appointment appointment, NotificationEventType eventType, String message) {
-        String phone = clientPhone(appointment);
-        if (phone != null) {
-            events.publishEvent(new NotificationRequestedEvent(
-                    appointment.getId(), appointment.getClientId(), phone, eventType, message));
-        }
-    }
-
-    private static String formatForNotice(Instant instant, ZoneId zone) {
-        return NOTICE_DATE_TIME.format(instant.atZone(zone));
-    }
-
-    // El cliente registrado tiene su teléfono en su cuenta; el turno cargado a mano por el admin lo guarda en el
-    // propio turno. Si no hay ninguno de los dos, no hay a quién avisar.
-    private String clientPhone(Appointment appointment) {
-        if (appointment.getClientId() != null) {
-            return userService
-                    .findPhone(appointment.getClientId(), appointment.getCompanyId())
-                    .orElse(null);
-        }
-        return appointment.getManualClientPhone();
     }
 
     /** Total de turnos de toda la plataforma, en cualquier estado, para el dashboard del superadmin (US-04.6). */

@@ -314,6 +314,8 @@ CREATE INDEX idx_appointment_pending_start
 
 ### 2.9 `notification`
 
+> ⚠️ **Sin uso desde los avisos por Click to Chat.** El sistema ya no envía mensajes, así que no escribe filas en esta tabla. La tabla sigue en `V1` y no se borra: no hay migración. Lo que sigue describe el diseño original.
+
 ```sql
 CREATE TABLE notification (
   id              uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -442,7 +444,7 @@ Table app_user {
   first_name  varchar     [not null]
   last_name   varchar     [not null]
   email       varchar     [not null, note: 'Único por empresa (índice parcial sobre lower(email)); único global para SUPERADMIN']
-  phone       varchar     [not null, note: 'Usado por NotificationService para WhatsApp']
+  phone       varchar     [not null, note: 'Con él se arma el link de WhatsApp de los avisos']
   password    varchar     [note: 'Hash. NULL mientras status = PENDING_ACTIVATION']
   role        user_role   [not null]
   company_id  uuid        [note: 'CHECK: NULL si y solo si role = SUPERADMIN']
@@ -545,6 +547,7 @@ Table appointment {
 }
 
 Table notification {
+  Note: 'Sin uso desde los avisos por Click to Chat. Se conserva, sin migración.'
   id              uuid                 [primary key, default: `gen_random_uuid()`]
   appointment_id  uuid                 [note: 'NULL en eventos de cuenta']
   user_id         uuid                 [note: 'NULL si el destinatario es un cliente manual sin cuenta']

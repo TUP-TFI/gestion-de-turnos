@@ -47,7 +47,7 @@ Representa a todos los actores del sistema (`SUPERADMIN`, `COMPANY_ADMIN` y `CLI
 | `firstName` | `String` | Not Null | Nombre del usuario. |
 | `lastName` | `String` | Not Null | Apellido del usuario. |
 | `email` | `String` | Not Null, **Único por empresa** (case-insensitive) | Credencial de login. Ver nota de unicidad abajo. |
-| `phone` | `String` | Not Null | Teléfono de contacto. Es el dato que usa `NotificationService` para enviar por WhatsApp. |
+| `phone` | `String` | Not Null | Teléfono de contacto. Con él se arma el link de WhatsApp de los avisos (Click to Chat). |
 | `password` | `String` | Nullable | Hash de la contraseña (nunca en texto plano). Es `NULL` mientras el usuario está en `PENDING_ACTIVATION`. |
 | `role` | `Enum` | Not Null | `SUPERADMIN`, `COMPANY_ADMIN`, `CLIENT`. |
 | `companyId` | `UUID` | **FK** (`Company`), Nullable | Nulo **solo** para `SUPERADMIN`, garantizado por CHECK. |
@@ -257,7 +257,9 @@ Con tres FK independientes, nada impediría un turno de la empresa A apuntando a
 
 ## 🔔 Entidad: `Notification`
 
-Registro de cada notificación emitida por `NotificationService`.
+> ⚠️ **Sin uso desde los avisos por Click to Chat.** El sistema ya no envía mensajes, así que no escribe filas en esta tabla. La tabla sigue en `V1` y no se borra: no hay migración. Lo que sigue describe el diseño original.
+
+Registro de cada notificación emitida por el sistema.
 
 | Atributo | Tipo de Dato | Restricciones | Descripción |
 | :--- | :--- | :--- | :--- |

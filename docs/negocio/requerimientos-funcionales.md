@@ -31,7 +31,7 @@
 - Ver "Mis turnos" (listado propio de esa empresa), filtrable por estado y distinguiendo los turnos que fueron reprogramados.
 - Cancelar un turno propio, dentro del plazo permitido.
 - Reprogramar un turno propio, dentro del plazo permitido y hasta el máximo de reprogramaciones configurado.
-- Recibir notificación ante confirmación, cancelación o reprogramación de sus turnos.
+- Recibir por WhatsApp el aviso que manda el negocio ante confirmación, cancelación o reprogramación de sus turnos.
 
 ### Sistema
 - Cálculo automático de disponibilidad en el momento (horario + intervalo − duración del servicio − turnos ya ocupados − excepciones de calendario), sin persistir una tabla de slots. (slots = cada horario de inicio candidato que el sistema podría ofrecer).
@@ -40,7 +40,6 @@
 - Registro del precio y la duración del servicio en el propio turno al momento de reservar, para que editar el catálogo no altere turnos ya confirmados.
 - Validación de anticipación mínima, de plazo máximo de cancelación/reprogramación y de máximo de reprogramaciones, tomando los tres valores de la configuración global.
 - Aislamiento multi-tenant: toda consulta de datos de una empresa exige el `companyId` de la sesión, y la base impide por integridad referencial que un turno mezcle entidades de dos empresas distintas.
-- Envío de notificaciones automáticas (`NotificationService` desacoplado del canal) ante reserva confirmada, cancelación y reprogramación, emitidas después de confirmada la transacción.
-- Registro persistente de cada notificación con su estado y cantidad de intentos, permitiendo reintentar los envíos fallidos sin duplicar los ya enviados.
-- Cancelación automática de turnos pendientes y notificación a los clientes afectados cuando una empresa se desactiva.
+- Avisos por WhatsApp con Click to Chat ante reserva confirmada, cancelación y reprogramación: el admin abre desde su panel un link con el mensaje armado y lo envía. El sistema no envía mensajes ni registra si salieron.
+- Cancelación automática de turnos pendientes cuando una empresa se desactiva, con una lista para que el superadmin avise por WhatsApp a cada cliente afectado.
 - Transición automática de turnos a `COMPLETED` una vez pasado su horario, vía job programado (excepto los `CANCELLED`, que quedan como están).

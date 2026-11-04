@@ -1,6 +1,8 @@
 package com.grupo140.turnos.company;
 
 import static com.grupo140.turnos.seed.SeedTestValues.DEV_PASSWORD;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -8,8 +10,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.grupo140.turnos.TestcontainersConfiguration;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -27,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 @Transactional
+@ExtendWith(OutputCaptureExtension.class)
 class CompanyCreateIT {
 
     private static final String SUPERADMIN_EMAIL = "superadmin@example.com";
@@ -45,12 +51,33 @@ class CompanyCreateIT {
                 .andExpect(jsonPath("$.slug").value("estetica-sol"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.timezone").value(TIMEZONE))
-                .andExpect(jsonPath("$.createdAt").isNotEmpty());
+                .andExpect(jsonPath("$.createdAt").isNotEmpty())
+                .andExpect(jsonPath("$.activationLink", containsString("/activate?token=")))
+                .andExpect(jsonPath("$.adminPhone").value("+5493510000010"));
 
         // El admin existe pero todavía no definió su contraseña.
         mockMvc.perform(login(NEW_ADMIN_EMAIL, DEV_PASSWORD))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_ACTIVATED"));
+    }
+
+    // El link solo va en la respuesta al superadmin: no se escribe en el log, y con él el admin activa su cuenta.
+    @Test
+    void returnedLinkActivatesAdminAndIsNotLogged(CapturedOutput output) throws Exception {
+        String body = mockMvc.perform(createCompany(SUPERADMIN_EMAIL, "Estética Sol", TIMEZONE, NEW_ADMIN_EMAIL))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String link = JsonPath.read(body, "$.activationLink");
+        String token = link.substring(link.indexOf("token=") + "token=".length());
+        assertThat(output).doesNotContain(token);
+
+        mockMvc.perform(post("/api/auth/activate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\":\"%s\",\"password\":\"NuevaClave123\"}".formatted(token)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(login(NEW_ADMIN_EMAIL, "NuevaClave123")).andExpect(status().isOk());
     }
 
     @Test
