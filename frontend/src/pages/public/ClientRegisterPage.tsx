@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, Navigate, useLocation, useParams } from 'react-router'
 import { AuthCard } from '../../components/AuthCard'
-import { ClientSessionCard } from '../../components/ClientSessionCard'
 import { CompanyNotFoundCard } from '../../components/CompanyNotFoundCard'
 import { useClientAuth } from '../../hooks/useClientAuth'
 import { useClientRegister } from '../../hooks/useClientRegister'
@@ -23,13 +22,15 @@ const MAX_PASSWORD_LENGTH = 72
 // Registro del cliente en la página pública de una empresa (US-03.5). Al registrarse queda con la sesión iniciada.
 export function ClientRegisterPage() {
   const { slug = '' } = useParams()
-  const { session, logout } = useClientAuth(slug)
+  const { search } = useLocation()
+  const { session } = useClientAuth(slug)
   const { register, error, isLoading } = useClientRegister(slug)
   const { company, notFound } = usePublicCompany(slug)
   const [passwordsMismatch, setPasswordsMismatch] = useState(false)
 
+  // Con sesión va a la página de la empresa. Si venía de elegir un horario, ahí se abre la confirmación (US-07.1).
   if (session) {
-    return <ClientSessionCard session={session} onLogout={logout} />
+    return <Navigate to={`/${slug}${search}`} replace />
   }
 
   if (notFound) {
@@ -184,7 +185,7 @@ export function ClientRegisterPage() {
 
       <p className={`mt-6 text-center ${MUTED_TEXT_CLASSES}`}>
         ¿Ya tenés cuenta?{' '}
-        <Link to={`/${slug}/login`} className={LINK_CLASSES}>
+        <Link to={`/${slug}/login${search}`} className={LINK_CLASSES}>
           Iniciá sesión
         </Link>
       </p>

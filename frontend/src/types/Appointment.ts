@@ -39,3 +39,9 @@ export type ClientAppointment = Pick<
   | 'priceSnapshot'
   | 'durationMinutesSnapshot'
 > & { serviceName: string }
+
+// Cuerpo de POST /api/client/appointments. La empresa y el cliente salen de la sesión.
+export type CreateAppointmentRequest = Pick<
+  Appointment,
+  'serviceId' | 'startDateTime'
+>

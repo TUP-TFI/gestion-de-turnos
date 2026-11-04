@@ -64,7 +64,7 @@ export const COMPANY_BAND_CLASSES =
 
 // Botones sobre la banda: transparentes, con el color de texto que ya contrasta con el de la empresa.
 export const COMPANY_BAND_BUTTON_CLASSES =
-  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-(--company-on-accent) bg-transparent px-4 text-sm font-semibold text-(--company-on-accent) focus:outline-none focus:ring-2 focus:ring-(--company-on-accent)'
+  'inline-flex h-8 cursor-pointer items-center justify-center rounded-lg border border-(--company-on-accent) bg-transparent px-3 text-sm font-semibold text-(--company-on-accent) focus:outline-none focus:ring-2 focus:ring-(--company-on-accent)'
 
 // Botón principal con el color de la empresa. Sin hover propio: oscurecer un color cualquiera puede romper el contraste.
 export const COMPANY_BUTTON_CLASSES =

@@ -1,6 +1,5 @@
-import { Link, useParams } from 'react-router'
+import { Link, Navigate, useLocation, useParams } from 'react-router'
 import { AuthCard } from '../../components/AuthCard'
-import { ClientSessionCard } from '../../components/ClientSessionCard'
 import { CompanyNotFoundCard } from '../../components/CompanyNotFoundCard'
 import { useClientAuth } from '../../hooks/useClientAuth'
 import { useClientLogin } from '../../hooks/useClientLogin'
@@ -17,12 +16,14 @@ import {
 // Login del cliente en la página pública de una empresa (US-03.6). La cuenta sirve solo en esa empresa.
 export function ClientLoginPage() {
   const { slug = '' } = useParams()
-  const { session, logout } = useClientAuth(slug)
+  const { search } = useLocation()
+  const { session } = useClientAuth(slug)
   const { login, error, isLoading } = useClientLogin(slug)
   const { company, notFound } = usePublicCompany(slug)
 
+  // Con sesión va a la página de la empresa. Si venía de elegir un horario, ahí se abre la confirmación (US-07.1).
   if (session) {
-    return <ClientSessionCard session={session} onLogout={logout} />
+    return <Navigate to={`/${slug}${search}`} replace />
   }
 
   if (notFound) {
@@ -95,7 +96,7 @@ export function ClientLoginPage() {
 
       <p className={`mt-6 text-center ${MUTED_TEXT_CLASSES}`}>
         ¿No tenés cuenta?{' '}
-        <Link to={`/${slug}/register`} className={LINK_CLASSES}>
+        <Link to={`/${slug}/register${search}`} className={LINK_CLASSES}>
           Registrate
         </Link>
       </p>
