@@ -1,4 +1,8 @@
-import type { Availability, PublicPage } from '../types/PublicCompany'
+import type {
+  Availability,
+  PublicBusinessHours,
+  PublicPage,
+} from '../types/PublicCompany'
 import { request } from './client'
 
 // Horarios libres de un servicio en una fecha local de la empresa, con formato YYYY-MM-DD (US-06.2). No necesita sesión.
@@ -17,6 +21,16 @@ export function getAvailability(
 export function getPublicCompany(slug: string): Promise<PublicPage> {
   return request<PublicPage>(
     `/api/public/companies/${encodeURIComponent(slug)}`,
+    { auth: false },
+  )
+}
+
+// Horario semanal de la empresa, en hora local de la empresa. No necesita sesión.
+export function getPublicBusinessHours(
+  slug: string,
+): Promise<PublicBusinessHours[]> {
+  return request<PublicBusinessHours[]>(
+    `/api/public/companies/${encodeURIComponent(slug)}/business-hours`,
     { auth: false },
   )
 }

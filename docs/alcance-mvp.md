@@ -621,6 +621,7 @@ Criterios de aceptación:
 Tareas técnicas:
 - Backend (Brune): endpoint público (sin login) que resuelve datos de empresa + servicios activos a partir del slug.
 - Frontend (Nico): página pública con el layout base, aplicando logo/color dinámicamente. Todas las empresas comparten el mismo componente — solo cambia lo que trae el slug.
+- Frontend (Nico): bloque "Horario de atención" con los 7 días, solo con la empresa activa. Usa el endpoint de horario de la nota de arriba.
 
 Dependencias: Paso 4 (`Company` dada de alta), US-05.7 (logo y color cargados por el admin), Paso 5 (`Service`).
 
