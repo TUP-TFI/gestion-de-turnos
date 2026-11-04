@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { CompanyLogo } from '../../components/CompanyLogo'
 import { useBranding } from '../../hooks/useBranding'
 import { useUpdateBranding } from '../../hooks/useUpdateBranding'
 import { readBrandingData } from '../../lib/brandingForm'
 import { companyThemeStyle } from '../../lib/companyTheme'
 import {
+  COMPANY_BAND_BUTTON_BASE_CLASSES,
   COMPANY_BAND_CLASSES,
+  COMPANY_BUTTON_BASE_CLASSES,
   ERROR_CLASSES,
   FIELDSET_CLASSES,
   INPUT_CLASSES,
@@ -38,25 +41,6 @@ export function BrandingPage() {
   }
 
   return <BrandingForm initial={branding} />
-}
-
-// Si la imagen no carga, se oculta en lugar de mostrar el ícono roto. El formulario le pone una key con la URL, para
-// que una dirección nueva vuelva a intentar. El alt va vacío porque es solo una muestra.
-function PreviewLogo({ url }: { url: string }) {
-  const [failed, setFailed] = useState(false)
-
-  if (failed) {
-    return null
-  }
-
-  return (
-    <img
-      src={url}
-      alt=""
-      onError={() => setFailed(true)}
-      className="h-14 w-14 shrink-0 rounded-lg bg-white object-contain"
-    />
-  )
 }
 
 function BrandingForm({ initial }: { initial: CompanyBranding }) {
@@ -163,14 +147,20 @@ function BrandingForm({ initial }: { initial: CompanyBranding }) {
             className="space-y-4"
             style={companyThemeStyle(isValidColor ? primaryColor : null)}
           >
-            {/* Mini encabezado de la página pública. CompanyBranding no trae el nombre: va un texto fijo. */}
-            <div className={`flex items-center gap-4 rounded-lg p-4 ${COMPANY_BAND_CLASSES}`}>
-              {logoUrl && <PreviewLogo key={logoUrl} url={logoUrl} />}
-              <p className="text-[22px] font-semibold">Tu empresa</p>
+            {/* Copia de la banda de la página pública. CompanyBranding no trae nombre ni rubro: va un texto fijo. */}
+            <div
+              className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg px-4 py-3 ${COMPANY_BAND_CLASSES}`}
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                {logoUrl && <CompanyLogo key={logoUrl} url={logoUrl} />}
+                <p className="text-xl font-semibold">Tu empresa</p>
+              </div>
+              {/* Las muestras son span porque no hacen nada al tocarlas. */}
+              <span className={COMPANY_BAND_BUTTON_BASE_CLASSES}>Iniciar sesión</span>
             </div>
-            {/* Muestra del botón con el color elegido: es un span porque no hace nada al tocarlo. */}
+            {/* Muestra del botón con el color elegido. */}
             <div className="space-y-1">
-              <span className="inline-flex h-10 cursor-default items-center justify-center rounded-lg bg-(--company-accent) px-4 text-sm font-semibold text-(--company-on-accent)">
+              <span className={`${COMPANY_BUTTON_BASE_CLASSES} cursor-default`}>
                 Reservar turno
               </span>
               <p className={MUTED_TEXT_CLASSES}>
