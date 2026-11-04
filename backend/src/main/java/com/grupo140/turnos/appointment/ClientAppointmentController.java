@@ -3,8 +3,10 @@ package com.grupo140.turnos.appointment;
 import com.grupo140.turnos.common.security.SessionUser;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,5 +40,11 @@ public class ClientAppointmentController {
     @ResponseStatus(HttpStatus.CREATED)
     public ClientAppointmentResponse book(SessionUser session, @Valid @RequestBody BookAppointmentRequest request) {
         return appointmentService.book(session.companyId(), session.userId(), request);
+    }
+
+    /** Cancela un turno del cliente de la sesión, dentro del plazo (US-08.1). */
+    @PostMapping("/{id}/cancel")
+    public ClientAppointmentResponse cancel(SessionUser session, @PathVariable UUID id) {
+        return appointmentService.cancelByClient(session.companyId(), session.userId(), id);
     }
 }
