@@ -30,6 +30,10 @@ public interface AppointmentRepository extends Repository<Appointment, UUID> {
     // Turnos de una empresa en un estado. La desactivación de la empresa cancela todos los PENDING (US-04.4).
     List<Appointment> findByCompanyIdAndStatus(UUID companyId, AppointmentStatus status);
 
+    // Lista de avisos de la desactivación (US-04.4): los cancelados con el motivo de la baja que todavía no pasaron.
+    List<Appointment> findAllByCompanyIdAndStatusAndCancellationReasonAndStartDateTimeAfterOrderByStartDateTimeAsc(
+            UUID companyId, AppointmentStatus status, String cancellationReason, Instant after);
+
     // "Mis turnos" del cliente (US-07.6), del más reciente al más antiguo. Llevan los dos ids: el cliente y su
     // empresa. Usan idx_appointment_client_start.
     List<Appointment> findAllByCompanyIdAndClientIdOrderByStartDateTimeDesc(UUID companyId, UUID clientId);

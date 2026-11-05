@@ -2,15 +2,14 @@ package com.grupo140.turnos.company;
 
 import static com.grupo140.turnos.seed.SeedTestValues.DEV_ACTIVATION_TOKEN;
 import static com.grupo140.turnos.seed.SeedTestValues.DEV_PASSWORD;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.verify;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.grupo140.turnos.TestcontainersConfiguration;
-import com.grupo140.turnos.notification.NotificationService;
 import com.grupo140.turnos.user.User;
 import com.grupo140.turnos.user.UserRepository;
 import com.grupo140.turnos.user.UserRole;
@@ -19,13 +18,14 @@ import com.jayway.jsonpath.JsonPath;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 @Transactional
+@ExtendWith(OutputCaptureExtension.class)
 class ResendActivationIT {
 
     private static final String COMPANIES = "/api/superadmin/companies";
@@ -56,13 +57,12 @@ class ResendActivationIT {
     @Autowired
     private UserRepository userRepository;
 
-    // Spy: el aviso se manda de verdad (escribe en el log) y el test captura el link que se mandó.
-    @MockitoSpyBean
-    private NotificationService notificationService;
-
     @Test
-    void resendForPendingAdminReturns204AndInvalidatesOldLink() throws Exception {
-        mockMvc.perform(resend(companyIdBySlug(PENDING_SLUG))).andExpect(status().isNoContent());
+    void resendForPendingAdminReturnsNewLinkAndInvalidatesOldOne() throws Exception {
+        mockMvc.perform(resend(companyIdBySlug(PENDING_SLUG)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.activationLink", containsString("/activate?token=")))
+                .andExpect(jsonPath("$.adminPhone").isNotEmpty());
 
         // El link anterior (el token del seed) deja de servir.
         mockMvc.perform(post("/api/auth/activate")
@@ -80,7 +80,7 @@ class ResendActivationIT {
         mockMvc.perform(asSuperadmin(post(COMPANIES + "/" + companyId + "/deactivate")))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(resend(companyId)).andExpect(status().isNoContent());
+        mockMvc.perform(resend(companyId)).andExpect(status().isOk());
     }
 
     @Test
@@ -97,17 +97,21 @@ class ResendActivationIT {
                 .andExpect(jsonPath("$.code").value("COMPANY_NOT_FOUND"));
     }
 
-    // Issue #41: el link nuevo sirve de punta a punta, no solo "el viejo deja de servir".
+    // Issue #41: el link nuevo sirve de punta a punta, no solo "el viejo deja de servir". El link solo va en la
+    // respuesta: no se escribe en el log.
     @Test
-    void resentLinkActivatesAccountAndAllowsLogin() throws Exception {
+    void resentLinkActivatesAccountAndAllowsLogin(CapturedOutput output) throws Exception {
         String companyId = companyIdBySlug(PENDING_SLUG);
         String adminEmail = adminEmailOf(companyId);
 
-        mockMvc.perform(resend(companyId)).andExpect(status().isNoContent());
-
-        ArgumentCaptor<String> link = ArgumentCaptor.forClass(String.class);
-        verify(notificationService).sendActivationLink(anyString(), link.capture());
-        String token = link.getValue().substring(link.getValue().indexOf("token=") + "token=".length());
+        String body = mockMvc.perform(resend(companyId))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String link = JsonPath.read(body, "$.activationLink");
+        String token = link.substring(link.indexOf("token=") + "token=".length());
+        assertThat(output).doesNotContain(token);
 
         mockMvc.perform(post("/api/auth/activate")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -117,6 +121,14 @@ class ResendActivationIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"%s\",\"password\":\"NuevaClave123\"}".formatted(adminEmail)))
                 .andExpect(status().isOk());
+    }
+
+    // El link lleva el token: un admin de empresa no lo puede pedir.
+    @Test
+    void companyAdminCannotResend() throws Exception {
+        mockMvc.perform(post(COMPANIES + "/" + companyIdBySlug(PENDING_SLUG) + "/resend-activation")
+                        .header("Authorization", "Bearer " + tokenOf("admin@example.com")))
+                .andExpect(status().isForbidden());
     }
 
     // Issue #40: una empresa sin admin responde 409, no 500.
@@ -148,7 +160,7 @@ class ResendActivationIT {
         mockMvc.perform(asSuperadmin(get(COMPANIES + "/" + companyId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.admin.email").value(oldestEmail));
-        mockMvc.perform(resend(companyId)).andExpect(status().isNoContent());
+        mockMvc.perform(resend(companyId)).andExpect(status().isOk());
     }
 
     private String adminEmailOf(String companyId) throws Exception {
