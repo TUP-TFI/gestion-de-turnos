@@ -136,7 +136,7 @@ Una empresa desactivada no da error, a diferencia del registro y el login: respo
 
 ### Marca de la empresa
 
-El admin personaliza su página pública con `GET /api/company/branding` y `PUT /api/company/branding`. Las dos usan la empresa de la sesión, nunca una del body ni de la URL. Responden `200` con `{ slug, logoUrl, primaryColor }`. `logoUrl` y `primaryColor` pueden ser `null`; `slug` es de solo lectura y sirve para armar el link a la página pública, porque la sesión del admin solo trae el `companyId`.
+El admin personaliza su página pública con `GET /api/company/branding` y `PUT /api/company/branding`. Las dos usan la empresa de la sesión, nunca una del body ni de la URL. Responden `200` con `{ slug, logoUrl, primaryColor, timezone }`. `logoUrl` y `primaryColor` pueden ser `null`. `slug` y `timezone` son de solo lectura: `slug` sirve para armar el link a la página pública, porque la sesión del admin solo trae el `companyId`, y `timezone`, para mostrar los turnos del panel en la hora local de la empresa.
 
 El `PUT` reemplaza los dos campos: lo que llega en `null`, o no llega, se borra. `primaryColor` tiene el formato `#RRGGBB` (el mismo `CHECK` de la base) y `logoUrl` empieza con `https://` y tiene hasta 500 caracteres, la misma validación que usa el superadmin al crear o editar la empresa, porque los dos escriben el mismo campo. Un valor inválido responde `400 VALIDATION_ERROR`. No hay storage: el logo es una URL cargada a mano.
 
@@ -223,6 +223,27 @@ Un slug inexistente responde `404 COMPANY_NOT_FOUND` y una empresa desactivada, 
 | `size` | `20` | Elementos por página, de 1 a 100 |
 
 Responde `200` con `{ content, page, size, totalElements, totalPages }`, y cada elemento trae `id`, `firstName`, `lastName`, `email` y `phone`. Un `page` o un `size` inválidos responden `400 VALIDATION_ERROR`.
+
+### Agenda del admin
+
+Las dos rutas usan la empresa de la sesión y solo las puede usar `COMPANY_ADMIN`. Cada turno trae la forma `AdminAppointment` de `docs/contratos-api.md`, con las fechas en UTC. `client` tiene `{ id, name, phone }`: con cuenta, salen de la cuenta del cliente; en un turno manual sin cuenta, salen del propio turno, y `id` es `null`.
+
+`GET /api/company/appointments?status=&origin=&rescheduled=&page=&size=` lista todos los turnos de la empresa, del más nuevo al más viejo.
+
+| Parámetro | Por defecto | Qué hace |
+| :--- | :--- | :--- |
+| `status` | Todos | `PENDING`, `COMPLETED` o `CANCELLED` |
+| `origin` | Todos | `ONLINE` o `MANUAL` |
+| `rescheduled` | Todos | `true`: los reprogramados (`rescheduleCount > 0`). `false`: los que nunca se reprogramaron |
+| `page` | `0` | Número de página, desde 0 |
+| `size` | `20` | Elementos por página, de 1 a 100 |
+
+Responde `200` con `{ content, page, size, totalElements, totalPages }`, igual que clientes. Un filtro con un valor que no existe, o un `page` o un `size` inválidos, responden `400 VALIDATION_ERROR`.
+
+`GET /api/company/appointments/summary` es el resumen del dashboard. Responde `200` con `{ today, upcoming }`, sin turnos cancelados y del más cercano al más lejano:
+
+- `today`: los turnos que empiezan hoy, en la fecha local de la empresa, incluidos los que ya terminaron.
+- `upcoming`: los próximos 5 turnos desde mañana (D4 de `docs/contratos-api.md`).
 
 ### Desactivar y reactivar una empresa
 
