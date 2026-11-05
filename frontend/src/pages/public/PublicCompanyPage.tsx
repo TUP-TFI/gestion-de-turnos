@@ -1,10 +1,10 @@
-import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { ApiRequestError } from '../../api/client'
 import { getAvailability } from '../../api/publicCompany'
 import { BookingConfirmModal } from '../../components/BookingConfirmModal'
 import { CompanyBusinessHours } from '../../components/CompanyBusinessHours'
+import { CompanyLogo } from '../../components/CompanyLogo'
 import { CompanyNotFoundCard } from '../../components/CompanyNotFoundCard'
 import { ServiceSlotPicker } from '../../components/ServiceSlotPicker'
 import { useAuth } from '../../hooks/useAuth'
@@ -26,25 +26,6 @@ import {
 } from '../../lib/formStyles'
 import { getDashboardPath } from '../../lib/panelRoutes'
 import type { PublicCompany } from '../../types/PublicCompany'
-
-// Si la imagen no carga, se oculta en lugar de mostrar el ícono roto. La página le pone una key con la URL, para que
-// un logo nuevo vuelva a intentar. El alt va vacío porque el nombre de la empresa está al lado.
-function CompanyLogo({ url }: { url: string }) {
-  const [failed, setFailed] = useState(false)
-
-  if (failed) {
-    return null
-  }
-
-  return (
-    <img
-      src={url}
-      alt=""
-      onError={() => setFailed(true)}
-      className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain"
-    />
-  )
-}
 
 function CompanyContact({ company }: { company: PublicCompany }) {
   return (
