@@ -95,7 +95,7 @@ public class AppointmentService {
         if (!availabilityService
                 .availableStarts(companyId, request.serviceId(), date)
                 .contains(start)) {
-            throw new ApiException(HttpStatus.CONFLICT, "SLOT_UNAVAILABLE", "El horario ya no está disponible");
+            throw slotUnavailable();
         }
 
         Appointment appointment = new Appointment();
@@ -114,8 +114,11 @@ public class AppointmentService {
                 saved,
                 NotificationEventType.BOOKING_CONFIRMED,
                 "Tu turno de %s del %s quedó confirmado.".formatted(service.getName(), formatForNotice(start, zone)));
-        boolean canCancel = canCancel(saved, platformSettingsService.get(), Instant.now(clock));
-        return ClientAppointmentResponse.from(saved, service.getName(), canCancel);
+        return toResponse(saved, service.getName(), platformSettingsService.get(), Instant.now(clock));
+    }
+
+    private static ApiException slotUnavailable() {
+        return new ApiException(HttpStatus.CONFLICT, "SLOT_UNAVAILABLE", "El horario ya no está disponible");
     }
 
     // Anticipación mínima y máxima (US-07.4). Va separada de la disponibilidad, que solo diría "no hay horario",
@@ -248,8 +251,7 @@ public class AppointmentService {
         Instant now = Instant.now(clock);
         List<ClientAppointmentResponse> result = new ArrayList<>();
         for (Appointment appointment : appointments) {
-            result.add(ClientAppointmentResponse.from(
-                    appointment, serviceNames.get(appointment.getServiceId()), canCancel(appointment, settings, now)));
+            result.add(toResponse(appointment, serviceNames.get(appointment.getServiceId()), settings, now));
         }
         return result;
     }
@@ -291,16 +293,10 @@ public class AppointmentService {
     @Transactional
     public ClientAppointmentResponse cancelByClient(UUID companyId, UUID clientId, UUID appointmentId) {
         companyService.lockActive(companyId);
-        Appointment appointment = appointmentRepository
-                .findByIdAndCompanyIdAndClientId(appointmentId, companyId, clientId)
-                .orElseThrow(
-                        () -> new ApiException(HttpStatus.NOT_FOUND, "APPOINTMENT_NOT_FOUND", "El turno no existe"));
-        if (appointment.getStatus() != AppointmentStatus.PENDING) {
-            throw new ApiException(HttpStatus.CONFLICT, "APPOINTMENT_NOT_PENDING", "El turno ya no está pendiente");
-        }
+        Appointment appointment = requirePendingOfClient(companyId, clientId, appointmentId);
         PlatformSettingsResponse settings = platformSettingsService.get();
         Instant now = Instant.now(clock);
-        if (isPastCancellationDeadline(appointment, settings, now)) {
+        if (isPastClientDeadline(appointment, settings, now)) {
             throw new ApiException(
                     HttpStatus.BAD_REQUEST,
                     "CANCELLATION_DEADLINE_PASSED",
@@ -308,21 +304,134 @@ public class AppointmentService {
         }
 
         markCancelled(appointment, CancelledBy.CLIENT, null, now);
-        String serviceName = catalogService
+        return toResponse(appointment, serviceName(companyId, appointment), settings, now);
+    }
+
+    /**
+     * Horarios a los que el cliente puede reprogramar su turno en esa fecha local de la empresa (US-08.2). No valida
+     * el plazo ni el tope: eso lo informa {@code canReschedule} y lo rechaza la reprogramación.
+     *
+     * @param companyId empresa de la sesión.
+     * @param clientId cliente de la sesión: nunca uno que llegue en la request.
+     * @throws ApiException {@code APPOINTMENT_NOT_FOUND} (404) o {@code APPOINTMENT_NOT_PENDING} (409).
+     */
+    @Transactional(readOnly = true)
+    public AvailabilityResponse rescheduleAvailability(
+            UUID companyId, UUID clientId, UUID appointmentId, LocalDate date) {
+        Appointment appointment = requirePendingOfClient(companyId, clientId, appointmentId);
+        return new AvailabilityResponse(date, availabilityService.rescheduleStarts(appointment, date));
+    }
+
+    /**
+     * Reprograma un turno a pedido de su cliente (US-08.2): actualiza el mismo turno, guarda el inicio anterior y suma
+     * una reprogramación. Sigue {@code PENDING}. Tiene el mismo plazo que cancelar (regla 16), y el nuevo horario pasa
+     * por las mismas validaciones que una reserva, con el mismo lock de la empresa. No publica un aviso, igual que la
+     * cancelación.
+     *
+     * @param companyId empresa de la sesión.
+     * @param clientId cliente de la sesión: nunca uno que llegue en la request.
+     * @throws ApiException {@code COMPANY_INACTIVE} (403), {@code APPOINTMENT_NOT_FOUND} (404),
+     *     {@code APPOINTMENT_NOT_PENDING} (409), {@code RESCHEDULE_DEADLINE_PASSED} (400),
+     *     {@code RESCHEDULE_LIMIT_REACHED} (409), {@code BOOKING_TOO_SOON} (400), {@code BOOKING_TOO_FAR} (400) o
+     *     {@code SLOT_UNAVAILABLE} (409).
+     */
+    @Transactional
+    public ClientAppointmentResponse rescheduleByClient(
+            UUID companyId, UUID clientId, UUID appointmentId, RescheduleAppointmentRequest request) {
+        companyService.lockActive(companyId);
+        Appointment appointment = requirePendingOfClient(companyId, clientId, appointmentId);
+        PlatformSettingsResponse settings = platformSettingsService.get();
+        Instant now = Instant.now(clock);
+        if (isPastClientDeadline(appointment, settings, now)) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "RESCHEDULE_DEADLINE_PASSED",
+                    "El turno se puede reprogramar hasta %d horas antes"
+                            .formatted(settings.cancellationDeadlineHours()));
+        }
+        if (isRescheduleLimitReached(appointment, settings)) {
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "RESCHEDULE_LIMIT_REACHED",
+                    "El turno ya se reprogramó la cantidad máxima de veces (%d)"
+                            .formatted(settings.maxRescheduleCount()));
+        }
+        ZoneId zone = companyService.zoneOf(companyId);
+        Instant start = request.startDateTime();
+        LocalDate date = start.atZone(zone).toLocalDate();
+        requireWithinBookingWindow(start, date, zone);
+        if (!availabilityService.rescheduleStarts(appointment, date).contains(start)) {
+            throw slotUnavailable();
+        }
+
+        appointment.setPreviousStartDateTime(appointment.getStartDateTime());
+        appointment.setStartDateTime(start);
+        appointment.setEndDateTime(start.plus(Duration.ofMinutes(appointment.getDurationMinutesSnapshot())));
+        appointment.setRescheduleCount(appointment.getRescheduleCount() + 1);
+        // Escribe en el acto, igual que la reserva: la constraint excl_appointment_overlap salta acá.
+        appointmentRepository.saveAndFlush(appointment);
+        return toResponse(appointment, serviceName(companyId, appointment), settings, now);
+    }
+
+    // Un turno pendiente del cliente. El de otro cliente o de otra empresa da el mismo 404 que uno inexistente.
+    private Appointment requirePendingOfClient(UUID companyId, UUID clientId, UUID appointmentId) {
+        Appointment appointment = appointmentRepository
+                .findByIdAndCompanyIdAndClientId(appointmentId, companyId, clientId)
+                .orElseThrow(
+                        () -> new ApiException(HttpStatus.NOT_FOUND, "APPOINTMENT_NOT_FOUND", "El turno no existe"));
+        if (appointment.getStatus() != AppointmentStatus.PENDING) {
+            throw new ApiException(HttpStatus.CONFLICT, "APPOINTMENT_NOT_PENDING", "El turno ya no está pendiente");
+        }
+        return appointment;
+    }
+
+    // Incluye los servicios inactivos: un turno ya reservado sigue mostrando el suyo.
+    private String serviceName(UUID companyId, Appointment appointment) {
+        return catalogService
                 .requireOwnedService(companyId, appointment.getServiceId())
                 .getName();
-        return ClientAppointmentResponse.from(appointment, serviceName, canCancel(appointment, settings, now));
+    }
+
+    // canCancel, canReschedule y rescheduleBlockedReason los calcula el back: el cliente no puede leer
+    // PlatformSettings (D1 de contratos-api.md).
+    private static ClientAppointmentResponse toResponse(
+            Appointment appointment, String serviceName, PlatformSettingsResponse settings, Instant now) {
+        return ClientAppointmentResponse.from(
+                appointment,
+                serviceName,
+                canCancel(appointment, settings, now),
+                rescheduleBlockedReason(appointment, settings, now));
     }
 
     private static boolean canCancel(Appointment appointment, PlatformSettingsResponse settings, Instant now) {
         return appointment.getStatus() == AppointmentStatus.PENDING
-                && !isPastCancellationDeadline(appointment, settings, now);
+                && !isPastClientDeadline(appointment, settings, now);
     }
 
-    private static boolean isPastCancellationDeadline(
+    // Null si se puede reprogramar. Va en el mismo orden en que rechaza rescheduleByClient.
+    private static RescheduleBlockedReason rescheduleBlockedReason(
+            Appointment appointment, PlatformSettingsResponse settings, Instant now) {
+        if (appointment.getStatus() != AppointmentStatus.PENDING) {
+            return RescheduleBlockedReason.NOT_PENDING;
+        }
+        if (isPastClientDeadline(appointment, settings, now)) {
+            return RescheduleBlockedReason.DEADLINE_PASSED;
+        }
+        if (isRescheduleLimitReached(appointment, settings)) {
+            return RescheduleBlockedReason.LIMIT_REACHED;
+        }
+        return null;
+    }
+
+    // Plazo para que el cliente cancele o reprograme: el mismo para las dos cosas (regla 16).
+    private static boolean isPastClientDeadline(
             Appointment appointment, PlatformSettingsResponse settings, Instant now) {
         Instant deadline = appointment.getStartDateTime().minus(Duration.ofHours(settings.cancellationDeadlineHours()));
         return now.isAfter(deadline);
+    }
+
+    private static boolean isRescheduleLimitReached(Appointment appointment, PlatformSettingsResponse settings) {
+        return appointment.getRescheduleCount() >= settings.maxRescheduleCount();
     }
 
     private static void markCancelled(Appointment appointment, CancelledBy cancelledBy, String reason, Instant now) {

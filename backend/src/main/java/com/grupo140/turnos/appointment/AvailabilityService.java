@@ -26,7 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
  * una fecha. Vive en {@code appointment} porque necesita los turnos ya ocupados; {@code schedule} solo aporta
  * las franjas candidatas (ver el README, sección "Regla de dependencias entre features").
  *
- * <p>No tiene endpoint propio: lo expone la página pública (US-06.2) y la reserva lo usa para validar (US-07.3).
+ * <p>No tiene endpoint propio: lo expone la página pública (US-06.2), la reserva lo usa para validar (US-07.3) y la
+ * reprogramación tiene su variante (US-08.2).
  */
 @Service
 public class AvailabilityService {
@@ -65,6 +66,25 @@ public class AvailabilityService {
     public List<Instant> availableStarts(UUID companyId, UUID serviceId, LocalDate date) {
         int durationMinutes =
                 catalogService.requireActiveService(companyId, serviceId).getDurationMinutes();
+        return startsFor(companyId, durationMinutes, date, null);
+    }
+
+    /**
+     * Horarios a los que se puede reprogramar el turno en esa fecha (US-08.2, D2 de {@code contratos-api.md}). A
+     * diferencia de {@link #availableStarts}, usa la duración copiada en el turno, no cuenta al propio turno como
+     * ocupado y no exige que el servicio siga activo (regla 23). No ofrece el horario actual: reprogramar ahí no
+     * cambiaría nada.
+     */
+    List<Instant> rescheduleStarts(Appointment appointment, LocalDate date) {
+        return startsFor(
+                        appointment.getCompanyId(), appointment.getDurationMinutesSnapshot(), date, appointment.getId())
+                .stream()
+                .filter(start -> !start.equals(appointment.getStartDateTime()))
+                .toList();
+    }
+
+    // excludedAppointmentId es el turno que se reprograma, o null en una reserva nueva.
+    private List<Instant> startsFor(UUID companyId, int durationMinutes, LocalDate date, UUID excludedAppointmentId) {
         ZoneId zone = companyService.zoneOf(companyId);
         PlatformSettingsResponse settings = platformSettingsService.get();
 
@@ -82,9 +102,13 @@ public class AvailabilityService {
         Instant earliestStart = Instant.now(clock).plus(Duration.ofMinutes(settings.minBookingNoticeMinutes()));
         Instant dayStart = date.atStartOfDay(zone).toInstant();
         Instant dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant();
-        List<Appointment> occupied =
-                appointmentRepository.findAllByCompanyIdAndStatusNotAndStartDateTimeLessThanAndEndDateTimeGreaterThan(
-                        companyId, AppointmentStatus.CANCELLED, dayEnd, dayStart);
+        List<Appointment> occupied = appointmentRepository
+                .findAllByCompanyIdAndStatusNotAndStartDateTimeLessThanAndEndDateTimeGreaterThan(
+                        companyId, AppointmentStatus.CANCELLED, dayEnd, dayStart)
+                .stream()
+                .filter(appointment ->
+                        excludedAppointmentId == null || !excludedAppointmentId.equals(appointment.getId()))
+                .toList();
 
         // Un TreeSet deja el resultado ordenado y sin repetir: dos franjas podrían generar el mismo instante.
         SortedSet<Instant> available = new TreeSet<>();

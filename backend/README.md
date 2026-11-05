@@ -160,7 +160,10 @@ El aviso de turnos fuera de rango del horario semanal (`POST /api/company/busine
 
 `GET /api/client/appointments` devuelve los turnos del cliente de la sesión, del más reciente al más antiguo. Se puede filtrar con `?status=PENDING|COMPLETED|CANCELLED`; un estado que no existe responde `400 VALIDATION_ERROR`. El cliente y la empresa salen siempre de la sesión: no hay forma de pedir los turnos de otro.
 
-Cada turno trae `id`, `serviceId`, `serviceName`, `startDateTime`, `endDateTime` (en UTC, el front las convierte a la hora local), `status`, `rescheduleCount`, `priceSnapshot`, `durationMinutesSnapshot` y `canCancel`. El precio y la duración son los copiados al reservar, no los actuales del servicio. `canCancel` es `true` si el turno está `PENDING` y sigue dentro del plazo: lo calcula el back, porque el cliente no puede leer `PlatformSettings`.
+Cada turno trae `id`, `serviceId`, `serviceName`, `startDateTime`, `endDateTime` (en UTC, el front las convierte a la hora local), `status`, `rescheduleCount`, `priceSnapshot`, `durationMinutesSnapshot`, `canCancel`, `canReschedule` y `rescheduleBlockedReason`. El precio y la duración son los copiados al reservar, no los actuales del servicio. Los tres últimos los calcula el back, porque el cliente no puede leer `PlatformSettings`:
+
+- `canCancel` es `true` si el turno está `PENDING` y sigue dentro del plazo.
+- `rescheduleBlockedReason` dice por qué no se puede reprogramar: `NOT_PENDING`, `DEADLINE_PASSED` o `LIMIT_REACHED`, en ese orden si hay más de uno. Es `null` si se puede, y entonces `canReschedule` es `true`.
 
 ### Reservar un turno
 
@@ -196,6 +199,32 @@ Pendiente para US-10.4: la fila no guarda el mensaje, así que el reintento lo t
 | Pasó `cancellationDeadlineHours` | `400 CANCELLATION_DEADLINE_PASSED` |
 
 Se puede cancelar hasta el instante exacto del plazo. Toma el mismo lock de la empresa que la reserva, así dos pedidos simultáneos no cancelan el mismo turno dos veces. No publica `NotificationRequestedEvent`: el aviso pasa a Click to Chat (`docs/contratos-api.md`, Paso 10).
+
+### Reprogramar un turno del cliente
+
+`GET /api/client/appointments/{id}/availability?date=YYYY-MM-DD` devuelve `{ date, starts }`, igual que [Horarios disponibles](#horarios-disponibles), con tres diferencias:
+
+- No cuenta como ocupado al propio turno, así se puede correr dentro de su mismo horario.
+- Usa la duración copiada en el turno, no la actual del servicio.
+- Responde aunque el servicio esté inactivo (regla 23).
+
+Tampoco ofrece el horario actual del turno. Da `404 APPOINTMENT_NOT_FOUND` o `409 APPOINTMENT_NOT_PENDING`, igual que la cancelación.
+
+`POST /api/client/appointments/{id}/reschedule` con `{ startDateTime }`. Responde `200` con el mismo turno, en el formato de "Mis turnos": sigue `PENDING`, guarda el inicio anterior en `previousStartDateTime` y suma 1 a `rescheduleCount`. El fin se recalcula con la duración copiada.
+
+| Caso | Respuesta |
+| :--- | :--- |
+| Falta `startDateTime` o tiene otro formato | `400 VALIDATION_ERROR` |
+| Empresa desactivada | `403 COMPANY_INACTIVE` |
+| Turno inexistente, o de otro cliente u otra empresa | `404 APPOINTMENT_NOT_FOUND` |
+| Turno cancelado o completado | `409 APPOINTMENT_NOT_PENDING` |
+| Pasó `cancellationDeadlineHours`, el mismo plazo de la cancelación | `400 RESCHEDULE_DEADLINE_PASSED` |
+| Ya se reprogramó `maxRescheduleCount` veces | `409 RESCHEDULE_LIMIT_REACHED` |
+| Inicio nuevo antes de la anticipación mínima | `400 BOOKING_TOO_SOON` |
+| Fecha nueva más allá de la anticipación máxima | `400 BOOKING_TOO_FAR` |
+| Horario ocupado, fuera de la grilla o igual al actual | `409 SLOT_UNAVAILABLE` |
+
+Valida en el orden de la tabla, con el mismo lock de la empresa que la reserva. No publica `NotificationRequestedEvent`, igual que la cancelación.
 
 ### Horarios disponibles
 

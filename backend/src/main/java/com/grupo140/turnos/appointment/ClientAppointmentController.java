@@ -2,6 +2,7 @@ package com.grupo140.turnos.appointment;
 
 import com.grupo140.turnos.common.security.SessionUser;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -46,5 +47,19 @@ public class ClientAppointmentController {
     @PostMapping("/{id}/cancel")
     public ClientAppointmentResponse cancel(SessionUser session, @PathVariable UUID id) {
         return appointmentService.cancelByClient(session.companyId(), session.userId(), id);
+    }
+
+    /** Horarios libres para reprogramar un turno del cliente de la sesión, en una fecha local (US-08.2). */
+    @GetMapping("/{id}/availability")
+    public AvailabilityResponse rescheduleAvailability(
+            SessionUser session, @PathVariable UUID id, @RequestParam LocalDate date) {
+        return appointmentService.rescheduleAvailability(session.companyId(), session.userId(), id, date);
+    }
+
+    /** Reprograma un turno del cliente de la sesión, dentro del plazo y del tope de reprogramaciones (US-08.2). */
+    @PostMapping("/{id}/reschedule")
+    public ClientAppointmentResponse reschedule(
+            SessionUser session, @PathVariable UUID id, @Valid @RequestBody RescheduleAppointmentRequest request) {
+        return appointmentService.rescheduleByClient(session.companyId(), session.userId(), id, request);
     }
 }
