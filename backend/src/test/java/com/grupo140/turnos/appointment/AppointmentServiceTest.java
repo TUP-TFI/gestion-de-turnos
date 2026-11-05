@@ -6,15 +6,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.grupo140.turnos.catalog.CatalogService;
 import com.grupo140.turnos.catalog.Service;
 import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.company.CompanyService;
-import com.grupo140.turnos.notification.NotificationEventType;
-import com.grupo140.turnos.notification.NotificationRequestedEvent;
 import com.grupo140.turnos.schedule.BusinessHoursRequest;
 import com.grupo140.turnos.schedule.ScheduleService;
 import com.grupo140.turnos.settings.PlatformSettingsResponse;
@@ -37,10 +34,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 
 @ExtendWith(MockitoExtension.class)
@@ -75,9 +70,6 @@ class AppointmentServiceTest {
     @Mock
     private PlatformSettingsService platformSettingsService;
 
-    @Mock
-    private ApplicationEventPublisher events;
-
     private AppointmentService appointmentService;
 
     private TimeZone processZone;
@@ -95,7 +87,6 @@ class AppointmentServiceTest {
                 companyService,
                 userService,
                 platformSettingsService,
-                events,
                 Clock.fixed(now, ZoneOffset.UTC));
     }
 
@@ -158,7 +149,7 @@ class AppointmentServiceTest {
     }
 
     @Test
-    void bookCopiesServiceDataAndRequestsNotification() {
+    void bookCopiesServiceData() {
         givenBookableService();
         Instant start = now.plus(Duration.ofDays(1));
         givenAvailable(start);
@@ -171,12 +162,6 @@ class AppointmentServiceTest {
         assertThat(response.priceSnapshot()).isEqualByComparingTo("8000");
         assertThat(response.durationMinutesSnapshot()).isEqualTo(45);
         assertThat(response.endDateTime()).isEqualTo(start.plus(Duration.ofMinutes(45)));
-        ArgumentCaptor<NotificationRequestedEvent> event = ArgumentCaptor.forClass(NotificationRequestedEvent.class);
-        verify(events).publishEvent(event.capture());
-        assertThat(event.getValue().eventType()).isEqualTo(NotificationEventType.BOOKING_CONFIRMED);
-        assertThat(event.getValue().recipientPhone()).isEqualTo("+5493510000001");
-        assertThat(event.getValue().userId()).isEqualTo(clientId);
-        assertThat(event.getValue().message()).contains("Corte").contains("11/10/2026 09:00");
     }
 
     private void givenBookableService() {
@@ -189,7 +174,6 @@ class AppointmentServiceTest {
     private void givenAvailable(Instant start) {
         when(availabilityService.availableStarts(companyId, serviceId, localDate(start)))
                 .thenReturn(List.of(start));
-        when(userService.findPhone(clientId, companyId)).thenReturn(Optional.of("+5493510000001"));
     }
 
     private LocalDate localDate(Instant start) {
@@ -279,7 +263,7 @@ class AppointmentServiceTest {
     }
 
     @Test
-    void clientCancelsExactlyAtDeadlineWithoutNotification() {
+    void clientCancelsExactlyAtDeadline() {
         Appointment appointment = givenClientAppointment(now.plus(Duration.ofHours(3)));
         when(catalogService.requireOwnedService(companyId, serviceId))
                 .thenReturn(new Service(companyId, "Corte", new BigDecimal("8000"), 45));
@@ -291,7 +275,6 @@ class AppointmentServiceTest {
         assertThat(response.canCancel()).isFalse();
         assertThat(appointment.getCancelledBy()).isEqualTo(CancelledBy.CLIENT);
         assertThat(appointment.getCancelledAt()).isEqualTo(now);
-        verifyNoInteractions(events);
     }
 
     @Test

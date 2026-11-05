@@ -10,7 +10,7 @@
 
 ### Empresas
 
-7. Dar de baja una empresa significa desactivarla, nunca eliminar el registro. Al desactivar: se bloquea el login de su admin, la página pública muestra un estado de "no disponible", los turnos pendientes se cancelan automáticamente notificando a cada cliente afectado, y el historial se conserva por si se reactiva.
+7. Dar de baja una empresa significa desactivarla, nunca eliminar el registro. Al desactivar: se bloquea el login de su admin, la página pública muestra un estado de "no disponible", los turnos pendientes se cancelan automáticamente, el superadmin avisa a cada cliente afectado por WhatsApp desde una lista (ver regla 28), y el historial se conserva por si se reactiva.
 8. El bloqueo del login del admin al desactivar la empresa **se deriva de `company.status`** en el filtro de autenticación; no se modifica el `status` del usuario. De lo contrario, un admin que ya estaba inactivo antes de la baja quedaría reactivado por error al reactivar la empresa.
 9. Reactivar una empresa es lo inverso: vuelve a estado `ACTIVE`, se desbloquea el login del admin (sin necesitar un nuevo link de activación si ya tenía contraseña definida) y la página pública vuelve a aceptar reservas con la configuración de servicios/horarios que ya tenía cargada. Los turnos cancelados durante la baja quedan cancelados — no se recrean automáticamente.
 10. Cada empresa tiene una **zona horaria** propia (`timezone`, formato IANA). Toda conversión entre las horas de pared de la configuración de agenda y los instantes UTC de los turnos usa esa zona, nunca la zona horaria del servidor. La zona horaria es obligatoria en el alta de la empresa, con `America/Argentina/Cordoba` como valor por defecto en el formulario.
@@ -52,10 +52,10 @@
 26. Además de la plantilla semanal, cada admin puede cargar **excepciones por fecha concreta** (feriados, vacaciones, jornadas con horario especial). Una excepción **reemplaza por completo** la configuración semanal de esa fecha: no se combinan. La fecha de la excepción (`exceptionDate`) debe ser igual o posterior a la fecha actual, calculada en `company.timezone`; no se pueden cargar excepciones para fechas pasadas.
 27. Editar la configuración de horarios, o cargar una excepción, no afecta a los turnos ya reservados que queden fuera del nuevo rango: se mantienen igual, y el sistema solo avisa al admin de cuántos turnos quedan en esa situación.
 
-### Notificaciones
-28. Se envía notificación por WhatsApp cuando: se confirma una reserva (online o manual), se cancela un turno (por cliente o negocio), o se reprograma un turno. La notificación es informativa — el turno ya queda confirmado en el sistema en el momento de guardarse, no depende de que el cliente confirme el aviso.
-29. Cada notificación se persiste con su estado (`PENDING`, `SENT`, `FAILED`) y su cantidad de intentos. Sin ese registro, un timeout del proveedor externo dejaría al sistema sin saber si el mensaje salió, sin poder reintentar y sin poder evitar un envío duplicado — algo crítico en la cancelación masiva de la regla 7.
-30. La notificación se emite **después** de confirmada la transacción del turno, nunca dentro de ella: una llamada HTTP a un servicio externo dentro de la transacción mantendría tomado el lock de la empresa durante toda la latencia de red.
+### Avisos por WhatsApp
+28. Los avisos por WhatsApp son **manuales, con Click to Chat**: un link `https://wa.me/<número>?text=<mensaje>` abre WhatsApp con el texto cargado, y una persona toca enviar. El admin avisa desde su panel la confirmación (online o manual), la cancelación y la reprogramación de cada turno. El superadmin avisa los turnos cancelados por la regla 7 desde una lista, y le manda al admin nuevo su link de activación. El aviso es informativo — el turno ya queda confirmado en el sistema en el momento de guardarse, no depende de que el cliente confirme el aviso.
+29. El sistema **no envía mensajes ni sabe si salieron**: no guarda estados ni reintenta. Si el admin o el superadmin no tocan el link, el cliente no se entera. La tabla `notification` queda sin uso.
+30. El link de activación lleva el token: el sistema se lo devuelve solo al superadmin y nunca lo escribe en el log.
 
 ### Alcance
 31. No se maneja dinero dentro del sistema (sin señas ni pagos online): se descartó explícitamente por el riesgo de reintroducir conflictos de doble reserva mientras se espera confirmación de un pago externo.

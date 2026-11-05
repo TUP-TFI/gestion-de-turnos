@@ -110,9 +110,9 @@ La API es stateless: cada request lleva `Authorization: Bearer <jwt>`. El token 
 
 El admin recién creado activa su cuenta con `POST /api/auth/activate` y el body `{ "token": "...", "password": "..." }`, donde `token` es el valor en claro del link. La contraseña va de 8 a 72 caracteres (72 es el tope de BCrypt). Responde `204` sin JWT: después de activar, el usuario entra por el login.
 
-Ese link lo genera el alta de empresa, `POST /api/superadmin/companies`, que crea la empresa, su admin (`PENDING_ACTIVATION`) y el token (vence a las 48 h) en una sola transacción. Hasta que exista el envío por WhatsApp, `NotificationService` escribe el link en el log de la aplicación y se copia a mano: en local sale en la terminal, y en producción en la pestaña *Logs* de Render.
+Ese link lo genera el alta de empresa, `POST /api/superadmin/companies`, que crea la empresa, su admin (`PENDING_ACTIVATION`) y el token (vence a las 48 h) en una sola transacción. Responde `201` con los campos de la empresa, más `activationLink` y `adminPhone`: el superadmin le manda el link al admin por WhatsApp (Click to Chat, ver [Avisos por WhatsApp](#avisos-por-whatsapp)). El link lleva el token, así que no se escribe en el log. El listado y el detalle de empresas no traen esos dos campos.
 
-Si el link vence o se pierde, el superadmin lo reenvía con `POST /api/superadmin/companies/{id}/resend-activation` (responde `204`): se genera un token nuevo de 48 h y los anteriores dejan de servir. Solo funciona mientras el admin siga `PENDING_ACTIVATION`; si ya activó su cuenta, responde `409 ADMIN_ALREADY_ACTIVE`. Para saber si mostrar esa opción, el detalle de la empresa (`GET /api/superadmin/companies/{id}`) incluye `admin: { email, status }`. El reenvío también funciona con la empresa desactivada: el admin puede definir su contraseña, pero no entra hasta que la empresa se reactive (ver abajo).
+Si el link vence o se pierde, el superadmin lo reenvía con `POST /api/superadmin/companies/{id}/resend-activation`: se genera un token nuevo de 48 h, los anteriores dejan de servir, y responde `200` con `{ activationLink, adminPhone }`, igual que el alta. Solo funciona mientras el admin siga `PENDING_ACTIVATION`; si ya activó su cuenta, responde `409 ADMIN_ALREADY_ACTIVE`. Para saber si mostrar esa opción, el detalle de la empresa (`GET /api/superadmin/companies/{id}`) incluye `admin: { email, status }`. El reenvío también funciona con la empresa desactivada: el admin puede definir su contraseña, pero no entra hasta que la empresa se reactive (ver abajo).
 
 ### Registro y login de clientes
 
@@ -180,12 +180,7 @@ Cada turno trae `id`, `serviceId`, `serviceName`, `startDateTime`, `endDateTime`
 
 Todo pasa en una transacción, que empieza con un `SELECT ... FOR UPDATE` sobre la empresa: dos reservas simultáneas de una misma empresa se atienden de a una. La constraint `excl_appointment_overlap` queda como segunda barrera, y `GlobalExceptionHandler` la traduce al mismo `409 SLOT_UNAVAILABLE`.
 
-El aviso tiene dos fases, en `NotificationRequestedListener`:
-
-1. **Dentro de la transacción del turno**, escribe la fila de `notification` en `PENDING`, con `attemptCount = 0`. Si el proceso se cae después del commit, la fila queda para el reintento. Un fallo al guardarla revierte la reserva o la cancelación en cascada, y si la transacción se revierte, no queda fila ni se envía nada.
-2. **Después del commit**, en una transacción propia, despacha el aviso y deja la fila en `SENT` o, si falla, en `FAILED` con el error. El turno sigue reservado. Hasta el Paso 10, el despacho se escribe en el log.
-
-Pendiente para US-10.4: la fila no guarda el mensaje, así que el reintento lo tiene que rearmar con el turno y `eventType`.
+La reserva no avisa al cliente: el admin le manda el WhatsApp desde su panel (ver [Avisos por WhatsApp](#avisos-por-whatsapp)).
 
 ### Cancelar un turno del cliente
 
@@ -198,7 +193,7 @@ Pendiente para US-10.4: la fila no guarda el mensaje, así que el reintento lo t
 | Turno cancelado o completado | `409 APPOINTMENT_NOT_PENDING` |
 | Pasó `cancellationDeadlineHours` | `400 CANCELLATION_DEADLINE_PASSED` |
 
-Se puede cancelar hasta el instante exacto del plazo. Toma el mismo lock de la empresa que la reserva, así dos pedidos simultáneos no cancelan el mismo turno dos veces. No publica `NotificationRequestedEvent`: el aviso pasa a Click to Chat (`docs/contratos-api.md`, Paso 10).
+Se puede cancelar hasta el instante exacto del plazo. Toma el mismo lock de la empresa que la reserva, así dos pedidos simultáneos no cancelan el mismo turno dos veces. Tampoco avisa: la cancelación del cliente no se le avisa al admin (ver [Avisos por WhatsApp](#avisos-por-whatsapp)).
 
 ### Reprogramar un turno del cliente
 
@@ -262,10 +257,19 @@ Responde `200` con `{ content, page, size, totalElements, totalPages }`, y cada 
 
 `POST /api/superadmin/companies/{id}/deactivate` y `POST /api/superadmin/companies/{id}/reactivate`, sin body. Responden `200` con la empresa actualizada, o `404 COMPANY_NOT_FOUND`. Si la empresa ya estaba en ese estado, responden `200` igual y no hacen nada.
 
-- **Desactivar** nunca borra la empresa: pasa a `INACTIVE`. El login de su admin queda bloqueado (`403 COMPANY_INACTIVE`), porque se deriva del estado de la empresa y no del usuario. El bloqueo también corta las sesiones abiertas: `ActiveCompanyFilter` revisa el estado de la empresa en cada request con token de un admin o un cliente y responde `403 COMPANY_INACTIVE`, sin esperar a que el token venza. Cuesta una consulta por request; el filtro solo conoce la interfaz `CompanyStatusChecker` (en `common/security`), que implementa `CompanyService`, porque `common` y `config` no pueden depender de `company`. Todos sus turnos `PENDING` se cancelan (`cancelledBy = COMPANY`, con fecha y motivo) y cada cliente recibe un aviso: la fila de `notification` se escribe en la misma transacción y el envío ocurre después del commit (ver [Reservar un turno](#reservar-un-turno)); hasta el Paso 10, el aviso se escribe en el log, igual que el link de activación.
+- **Desactivar** nunca borra la empresa: pasa a `INACTIVE`. El login de su admin queda bloqueado (`403 COMPANY_INACTIVE`), porque se deriva del estado de la empresa y no del usuario. El bloqueo también corta las sesiones abiertas: `ActiveCompanyFilter` revisa el estado de la empresa en cada request con token de un admin o un cliente y responde `403 COMPANY_INACTIVE`, sin esperar a que el token venza. Cuesta una consulta por request; el filtro solo conoce la interfaz `CompanyStatusChecker` (en `common/security`), que implementa `CompanyService`, porque `common` y `config` no pueden depender de `company`. Todos sus turnos `PENDING` se cancelan (`cancelledBy = COMPANY`, con fecha y motivo). El sistema no avisa a los clientes: el superadmin los avisa desde la lista de [Avisos por WhatsApp](#avisos-por-whatsapp).
 - **Reactivar** la devuelve a `ACTIVE` con los servicios y horarios que ya tenía, y el admin vuelve a entrar con su contraseña. Los turnos cancelados no se recuperan.
 
 La cancelación vive en `appointment`, que no puede ser llamado desde `company` (formaría un ciclo, ver [Regla de dependencias entre features](#regla-de-dependencias-entre-features-horizontal)). `CompanyService` publica `CompanyDeactivatedEvent` y `appointment/CompanyDeactivationListener` lo escucha con `@EventListener`, dentro de la misma transacción: si la cancelación falla, la empresa no queda desactivada.
+
+### Avisos por WhatsApp
+
+El canal es Click to Chat: un link `https://wa.me/<número>?text=<mensaje>` abre WhatsApp con el texto cargado, y una persona toca enviar. El back no envía mensajes ni sabe si salieron: solo da los datos, y el front arma el link. No hay proveedor, estados ni reintentos.
+
+- **Link de activación:** lo devuelven el alta de empresa y el reenvío, con el teléfono del admin. Solo lo recibe el superadmin.
+- **Turnos cancelados por la baja de una empresa:** `GET /api/superadmin/companies/{id}/cancellation-notices` responde `200` con `{ timezone, notices: [{ appointmentId, clientName, phone, serviceName, startDateTime }] }`. Trae los turnos `CANCELLED` con el motivo de la baja y `startDateTime` futura, ordenados por fecha. `phone` es `null` si el cliente no tiene teléfono. El nombre y el teléfono salen de la cuenta del cliente, o del propio turno si lo cargó el admin. No registra a quién ya se avisó. Empresa inexistente: `404 COMPANY_NOT_FOUND`. Vive en `appointment`, bajo `/api/superadmin`, así que solo lo ve el superadmin.
+
+La tabla `notification` queda sin uso: no se escriben filas y no hay migración que la borre. El paquete `notification` se quitó.
 
 ### Rutas por prefijo
 
@@ -331,7 +335,6 @@ src/main/java/com/<grupo>/turnos/
 ├── catalog/           # Service: catálogo de servicios de cada empresa
 ├── schedule/          # BusinessHours + ScheduleException: plantilla de atención
 ├── appointment/       # Appointment: disponibilidad, reserva, cancelación, reprogramación
-├── notification/      # NotificationService desacoplado del canal + reintentos
 ├── reporting/         # dashboards del superadmin y del admin de empresa
 └── seed/              # datos de prueba, solo con app.seed.enabled=true
 ```
@@ -400,7 +403,6 @@ user ───────┘     catalog ───────┘
  ▲                               ▲
 auth ────────────────────────────┘
 
-notification   ← hoja: no depende de ningún feature de negocio
 common, config ← transversales: cualquiera puede usarlos, ellos no usan a nadie
 seed           ← solo con app.seed.enabled: fuera del grafo (ver excepción abajo)
 ```
@@ -408,13 +410,13 @@ seed           ← solo con app.seed.enabled: fuera del grafo (ver excepción ab
 - ❌ Un feature **nunca** importa un repository de otro feature: se habla con su `Service`.
 - ❌ No se permiten ciclos. Si aparece uno, se resuelve invirtiendo la dependencia o moviendo la lógica.
 - ✅ `auth` depende de `user`: el login y la activación leen y actualizan `User`, pero a través de los services de `user`, nunca de `UserRepository`.
-- ✅ `appointment` depende de `user` y de `notification`: al reservar o cancelar turnos busca el teléfono del cliente con `UserService.findPhone` y publica `NotificationRequestedEvent`, definido en `notification`. Ninguno de los dos depende de `appointment`, así que no hay ciclo.
-- ⚠️ **Excepción: el alta de empresa** (US-04.1). `CompanyService.create` crea en una sola transacción la empresa, su admin y el token de activación, así que `company` usa `UserService` (de `user`), `ActivationService` (de `auth`) y `NotificationService`. Como `auth` ya usa `CompanyService` en el login, entre `auth` y `company` queda un ciclo de paquetes. Se acepta porque no hay ciclo entre clases (`ActivationService` no depende de `CompanyService`) y porque evitarlo obligaría a mover el token de activación fuera de `auth`. Sigue valiendo que `company` no importa los repositories de esos features.
+- ✅ `appointment` depende de `user`: la lista de avisos de la baja lee el nombre y el teléfono de los clientes con `UserService.findClients`. `user` no depende de `appointment`, así que no hay ciclo.
+- ⚠️ **Excepción: el alta de empresa** (US-04.1). `CompanyService.create` crea en una sola transacción la empresa, su admin y el token de activación, así que `company` usa `UserService` (de `user`), `ActivationService` (de `auth`). Como `auth` ya usa `CompanyService` en el login, entre `auth` y `company` queda un ciclo de paquetes. Se acepta porque no hay ciclo entre clases (`ActivationService` no depende de `CompanyService`) y porque evitarlo obligaría a mover el token de activación fuera de `auth`. Sigue valiendo que `company` no importa los repositories de esos features.
 - ⚠️ **Otra excepción: el paquete `seed`** (T-02.4). Corre solo con `app.seed.enabled=true` y carga datos de prueba de varios features, así que puede usar sus repositories directamente. Nada de código de producción importa `seed`, y `seed` no expone nada para los demás features.
 
-### Los dos casos concretos que esta regla resuelve
+### El caso concreto que esta regla resuelve
 
-**1. ¿Dónde vive el cálculo de disponibilidad?**
+**¿Dónde vive el cálculo de disponibilidad?**
 
 Necesita dos cosas: la plantilla de atención (`schedule`) y los turnos ya ocupados (`appointment`). Puesto en `schedule`, genera el ciclo `schedule ↔ appointment`.
 
@@ -424,27 +426,6 @@ Necesita dos cosas: la plantilla de atención (`schedule`) y los turnos ya ocupa
 - `appointment` toma esos candidatos y les resta los turnos ocupados, la duración del servicio y la anticipación mínima.
 
 Cada módulo queda con una sola responsabilidad y el grafo sin ciclos.
-
-**2. ¿Cómo avisa `appointment` a `notification` sin depender de él?**
-
-No lo hace directamente. `appointment` publica un evento definido en `notification`, y `notification` lo escucha sin conocer a `appointment`:
-
-```java
-// en appointment/
-events.publishEvent(new NotificationRequestedEvent(appointmentId, userId, phone, eventType, message));
-
-// en notification/: guarda la fila en PENDING, en la misma transacción
-@EventListener
-@Transactional(propagation = MANDATORY)
-public void onNotificationRequested(NotificationRequestedEvent event) { ... }
-
-// en notification/: despacha después del commit
-@TransactionalEventListener(phase = AFTER_COMMIT)
-@Transactional(propagation = REQUIRES_NEW)
-public void onNotificationPending(NotificationPendingEvent event) { ... }
-```
-
-Así `notification` queda como hoja del grafo, y el "desacoplado" de la documentación deja de ser solo una intención de diseño para volverse una propiedad estructural verificable. El `AFTER_COMMIT` además garantiza que la llamada HTTP al proveedor no ocurra dentro de la transacción que tiene tomado el lock de la empresa.
 
 ## Aislamiento multi-tenant
 
@@ -624,8 +605,6 @@ Los datos de demo para la presentación (más empresas y turnos en distintos est
 
 - Linter (Checkstyle o similar). El formatter ya está: Spotless con palantir-java-format, en `mvn verify`.
 - Documentación de la API (Swagger / OpenAPI).
-- Proveedor de la API de WhatsApp Business.
 - Storage externo para los logos de empresa (`company.logoUrl`).
-- Frecuencia concreta del job de reintento de notificaciones. La purga de tokens corre todos los días a las 04:00 (`app.jobs.purge-tokens.cron`). El cierre de turnos ya quedó en cada 5 minutos: se cambia con `app.jobs.complete-appointments.cron`, y `app.jobs.enabled=false` apaga todos los jobs. A confirmar en el despliegue final (T-14.1): un job tan seguido podría impedir que Neon suspenda la base y consumir horas de cómputo. Todavía no se verificó contra el plan de Neon del proyecto; si hace falta, la frecuencia se ajusta con esa misma propiedad.
-- Mostrar el link de activación en la UI del superadmin mientras no exista el envío por WhatsApp. Hoy el alta de empresa y el reenvío solo lo escriben en el log, y quien prueba el despliegue sin acceso a Render no puede activar al admin de una empresa nueva. Propuesta: que `POST /api/superadmin/companies` y `POST .../resend-activation` devuelvan el link en la respuesta (solo mientras `NotificationService` sea el de log) y que el frontend lo muestre para copiarlo. PR aparte, back y front.
+- Frecuencia concreta de los jobs. La purga de tokens corre todos los días a las 04:00 (`app.jobs.purge-tokens.cron`). El cierre de turnos ya quedó en cada 5 minutos: se cambia con `app.jobs.complete-appointments.cron`, y `app.jobs.enabled=false` apaga todos los jobs. A confirmar en el despliegue final (T-14.1): un job tan seguido podría impedir que Neon suspenda la base y consumir horas de cómputo. Todavía no se verificó contra el plan de Neon del proyecto; si hace falta, la frecuencia se ajusta con esa misma propiedad.
 - Paginación del listado de empresas (`GET /api/superadmin/companies`). Por el tamaño del MVP devuelve todas juntas; se puede agregar después del MVP si la cantidad de empresas lo pide.

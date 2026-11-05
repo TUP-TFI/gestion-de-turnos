@@ -25,7 +25,7 @@ Para emparejar la carga de back entre los dos:
 | Ítem del roadmap | Nuevo responsable | Nota |
 | :--- | :--- | :--- |
 | US-05.6 — Excepción de calendario (back) | Brune | Ya tiene el front de esa historia. El conteo de turnos afectados se coordina con Nico. |
-| US-10.4 — Reintento de notificaciones | Brune | Usa `Notification`; casi no se cruza con el resto. |
+| US-10.4 — Reintento de notificaciones | — | Retirada del MVP: con Click to Chat no hay envíos que reintentar (ver Paso 10). |
 
 ## Decisiones de diseño
 
@@ -337,7 +337,7 @@ Dependencias: US-03.1 (el primer error real es el de login inválido).
 
 Listo cuando (del paso completo): el superadmin puede dar de alta una empresa nueva, ver su dashboard con datos reales, y ajustar los parámetros globales de la plataforma.
 
-> 📨 **El primer envío del sistema ocurre en este paso**, no en el 7: US-04.1 y US-04.8 disparan el link de activación. Hasta el Paso 10 el canal va **mockeado/logueado** — el link se imprime por consola y se copia a mano — pero la interfaz `NotificationService` ya se define acá, para que el Paso 7 solo tenga que sumarle eventos y el Paso 10 solo tenga que reemplazar el canal. La fila en `Notification` recién se empieza a persistir en US-07.5.
+> 📨 **El link de activación sale en este paso:** US-04.1 y US-04.8 se lo devuelven al superadmin, que se lo manda al admin por WhatsApp con Click to Chat (ver Paso 10). El sistema no lo envía ni lo escribe en el log, porque lleva el token.
 
 #### US-04.1 — Superadmin da de alta una empresa nueva
 Como superadmin, quiero completar un formulario con los datos de la empresa y del futuro admin, para crear la empresa y disparar la activación del admin.
@@ -346,12 +346,12 @@ Criterios de aceptación:
 - Al confirmar, se crean `Company` (`ACTIVE`) y `User` admin (`PENDING_ACTIVATION`) en una misma transacción — si algo falla, no queda ninguno de los dos creado.
 - El slug se genera automáticamente a partir del nombre, validando que no exista (agregando un sufijo si hace falta) y que no choque con la lista de slugs reservados.
 - El formulario incluye la **zona horaria** de la empresa (`timezone`, formato IANA), con `America/Argentina/Cordoba` como valor por defecto. Es obligatoria: sin ella, el cálculo de disponibilidad del Paso 5 toma la zona del proceso Java —que en Render es UTC— y ofrece turnos corridos tres horas.
-- Se dispara el link de activación al admin recién creado.
+- La respuesta del alta trae el link de activación y el teléfono del admin, para que el superadmin se lo mande por WhatsApp. El link no se escribe en el log.
 - El email del admin no puede existir como `COMPANY_ADMIN` en otra empresa ni como `SUPERADMIN` (ver *Decisiones de diseño* → email único global). Se valida en el backend, sin migración.
 - La URL pública `/{slug}` ya resuelve desde ese momento, mostrando el estado "todavía sin servicios cargados".
 
 Tareas técnicas:
-- Backend (Brune): endpoint transaccional de alta, generación de slug único, disparo del link de activación al admin recién creado (token único, expira en 48hs, enviado vía notification).
+- Backend (Brune): endpoint transaccional de alta, generación de slug único, link de activación del admin recién creado en la respuesta (token único, expira en 48hs).
 - Frontend (Nico): formulario de alta con datos de empresa + datos del admin.
 
 Dependencias: Paso 2 (`Company`), Paso 3 (`User`, activación).
@@ -391,11 +391,11 @@ Como superadmin, quiero desactivar una empresa, para dar de baja el negocio sin 
 Criterios de aceptación:
 - La empresa pasa a estado `INACTIVE` — el registro nunca se borra.
 - El login del admin de esa empresa queda bloqueado (derivado de `company.status` en el filtro de autenticación, sin tocar `User.status`). El bloqueo también corta la sesión que ya estaba abierta, la del admin y la de sus clientes: cualquier request con ese token responde `403 COMPANY_INACTIVE` en el acto, sin esperar a que el token venza.
-- Los turnos pendientes de esa empresa se cancelan automáticamente, notificando a cada cliente afectado.
+- Los turnos pendientes de esa empresa se cancelan automáticamente. El sistema no avisa solo: el superadmin ve la lista de los turnos cancelados que todavía no pasaron, con un link de WhatsApp por cliente (US-10.2).
 - La página pública de esa empresa deja de ofrecer reservas y muestra un estado de "no disponible".
 
 Tareas técnicas:
-- Backend (Brune): endpoint de desactivación con la cascada (cancelación de turnos pendientes + notificación).
+- Backend (Brune): endpoint de desactivación con la cascada (cancelación de turnos pendientes). La lista de avisos va en US-10.2.
 - Frontend (Nico): botón de desactivar con confirmación.
 
 Dependencias: US-04.1. La cascada de cancelación se puede escribir con esta historia, pero probarla con turnos reales necesita el Paso 7 — hay un pulido de este punto previsto en el Paso 11.
@@ -449,11 +449,11 @@ Como superadmin, quiero reenviar el link de activación a un admin que no lo us�
 
 Criterios de aceptación:
 - Disponible mientras el admin siga en estado `PENDING_ACTIVATION`.
-- Genera un nuevo token (invalidando el anterior) y dispara un nuevo envío por el mismo canal.
+- Genera un nuevo token (invalidando el anterior) y devuelve el link nuevo al superadmin, igual que el alta.
 - Un admin ya `ACTIVE` no tiene esta opción disponible.
 
 Tareas técnicas:
-- Backend (Brune): endpoint de reenvío (nuevo token, nuevo envío vía notification).
+- Backend (Brune): endpoint de reenvío (nuevo token, link en la respuesta).
 - Frontend (Nico): botón de reenvío desde el detalle de la empresa, visible solo si el admin sigue `PENDING_ACTIVATION`.
 
 Dependencias: US-04.1 (mismo mecanismo de token/envío).
@@ -708,19 +708,17 @@ Dependencias: ninguna directa — se puede desarrollar en paralelo con US-07.3.
 #### US-07.5 — Cliente recibe notificación al confirmarse la reserva
 Como cliente, quiero recibir una notificación por WhatsApp cuando mi turno queda confirmado, para tener un comprobante fuera del sistema.
 
+> 🔄 **Cambió con Click to Chat (Paso 10).** El sistema no envía mensajes: la reserva ya no publica eventos ni escribe filas en `Notification`. El aviso de confirmación lo manda el admin desde su panel (US-10.1).
+
 Criterios de aceptación:
-- Al guardarse el turno como `PENDING`, se dispara una notificación al `phone` del cliente.
+- Al guardarse el turno como `PENDING`, el sistema no envía nada ni escribe en `Notification`.
+- El admin puede avisarle la confirmación al cliente por WhatsApp desde su panel (US-10.1).
 - El mensaje es informativo, no requiere que el cliente responda ni confirme nada.
-- **Cada notificación se persiste como una fila en `Notification`** con su `eventType`, `channel`, `recipientPhone`, estado (`PENDING` → `SENT`/`FAILED`), `attemptCount` y `errorMessage`. La tabla ya existe desde el Paso 2 y hasta acá nadie escribía en ella.
-- `recipientPhone` se copia en la fila, no se lee por FK: el registro histórico tiene que reflejar a dónde se envió realmente, aunque el cliente cambie su teléfono después.
-- La fila se escribe en `PENDING` dentro de la transacción del turno: si el proceso se cae antes del envío, queda para el reintento del Paso 10. Un fallo al guardarla revierte la reserva. Si la transacción se revierte, no queda fila ni se envía nada.
-- Si el envío falla, el turno igual queda guardado y la notificación queda en `FAILED` para que el reintento del Paso 10 la levante.
 
 Tareas técnicas:
-- Backend (Nico): `appointment` publica `NotificationRequestedEvent` y `notification` lo atiende en dos fases: guarda la fila dentro de la transacción del turno y despacha por el canal con `@TransactionalEventListener(AFTER_COMMIT)` — así `notification` queda como hoja del grafo de dependencias (ver `backend/README.md`).
-- Backend (Nico): usar las mismas dos fases en el aviso de la cascada de US-04.4, para que `AppointmentService.cancelPendingByCompany` no envíe dentro de la transacción de la desactivación. Con el canal real del Paso 10, un rollback dejaría a los clientes avisados de una cancelación que no ocurrió, y un fallo de envío revertiría la desactivación de la empresa. Un fallo al guardar la fila sí la revierte. Surgió en la revisión de #52.
+- Backend (Nico): sacar de la reserva y de la cascada de US-04.4 la publicación de `NotificationRequestedEvent`, y quitar el paquete `notification`. La tabla queda sin uso, sin migración.
 
-Dependencias: el canal real de WhatsApp se integra recién en el Paso 10 — hasta entonces el despacho va mockeado/logueado, **pero la fila en `Notification` se escribe igual desde acá**.
+Dependencias: US-10.1.
 
 #### US-07.6 — Cliente ve su listado de "Mis turnos"
 Como cliente logueado en una empresa, quiero una pantalla con todos mis turnos de esa empresa, filtrable por estado, para tener en un solo lugar lo que reservé.
@@ -919,65 +917,56 @@ Dependencias: US-09.4 (comparten endpoint), Paso 3 (clientes registrados).
 
 ---
 
-### Paso 10 — Notificaciones (WhatsApp)
+### Paso 10 — Avisos por WhatsApp (Click to Chat)
 
-Este paso queda con **Nico**, que ya integró la API de WhatsApp Business en un proyecto anterior, salvo US-10.4 (reintento), que pasa a Brune para emparejar la carga de back. No tiene pantalla de frontend propia: mientras Nico integra, Brune aprovecha en paralelo para pulir UI/tests pendientes de pasos anteriores.
+Responsable: **Nico**. El canal es Click to Chat: un link `https://wa.me/<número>?text=<mensaje>` abre WhatsApp con el texto cargado, y una persona toca enviar. No hay proveedor, API ni costo. El sistema no envía mensajes ni sabe si salieron, así que tampoco hay estados ni reintentos: la tabla `notification` queda sin uso, sin migración.
 
-Listo cuando (del paso completo): los tres eventos (reserva, cancelación, reprogramación) disparan un mensaje real de WhatsApp al cliente, y un envío que falla se reintenta solo sin duplicar el mensaje.
+El back solo da los datos; el link lo arma el front (`lib/whatsappLink.ts`). El teléfono es texto libre y no se adivina el país: un número sin código de país puede abrir un chat equivocado.
 
-#### US-10.1 — Sistema envía notificación real por WhatsApp al confirmarse una reserva
-Como sistema, necesito enviar un mensaje real de WhatsApp al cliente cuando su turno queda confirmado (online o manual), para reemplazar el envío mockeado/logueado usado hasta ahora.
+Listo cuando (del paso completo): el admin avisa por WhatsApp desde su panel la confirmación, la cancelación y la reprogramación de cada turno, y el superadmin manda el link de activación y avisa los turnos cancelados por la baja de una empresa.
 
-Criterios de aceptación:
-- El mensaje llega al número de teléfono (`phone`) del cliente o del turno manual.
-- El proveedor de WhatsApp Business queda configurado.
-- Si el envío falla, el turno ya guardado no se ve afectado — no revierte la reserva.
-
-Tareas técnicas:
-- Backend (Nico): integración real con la API de WhatsApp Business en el `NotificationService`, reemplazando el mock.
-
-Dependencias: US-07.5, US-09.5, US-09.6 (ya disparan la notificación; acá solo falta que el canal sea real).
-
-#### US-10.2 — Sistema envía notificación real por WhatsApp al cancelar un turno
-Como sistema, necesito enviar un mensaje real de WhatsApp al cliente cuando su turno se cancela (por él mismo o por el admin), para avisarle del cambio.
+#### US-10.1 — Admin avisa por WhatsApp la confirmación de un turno
+Como admin, quiero un botón en cada turno que abra WhatsApp con el mensaje armado, para avisarle al cliente que su turno quedó confirmado.
 
 Criterios de aceptación:
-- Se dispara tanto si cancela el cliente (US-08.1) como si cancela el admin (US-09.3).
-- El mensaje llega al `phone` del cliente, si tiene forma de recibirlo.
+- "Avisar por WhatsApp" en cada turno `PENDING` de la agenda, con el teléfono del cliente o del turno manual.
+- El mensaje trae el servicio y la fecha y hora en la zona de la empresa.
+- Sin teléfono válido, el turno lo indica y no muestra el botón.
+- El sistema no registra el clic: si el admin no toca el link, el cliente no se entera.
 
 Tareas técnicas:
-- Backend (Nico): reutiliza la integración de US-10.1, disparada desde los eventos de cancelación.
+- Frontend (Nico): `lib/whatsappLink.ts` y el botón en la agenda (US-09.2). Usa `timezone` de `GET /api/company/branding` (D6 en `contratos-api.md`).
 
-Dependencias: US-10.1, US-08.1, US-09.3.
+Dependencias: US-09.2.
 
-#### US-10.3 — Sistema envía notificación real por WhatsApp al reprogramar un turno
-Como sistema, necesito enviar un mensaje real de WhatsApp al cliente cuando su turno se reprograma, para avisarle de la nueva fecha.
+#### US-10.2 — Admin y superadmin avisan por WhatsApp una cancelación
+Como admin o superadmin, quiero avisarle al cliente que su turno se canceló, para que no se presente.
 
 Criterios de aceptación:
-- Se dispara al confirmarse la reprogramación (US-08.2).
-- El mensaje incluye la nueva fecha/hora.
+- Un turno `CANCELLED` de la agenda tiene "Avisar por WhatsApp", con el motivo en el mensaje.
+- Al desactivar una empresa (US-04.4), el superadmin ve la lista de los turnos cancelados por la baja que todavía no pasaron, con un link por cliente. La lista no registra a quién ya se avisó.
+- La cancelación del cliente (US-08.1) no avisa al admin: queda fuera del MVP.
 
 Tareas técnicas:
-- Backend (Nico): reutiliza la integración de US-10.1, disparada desde el evento de reprogramación.
+- Backend (Nico): `GET /api/superadmin/companies/{id}/cancellation-notices` en `appointment`, con `timezone` y una fila por turno (cliente, teléfono, servicio y fecha).
+- Frontend (Nico): la lista del superadmin y el botón de la agenda.
+
+Dependencias: US-04.4, US-09.2, US-09.3.
+
+#### US-10.3 — Admin avisa por WhatsApp una reprogramación
+Como admin, quiero avisarle al cliente la nueva fecha de su turno reprogramado, para que no se presente en la anterior.
+
+Criterios de aceptación:
+- Un turno `PENDING` con `rescheduleCount > 0` arma el mensaje de reprogramación, con la fecha nueva.
+
+Tareas técnicas:
+- Frontend (Nico): el mismo botón de US-10.1, con el mensaje de reprogramación.
 
 Dependencias: US-10.1, US-08.2.
 
 #### US-10.4 — Sistema reintenta los envíos fallidos sin duplicar mensajes
-Como sistema, necesito reprocesar las notificaciones que quedaron en `PENDING` o `FAILED`, para que un timeout del proveedor no deje a un cliente sin aviso ni le mande el mensaje dos veces.
 
-Con el canal mockeado esto no se podía probar —un mock nunca falla—, así que la historia entra acá, junto con la integración real.
-
-Criterios de aceptación:
-- Un job programado levanta las `Notification` en `PENDING`/`FAILED`, reintenta el envío e incrementa `attemptCount`.
-- Una notificación en `SENT` **nunca** se reenvía: el estado es el que garantiza la idempotencia.
-- Un envío exitoso sella `sentAt`; uno fallido guarda el `errorMessage` del proveedor.
-- Se define un tope de intentos a partir del cual la notificación se deja de reintentar y queda visible como fallida.
-- El caso que justifica todo esto es el de la [regla 7](negocio/reglas-negocio.md): al desactivar una empresa se cancelan N turnos y se notifica a N clientes; si el proceso se corta a la mitad, el reintento tiene que tomar solo las que quedaron pendientes.
-
-Tareas técnicas:
-- Backend (Brune): job `@Scheduled` de reintento, con su test. *(Reasignada de Nico.)*
-
-Dependencias: US-07.5 (la fila de `Notification` ya se persiste desde el Paso 7), US-10.1 (canal real que efectivamente puede fallar).
+> ❌ **Retirada del MVP, acordado con Brune.** Con Click to Chat el sistema no envía mensajes, así que no hay envíos fallidos para reintentar. Sin job, sin migración `V2` y sin columna `message` (D7 retirada en `contratos-api.md`).
 
 ---
 

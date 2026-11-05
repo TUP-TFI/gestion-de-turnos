@@ -12,7 +12,7 @@ A continuación se detallan las herramientas, marcos de trabajo e infraestructur
 | **ORM** | **Spring Data JPA / Hibernate** | Abstracción para el manejo de entidades y soporte de *locking* pesimista para evitar carreras de condición (*race conditions*) en reservas concurrentes. |
 | **Migraciones** | **Flyway** | El esquema es la fuente de verdad y se versiona en SQL (`V<n>__<descripcion>.sql`). Ver justificación abajo. |
 | **Autenticación** | **JWT (Spring Security)** | Dos JWT *stateless* independientes: uno para el panel de sistema (`SUPERADMIN` / `COMPANY_ADMIN`) y uno por sesión de cliente, atado a una `companyId` puntual. |
-| **Notificaciones** | **NotificationService** *(Desacoplado)* | Canal objetivo: WhatsApp (proveedor a definir). Si no se llega a implementar a tiempo, se reemplaza por mail — es una decisión de proyecto, no un fallback en tiempo real. Cada envío se persiste con su estado para permitir reintentos idempotentes. |
+| **Avisos** | **WhatsApp Click to Chat** | Un link `wa.me` abre WhatsApp con el mensaje armado, y una persona lo envía. Sin proveedor, API ni costo. El sistema no envía mensajes ni guarda su estado. |
 | **Deploy Backend** | **Render** *(Free Tier)* | Plataforma de despliegue gratuita adecuada para el alcance de la tesis. |
 | **Deploy Frontend** | **Vercel** | Despliegue continuo de alto rendimiento y sin complicaciones de configuración para la escala del proyecto. |
 | **CI/CD** | **GitHub Actions** | Automatización de flujos de trabajo para la ejecución de tests automáticos en cada *Pull Request*. |
@@ -98,34 +98,28 @@ Detalle completo en [esquema-bd.md §4](esquema-bd.md#4-aislamiento-multi-tenant
 * Contraseñas: hash (nunca en texto plano).
 * Tokens de activación y recuperación: se persiste **el hash**, no el valor en claro. El valor en claro existe una sola vez, al armar el link.
 
-### 🔔 Servicio de Notificaciones
+### 🔔 Avisos por WhatsApp
 
 ```text
-[ Evento: Reserva / Cancelación / Reprogramación / Activación ]
-               │
-               │  (después del COMMIT de la transacción del turno)
-               ▼
-   NotificationService (desacoplado del canal)
-               │
-               ├──► INSERT en `notification` (status = PENDING)
+[ Turno confirmado / cancelado / reprogramado, alta de empresa ]
                │
                ▼
-          [ WhatsApp ]  ──► SENT  (sent_at)
-        (canal objetivo)  └─► FAILED (error_message, attempt_count++)
-                                │
-                                └──► reintento idempotente
+   back: datos del aviso (teléfono, servicio, fecha, zona; o link de activación)
+               │
+               ▼
+   front: arma https://wa.me/<número>?text=<mensaje>
+               │
+               ▼
+   admin o superadmin toca el link ──► WhatsApp ──► la persona envía
 ```
 
-Se emite **después** del commit: una llamada HTTP a un servicio externo dentro de la transacción mantendría tomado el lock de la empresa durante toda la latencia de red, serializando las reservas del negocio detrás del proveedor.
-
-Persistir cada envío es lo que hace posible reintentar sin duplicar — crítico en la cancelación masiva que dispara la desactivación de una empresa.
+El sistema no envía mensajes ni sabe si salieron: no hay estados, reintentos ni llamadas a un proveedor dentro de la transacción del turno. La tabla `notification` queda sin uso, sin migración.
 
 ### ⏰ Trabajos programados
 
 | Job | Qué hace | Frecuencia orientativa |
 | :--- | :--- | :--- |
 | Cierre de turnos | Pasa a `COMPLETED` los turnos `PENDING` cuyo `endDateTime` ya pasó | cada 15 min |
-| Reintento de notificaciones | Reprocesa las `notification` en `PENDING`/`FAILED` | cada 5 min |
 | Purga de tokens | Elimina los `user_token` vencidos y ya usados | diaria |
 
 ### 🚀 Infraestructura & Integración Continua (DevOps)

@@ -3,7 +3,6 @@ package com.grupo140.turnos.company;
 import com.grupo140.turnos.auth.ActivationService;
 import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.common.security.CompanyStatusChecker;
-import com.grupo140.turnos.notification.NotificationService;
 import com.grupo140.turnos.user.CompanyAdmin;
 import com.grupo140.turnos.user.UserService;
 import com.grupo140.turnos.user.UserStatus;
@@ -26,7 +25,6 @@ public class CompanyService implements CompanyStatusChecker {
     private final SlugGenerator slugGenerator;
     private final UserService userService;
     private final ActivationService activationService;
-    private final NotificationService notificationService;
     private final ApplicationEventPublisher events;
     private final String frontendUrl;
 
@@ -35,14 +33,12 @@ public class CompanyService implements CompanyStatusChecker {
             SlugGenerator slugGenerator,
             UserService userService,
             ActivationService activationService,
-            NotificationService notificationService,
             ApplicationEventPublisher events,
             @Value("${app.frontend-url}") String frontendUrl) {
         this.companyRepository = companyRepository;
         this.slugGenerator = slugGenerator;
         this.userService = userService;
         this.activationService = activationService;
-        this.notificationService = notificationService;
         this.events = events;
         this.frontendUrl = frontendUrl;
     }
@@ -124,12 +120,13 @@ public class CompanyService implements CompanyStatusChecker {
 
     /**
      * Alta de empresa (US-04.1): crea la empresa, su admin pendiente de activación y el token del link,
-     * todo en una sola transacción. Si algo falla, no queda nada guardado.
+     * todo en una sola transacción. Si algo falla, no queda nada guardado. Devuelve el link de activación para que el
+     * superadmin se lo mande al admin por WhatsApp: no se escribe en el log.
      *
      * @throws ApiException {@code EMAIL_ALREADY_IN_USE} (409) o {@code VALIDATION_ERROR} (400).
      */
     @Transactional
-    public CompanyResponse create(CreateCompanyRequest request) {
+    public CreatedCompanyResponse create(CreateCompanyRequest request) {
         CreateCompanyRequest.CompanyData data = request.company();
         CreateCompanyRequest.AdminData admin = request.admin();
 
@@ -146,14 +143,14 @@ public class CompanyService implements CompanyStatusChecker {
         UUID adminId = userService.createPendingAdmin(
                 company.getId(), admin.firstName(), admin.lastName(), admin.email(), admin.phone());
         String token = activationService.createActivationToken(adminId);
-        notificationService.sendActivationLink(admin.phone(), activationLink(token));
 
-        return CompanyResponse.from(company);
+        return new CreatedCompanyResponse(
+                CompanyResponse.from(company), new ActivationLinkResponse(activationLink(token), admin.phone()));
     }
 
     /**
      * Reenvío del link de activación al admin que todavía no activó su cuenta (US-04.8). El link anterior
-     * deja de servir.
+     * deja de servir. Devuelve el link nuevo, igual que el alta.
      *
      * <p>Bloquea la fila del admin mientras renueva el token, para que dos reenvíos simultáneos no dejen
      * dos links vigentes.
@@ -162,7 +159,7 @@ public class CompanyService implements CompanyStatusChecker {
      *     {@code ADMIN_ALREADY_ACTIVE} (409).
      */
     @Transactional
-    public void resendActivation(UUID id) {
+    public ActivationLinkResponse resendActivation(UUID id) {
         findOrThrow(id);
         CompanyAdmin admin = userService
                 .lockCompanyAdmin(id)
@@ -173,7 +170,7 @@ public class CompanyService implements CompanyStatusChecker {
         }
 
         String token = activationService.renewActivationToken(admin.id());
-        notificationService.sendActivationLink(admin.phone(), activationLink(token));
+        return new ActivationLinkResponse(activationLink(token), admin.phone());
     }
 
     /** Listado de todas las empresas para el superadmin, ordenado por nombre (US-04.2). */

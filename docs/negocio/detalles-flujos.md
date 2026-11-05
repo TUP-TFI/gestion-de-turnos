@@ -13,7 +13,7 @@ El admin de empresa **no se autoregistra**: su cuenta la crea el superadmin al d
 
 Al abrirlo, el admin ve un formulario de "definí tu contraseña"; al confirmarla, el `User` pasa de `PENDING_ACTIVATION` a `ACTIVE`, el token se sella con `usedAt` (garantizando el uso único) y ya puede loguearse normalmente. Si el token vence sin usarse, el superadmin puede reenviarlo desde el detalle de la empresa: eso invalida los tokens de activación anteriores de ese usuario y emite uno nuevo.
 
-El mismo mecanismo, con `type = PASSWORD_RESET` y vencimiento de 1 hora, cubre el flujo de "olvidé mi contraseña" que el propio usuario dispara desde el login. Se envía por el mismo canal definido para las notificaciones (ver 7.6).
+El mismo mecanismo, con `type = PASSWORD_RESET` y vencimiento de 1 hora, cubre el flujo de "olvidé mi contraseña" que el propio usuario dispara desde el login. Se manda por el mismo canal definido para los avisos (ver 7.6).
 
 **Login/registro por empresa** (dentro de `plataforma.com/{slug}`): exclusivo para el cliente que quiere sacar un turno en esa empresa — no lo usa nadie del lado del negocio. El cliente se registra o inicia sesión con email y contraseña, siempre en el contexto de esa empresa puntual. El JWT que recibe incluye `companyId` fijo a esa empresa — ese token solo sirve para operar dentro de esa página pública. Si el mismo email ya está registrado como cliente de otra empresa, no hay conflicto: son cuentas independientes, la unicidad de email es por empresa, no global.
 
@@ -50,7 +50,7 @@ No hace falta que el superadmin vea el detalle de cada turno — el conteo alcan
 #### CRUD de empresas, en detalle
 
 - **Alta (Create):** un formulario con los datos de la empresa (nombre, descripción, dirección, teléfono, email de contacto, rubro, zona horaria, logo) y los datos del futuro admin (nombre, apellido, email, teléfono). Al confirmar, en una sola transacción: se genera el slug a partir del nombre (validando que no exista ni colisione con una ruta reservada, agregando un sufijo si hace falta), se crea `Company` en estado `ACTIVE`, se crea el `User` admin en estado `PENDING_ACTIVATION` —sin contraseña todavía—, y se dispara el link de activación (ver 7.1). La URL pública `plataforma.com/{slug}` ya resuelve desde ese momento, mostrando el estado de "todavía sin servicios cargados".
-- **Baja (Delete lógico):** desactivar la empresa (`status = INACTIVE`), nunca eliminar el registro. Esto dispara: se bloquea el login del admin, la página pública deja de mostrar servicios/reserva y en su lugar informa que el negocio no está disponible por este medio, y los turnos pendientes se cancelan automáticamente notificando a cada cliente afectado. El historial (turnos pasados) se conserva por si la empresa se reactiva más adelante.
+- **Baja (Delete lógico):** desactivar la empresa (`status = INACTIVE`), nunca eliminar el registro. Esto dispara: se bloquea el login del admin, la página pública deja de mostrar servicios/reserva y en su lugar informa que el negocio no está disponible por este medio, y los turnos pendientes se cancelan automáticamente. El superadmin ve la lista de los turnos cancelados que todavía no pasaron, y avisa a cada cliente por WhatsApp (ver 7.6). El historial (turnos pasados) se conserva por si la empresa se reactiva más adelante.
 - **Reactivación:** desde el mismo listado, un botón inverso vuelve la empresa a `ACTIVE` y reactiva el login del admin. Como servicios y horarios no se borran al desactivar, la página pública queda funcionando de nuevo sin que el admin tenga que volver a cargar nada — salvo los turnos que se cancelaron durante la baja, que quedan cancelados.
 - **Edición (Update):** campos editables sin mayor riesgo: nombre, descripción, dirección, teléfono, email de contacto, logo, rubro, zona horaria. El slug (URL pública) **no** se hace editable desde este formulario — cambiarlo rompe cualquier link ya compartido; si en algún momento hace falta cambiarlo, que sea una acción aparte y explícita.
 - **Consulta (Read):** vista simple con los datos de la empresa y un link directo a "Ver página pública".
@@ -80,7 +80,7 @@ Al loguearse ve `/company/dashboard`, con navegación a: Dashboard, Servicios, H
 
 #### CRUD de Servicios y baja con turnos pendientes
 
-Al desactivar un servicio, si tiene turnos futuros asociados, la opción más simple es la mejor: el servicio deja de estar disponible para nuevas reservas, pero los turnos ya reservados no se tocan — se atienden con normalidad, como si el servicio siguiera activo para esos casos puntuales. Esto evita disparar una notificación masiva a cada cliente avisando que "su servicio fue dado de baja", porque nadie pierde su turno. Si el admin específicamente quiere cancelar esos turnos, lo hace como una acción aparte, turno por turno, desde el turnero — no como consecuencia automática de dar de baja el servicio. Igual tiene sentido un `confirm` antes de desactivar, mostrando cuántos turnos futuros tiene ese servicio.
+Al desactivar un servicio, si tiene turnos futuros asociados, la opción más simple es la mejor: el servicio deja de estar disponible para nuevas reservas, pero los turnos ya reservados no se tocan — se atienden con normalidad, como si el servicio siguiera activo para esos casos puntuales. Esto evita tener que avisar a cada cliente avisando que "su servicio fue dado de baja", porque nadie pierde su turno. Si el admin específicamente quiere cancelar esos turnos, lo hace como una acción aparte, turno por turno, desde el turnero — no como consecuencia automática de dar de baja el servicio. Igual tiene sentido un `confirm` antes de desactivar, mostrando cuántos turnos futuros tiene ese servicio.
 
 > **Editar precio o duración de un servicio tampoco toca los turnos ya reservados.** Cada turno guarda su propia copia del precio y la duración con que fue reservado. Sin esa copia, subir la duración de "Corte" de 30 a 60 minutos alargaría retroactivamente todos los turnos de "Corte" ya agendados y los haría superponerse entre sí: la agenda se rompería sola, sin que nadie hubiera tocado un turno.
 
@@ -146,7 +146,7 @@ Es una vista parecida a la del cliente (mismo selector de servicio/horario). Ant
 
 En ambos casos el turno queda marcado con `origin = MANUAL`, y el turnero permite filtrar por eso. Sin ese campo, un turno manual vinculado a una cuenta existente sería indistinguible de uno que reservó el propio cliente.
 
-Al guardar, se dispara la misma notificación de confirmación que en una reserva online. **La cancelación de un turno sin cuenta vinculada se hace desde acá, desde el turnero del panel.**
+Al guardar, el admin puede avisar la confirmación por WhatsApp, igual que en una reserva online (ver 7.6). **La cancelación de un turno sin cuenta vinculada se hace desde acá, desde el turnero del panel.**
 
 > **Problema detectado:** si el turno queda sin cuenta vinculada (cliente sin cuenta en la plataforma), esa persona no puede entrar a "Mis turnos" para cancelarlo por su cuenta.
 >
@@ -171,7 +171,7 @@ La página pública (`plataforma.com/{slug}`) es visible sin login: cualquiera v
 3. Elige un horario disponible.
 4. Si no está logueado como cliente de esa empresa, se le pide login/registro (propio de ese `{slug}`) antes de confirmar.
 5. Confirma la reserva en un modal de verificación.
-6. El turno se guarda y aparece en "Mis turnos". Se dispara la notificación de confirmación.
+6. El turno se guarda y aparece en "Mis turnos". El admin puede avisar la confirmación por WhatsApp desde su panel (ver 7.6).
 
 **Qué pasa exactamente en el paso 6**, dentro de una única transacción:
 
@@ -181,18 +181,12 @@ La página pública (`plataforma.com/{slug}`) es visible sin login: cualquiera v
 3. valida contra BusinessHours / ScheduleException
 4. valida superposición por rango contra los turnos de esa empresa
 5. INSERT del turno, copiando precio y duración del servicio
-6. INSERT de la notificación en estado PENDING
-7. COMMIT                                          -- recién acá se libera el lock
-8. (después del commit) se envía la notificación y queda en SENT o FAILED
+6. COMMIT                                          -- recién acá se libera el lock
 ```
 
 > **Por qué se bloquea la fila de `company` y no otra cosa:** el turno que se quiere crear todavía no existe, así que no hay una fila propia para bloquear. Sin un objeto de bloqueo explícito, dos personas reservando el mismo horario al mismo tiempo leerían ambas "está libre" e insertarían las dos. Bloquear la empresa serializa las reservas de ese negocio — que es exactamente el grano que hace falta — sin frenar a las demás empresas de la plataforma.
 >
 > Como red de seguridad, la base declara además una constraint de exclusión que impide físicamente dos turnos superpuestos en la misma empresa. El lock da el mensaje de error claro; la constraint garantiza que ningún camino del código pueda romper la invariante.
-
-> **Por qué el envío va después del commit:** llamar a la API de WhatsApp dentro de la transacción mantendría tomado el lock de la empresa durante toda la latencia de la red. Un proveedor lento serializaría las reservas de todo el negocio detrás suyo.
->
-> **Por qué la fila de la notificación va dentro de la transacción:** si el proceso se cae entre el commit y el envío, la fila queda en `PENDING` y se puede reintentar; si se escribiera después del commit, el aviso se perdería sin dejar rastro. A cambio, un fallo al guardar la fila revierte la reserva. Si la transacción se revierte, no queda fila ni se envía nada.
 
 ---
 
@@ -210,25 +204,18 @@ La página pública (`plataforma.com/{slug}`) es visible sin login: cualquiera v
 
 ---
 
-### 7.6 Notificaciones
+### 7.6 Avisos por WhatsApp
 
-La idea de "desacoplado" es esta: el código que reserva/cancela/reprograma un turno no sabe ni le importa por qué canal se avisa al cliente. Cuando pasa uno de esos eventos, simplemente le dice al `NotificationService` "avisale al cliente X que pasó Y con su turno Z", y es el `NotificationService` el que decide cómo armar y mandar ese mensaje. Si mañana cambia el canal, no hace falta tocar la lógica de reservas — solo el servicio de notificaciones.
+El canal es **Click to Chat**: un link `https://wa.me/<número>?text=<mensaje>` abre WhatsApp con el texto cargado, y una persona toca enviar. No hay proveedor, API ni costo. El sistema no envía mensajes ni sabe si salieron, así que no guarda estados ni reintenta: la tabla `Notification` queda sin uso.
 
-**Eventos que disparan una notificación:**
-- Reserva confirmada (online o cargada manualmente por el admin).
-- Cancelación (por cliente o por admin).
-- Reprogramación (nueva fecha confirmada).
-- Activación de cuenta y recuperación de contraseña (links con token, ver 7.1).
+El back solo da los datos (teléfono, servicio, fecha y zona de la empresa), y el front arma el link.
 
-**Canal:** el objetivo es WhatsApp (vía alguna API de WhatsApp Business — proveedor aún sin definir). Es una decisión de proyecto, no un fallback en tiempo real: si llegado el momento no da el tiempo o la complejidad para integrar WhatsApp, se implementa el mismo `NotificationService` mandando por mail en su lugar. No se contempla tener ambos canales activos con reintento automático — eso implicaría implementar las dos integraciones más una lógica de detección de fallos, fuera del alcance definido.
+**Quién avisa y cuándo:**
+- **Admin, desde su panel:** "Avisar por WhatsApp" en cada turno de la agenda. El mensaje cambia según el turno: confirmado, reprogramado (con la fecha nueva) o cancelado (con el motivo).
+- **Superadmin, al desactivar una empresa:** ve la lista de los turnos cancelados por la baja que todavía no pasaron, con un link por cliente. La lista no registra a quién ya se avisó.
+- **Superadmin, al dar de alta una empresa o reenviar la activación:** manda el link de activación al admin. El link lleva el token: solo lo recibe el superadmin, y no se escribe en el log.
 
-**Cada notificación se persiste** en la tabla `Notification`, con su tipo de evento, canal, destinatario, estado (`PENDING`/`SENT`/`FAILED`), cantidad de intentos y el error del proveedor si lo hubo. El motivo es concreto: el canal es una API externa, y sin registro un timeout deja al sistema sin saber si el mensaje salió, sin poder reintentar y sin poder evitar un envío duplicado.
-
-El caso más sensible es la desactivación de una empresa: se cancelan N turnos y hay que avisarle a N clientes. Si ese proceso se corta a la mitad, con el registro se reintenta solo sobre las que quedaron en `FAILED`/`PENDING`, sin volver a molestar a quien ya recibió el aviso. Sin el registro, la única opción sería reenviarle a todos.
-
-Además, para la defensa del trabajo, es lo que permite **mostrar** que el flujo de notificaciones funciona, en lugar de afirmarlo.
-
-**Momento del registro y del envío:** la fila se escribe en `PENDING` dentro de la transacción del turno. El envío ocurre siempre después de confirmada esa transacción (`@TransactionalEventListener(AFTER_COMMIT)`), nunca dentro de ella. Ver la explicación en 7.4.
+**Límites:** si nadie toca el link, el cliente no se entera. El teléfono es texto libre: un número sin código de país puede abrir un chat equivocado, y el sistema no adivina el país. La cancelación del cliente no se le avisa al admin.
 
 ---
 

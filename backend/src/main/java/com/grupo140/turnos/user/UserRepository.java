@@ -1,6 +1,7 @@
 package com.grupo140.turnos.user;
 
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,6 +29,8 @@ public interface UserRepository extends Repository<User, UUID> {
     User saveAndFlush(User user);
 
     Optional<User> findByIdAndCompanyId(UUID id, UUID companyId);
+
+    List<User> findAllByCompanyIdAndIdIn(UUID companyId, Collection<UUID> ids);
 
     // Admin de una empresa. Cada empresa tiene uno solo: lo crea el alta (US-04.1). Si hubiera más de uno
     // por un dato inconsistente, se toma el más antiguo en lugar de fallar con un 500.

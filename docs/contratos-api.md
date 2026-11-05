@@ -142,8 +142,10 @@ El panel muestra los turnos en hora local de la empresa. `GET /api/company/brand
 - **Límite del sistema:** no envía mensajes ni sabe si salieron.
 - **Quién avisa:** el admin, desde su panel. El superadmin avisa la cascada de una empresa desactivada desde una lista.
 - **Paso 8:** no publica `NotificationRequestedEvent`.
-- **Endpoints:** este documento no agrega ninguno. Los define el plan de implementación.
-- **Código actual:** `notification` sigue en `main` hasta el PR que lo quite.
+- **Endpoints:**
+  - `POST /api/superadmin/companies` (alta) responde `201` con los campos de siempre, más `activationLink` y `adminPhone`. `POST /api/superadmin/companies/{id}/resend-activation` pasa de `204` a `200` con `{ activationLink, adminPhone }`.
+  - `GET /api/superadmin/companies/{id}/cancellation-notices` responde `200` con `{ timezone, notices: [{ appointmentId, clientName, phone, serviceName, startDateTime }] }`: los turnos cancelados por la baja con fecha futura, ordenados por fecha. `phone` puede ser `null`. Error propio: `404 COMPANY_NOT_FOUND`.
+- **Código actual:** `notification` ya no se usa: la tabla queda sin uso, sin migración.
 
 ## Contratos internos
 

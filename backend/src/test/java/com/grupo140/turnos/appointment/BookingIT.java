@@ -3,10 +3,6 @@ package com.grupo140.turnos.appointment;
 import static com.grupo140.turnos.seed.SeedTestValues.DEV_PASSWORD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -15,9 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.grupo140.turnos.TestcontainersConfiguration;
 import com.grupo140.turnos.common.error.ApiError;
 import com.grupo140.turnos.common.error.GlobalExceptionHandler;
-import com.grupo140.turnos.notification.NotificationEventType;
-import com.grupo140.turnos.notification.NotificationRequestedEvent;
-import com.grupo140.turnos.notification.NotificationService;
 import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -41,22 +34,19 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Reserva de un turno (US-07.3, US-07.4 y US-07.5) de punta a punta, con los clientes del seed de Barbería Central.
+ * Reserva de un turno (US-07.3 y US-07.4) de punta a punta, con los clientes del seed de Barbería Central.
  *
- * <p>Sin {@code @Transactional}: el lock, la constraint y el aviso después del commit solo se prueban con
+ * <p>Sin {@code @Transactional}: el lock y la constraint solo se prueban con
  * transacciones reales. Por eso cada test limpia lo que deja en {@link #cleanUp()}.
  */
 @SpringBootTest(properties = "app.seed.enabled=true")
@@ -78,15 +68,6 @@ class BookingIT {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    @Autowired
-    private TransactionTemplate transactionTemplate;
-
-    @Autowired
-    private ApplicationEventPublisher events;
-
-    @MockitoSpyBean
-    private NotificationService notificationService;
-
     private String clientToken;
     private UUID clientId;
     private UUID companyId;
@@ -103,14 +84,11 @@ class BookingIT {
 
     @AfterEach
     void cleanUp() {
-        jdbcTemplate.update(
-                "delete from notification where appointment_id in (select id from appointment where company_id = ?)",
-                companyId);
         jdbcTemplate.update("delete from appointment where company_id = ?", companyId);
     }
 
     @Test
-    void bookingCreatesPendingAppointmentWithSnapshotsAndSentNotification() throws Exception {
+    void bookingCreatesPendingAppointmentWithSnapshotsAndNoNotification() throws Exception {
         Instant start = nextBusinessDayAt(LocalTime.of(10, 0));
 
         String body = book(clientToken, serviceId, start)
@@ -132,72 +110,8 @@ class BookingIT {
                 jdbcTemplate.queryForMap("select client_id, origin from appointment where id = ?", appointmentId);
         assertThat(appointment).containsEntry("client_id", clientId).containsEntry("origin", "ONLINE");
 
-        String clientPhone =
-                jdbcTemplate.queryForObject("select phone from app_user where id = ?", String.class, clientId);
-        assertThat(notificationOf(appointmentId))
-                .containsEntry("event_type", "BOOKING_CONFIRMED")
-                .containsEntry("channel", "WHATSAPP")
-                .containsEntry("status", "SENT")
-                .containsEntry("attempt_count", 1)
-                .containsEntry("recipient_phone", clientPhone)
-                .containsEntry("user_id", clientId);
-        assertThat(notificationOf(appointmentId).get("sent_at")).isNotNull();
-    }
-
-    @Test
-    void failedDispatchKeepsAppointmentAndLeavesNotificationFailed() throws Exception {
-        doThrow(new IllegalStateException("El proveedor no responde"))
-                .when(notificationService)
-                .dispatch(any(), any());
-
-        String body = book(clientToken, serviceId, nextBusinessDayAt(LocalTime.of(10, 0)))
-                .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        assertThat(notificationOf(UUID.fromString(JsonPath.read(body, "$.id"))))
-                .containsEntry("status", "FAILED")
-                .containsEntry("attempt_count", 1)
-                .containsEntry("error_message", "El proveedor no responde")
-                .containsEntry("sent_at", null);
-    }
-
-    // Un Error no lo atrapa el listener y revierte solo la transacción del envío, igual que si el proceso se cortara
-    // antes de despachar: la fila confirmada con la reserva sigue en PENDING para el reintento de US-10.4.
-    @Test
-    void pendingNotificationSurvivesWhenDispatchDoesNotFinish() throws Exception {
-        doThrow(new Error("El proceso se cortó")).when(notificationService).dispatch(any(), any());
-
-        String body = book(clientToken, serviceId, nextBusinessDayAt(LocalTime.of(10, 0)))
-                .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        assertThat(notificationOf(UUID.fromString(JsonPath.read(body, "$.id"))))
-                .containsEntry("status", "PENDING")
-                .containsEntry("attempt_count", 0)
-                .containsEntry("sent_at", null);
-    }
-
-    @Test
-    void rolledBackTransactionLeavesNoNotificationAndDispatchesNothing() {
-        Instant start = nextBusinessDayAt(LocalTime.of(10, 0));
-        UUID appointmentId = transactionTemplate.execute(status -> {
-            UUID id = appointmentRepository.saveAndFlush(appointmentAt(start)).getId();
-            events.publishEvent(new NotificationRequestedEvent(
-                    id, clientId, "+5493510000001", NotificationEventType.BOOKING_CONFIRMED, "Aviso de prueba"));
-            // Dentro de la transacción, la fila ya existe en PENDING.
-            assertThat(notificationOf(id)).containsEntry("status", "PENDING").containsEntry("attempt_count", 0);
-            status.setRollbackOnly();
-            return id;
-        });
-
-        assertThat(jdbcTemplate.queryForObject(
-                        "select count(*) from notification where appointment_id = ?", Long.class, appointmentId))
-                .isZero();
-        verify(notificationService, never()).dispatch(any(), any());
+        // El sistema no avisa: el admin manda el WhatsApp desde su panel. La tabla notification queda sin uso.
+        assertThat(notificationCount(appointmentId)).isZero();
     }
 
     @Test
@@ -330,11 +244,9 @@ class BookingIT {
         return appointment;
     }
 
-    private Map<String, Object> notificationOf(UUID appointmentId) {
-        return jdbcTemplate.queryForMap(
-                "select event_type, channel, status, attempt_count, recipient_phone, user_id, sent_at, error_message"
-                        + " from notification where appointment_id = ?",
-                appointmentId);
+    private long notificationCount(UUID appointmentId) {
+        return jdbcTemplate.queryForObject(
+                "select count(*) from notification where appointment_id = ?", Long.class, appointmentId);
     }
 
     // Próximo día hábil del seed, a más de un día: el domingo está cerrado y los demás días abren a la mañana.

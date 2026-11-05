@@ -62,13 +62,19 @@ export const MUTED_TEXT_CLASSES = 'text-sm text-muted'
 export const COMPANY_BAND_CLASSES =
   'bg-(--company-accent) text-(--company-on-accent)'
 
-// Botones sobre la banda: transparentes, con el color de texto que ya contrasta con el de la empresa.
-export const COMPANY_BAND_BUTTON_CLASSES =
-  'inline-flex h-8 cursor-pointer items-center justify-center rounded-lg border border-(--company-on-accent) bg-transparent px-3 text-sm font-semibold text-(--company-on-accent) focus:outline-none focus:ring-2 focus:ring-(--company-on-accent)'
+// Botones sobre la banda: transparentes, con el color de texto que ya contrasta con el de la empresa. La base es solo
+// el aspecto, sin cursor ni foco, para las muestras de la vista previa de "Marca".
+export const COMPANY_BAND_BUTTON_BASE_CLASSES =
+  'inline-flex h-8 items-center justify-center rounded-lg border border-(--company-on-accent) bg-transparent px-3 text-sm font-semibold text-(--company-on-accent)'
+
+export const COMPANY_BAND_BUTTON_CLASSES = `${COMPANY_BAND_BUTTON_BASE_CLASSES} cursor-pointer focus:outline-none focus:ring-2 focus:ring-(--company-on-accent)`
 
 // Botón principal con el color de la empresa. Sin hover propio: oscurecer un color cualquiera puede romper el contraste.
-export const COMPANY_BUTTON_CLASSES =
-  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-(--company-accent) px-4 text-sm font-semibold text-(--company-on-accent) focus:outline-none focus:ring-2 focus:ring-brand-light focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
+// La base es solo el aspecto, igual que en los botones de la banda.
+export const COMPANY_BUTTON_BASE_CLASSES =
+  'inline-flex h-10 items-center justify-center rounded-lg bg-(--company-accent) px-4 text-sm font-semibold text-(--company-on-accent)'
+
+export const COMPANY_BUTTON_CLASSES = `${COMPANY_BUTTON_BASE_CLASSES} cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-light focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted`
 
 // Tarjeta de servicio que se puede elegir. La elegida suma el borde con el color de la empresa.
 export const SERVICE_CARD_CLASSES =
