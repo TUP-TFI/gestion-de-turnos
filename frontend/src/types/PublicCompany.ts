@@ -1,3 +1,4 @@
+import type { DayOfWeek } from './BusinessHours'
 import type { Company } from './Company'
 import type { Service } from './Service'
 
@@ -25,4 +26,12 @@ export interface SlotSelection {
   service: PublicService
   // Instante UTC, tal como lo devolvió el backend.
   startDateTime: string
+}
+
+// Una franja de GET /api/public/companies/{slug}/business-hours. Las horas llegan como 'HH:mm:ss', en la zona de la
+// empresa. Una jornada partida trae dos franjas, y un día sin franjas está cerrado.
+export interface PublicBusinessHours {
+  dayOfWeek: DayOfWeek
+  startTime: string
+  endTime: string
 }

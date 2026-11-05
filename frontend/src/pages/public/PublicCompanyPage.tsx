@@ -3,12 +3,14 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router'
 import { ApiRequestError } from '../../api/client'
 import { getAvailability } from '../../api/publicCompany'
 import { BookingConfirmModal } from '../../components/BookingConfirmModal'
+import { CompanyBusinessHours } from '../../components/CompanyBusinessHours'
 import { CompanyLogo } from '../../components/CompanyLogo'
 import { CompanyNotFoundCard } from '../../components/CompanyNotFoundCard'
 import { ServiceSlotPicker } from '../../components/ServiceSlotPicker'
 import { useAuth } from '../../hooks/useAuth'
 import { useBookingFlow } from '../../hooks/useBookingFlow'
 import { useClientAuth } from '../../hooks/useClientAuth'
+import { usePublicBusinessHours } from '../../hooks/usePublicBusinessHours'
 import { usePublicCompany } from '../../hooks/usePublicCompany'
 import { COMPANY_CATEGORY_LABELS } from '../../lib/companyCategories'
 import { companyThemeStyle } from '../../lib/companyTheme'
@@ -71,6 +73,10 @@ export function PublicCompanyPage() {
   const { company, services, notFound, error, isLoading } =
     usePublicCompany(slug)
   const booking = useBookingFlow(slug, services)
+  const businessHours = usePublicBusinessHours(
+    slug,
+    company?.status === 'ACTIVE',
+  )
 
   // 'default' es la primera pantalla de la pestaña: no hay adónde volver dentro de la app. Pasa al entrar directo o
   // desde "Marca", que abre otra pestaña; ahí un admin vuelve a su panel y un visitante no ve el botón.
@@ -211,6 +217,12 @@ export function PublicCompanyPage() {
                 </div>
               </div>
             )}
+
+            <CompanyBusinessHours
+              hours={businessHours.hours}
+              error={businessHours.error}
+              isLoading={businessHours.isLoading}
+            />
 
             {services.length === 0 ? (
               <p className={`${MUTED_TEXT_CLASSES} text-center`}>

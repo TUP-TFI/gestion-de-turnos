@@ -160,7 +160,7 @@ El aviso de turnos fuera de rango del horario semanal (`POST /api/company/busine
 
 `GET /api/client/appointments` devuelve los turnos del cliente de la sesión, del más reciente al más antiguo. Se puede filtrar con `?status=PENDING|COMPLETED|CANCELLED`; un estado que no existe responde `400 VALIDATION_ERROR`. El cliente y la empresa salen siempre de la sesión: no hay forma de pedir los turnos de otro.
 
-Cada turno trae `id`, `serviceId`, `serviceName`, `startDateTime`, `endDateTime` (en UTC, el front las convierte a la hora local), `status`, `rescheduleCount`, `priceSnapshot` y `durationMinutesSnapshot`. El precio y la duración son los copiados al reservar, no los actuales del servicio.
+Cada turno trae `id`, `serviceId`, `serviceName`, `startDateTime`, `endDateTime` (en UTC, el front las convierte a la hora local), `status`, `rescheduleCount`, `priceSnapshot`, `durationMinutesSnapshot` y `canCancel`. El precio y la duración son los copiados al reservar, no los actuales del servicio. `canCancel` es `true` si el turno está `PENDING` y sigue dentro del plazo: lo calcula el back, porque el cliente no puede leer `PlatformSettings`.
 
 ### Reservar un turno
 
@@ -184,6 +184,19 @@ El aviso tiene dos fases, en `NotificationRequestedListener`:
 
 Pendiente para US-10.4: la fila no guarda el mensaje, así que el reintento lo tiene que rearmar con el turno y `eventType`.
 
+### Cancelar un turno del cliente
+
+`POST /api/client/appointments/{id}/cancel`, sin body. Responde `200` con el turno en `CANCELLED`, en el mismo formato que "Mis turnos", y `cancelledBy = CLIENT`. El horario queda libre para otra reserva.
+
+| Caso | Respuesta |
+| :--- | :--- |
+| Empresa desactivada | `403 COMPANY_INACTIVE` |
+| Turno inexistente, o de otro cliente u otra empresa | `404 APPOINTMENT_NOT_FOUND` |
+| Turno cancelado o completado | `409 APPOINTMENT_NOT_PENDING` |
+| Pasó `cancellationDeadlineHours` | `400 CANCELLATION_DEADLINE_PASSED` |
+
+Se puede cancelar hasta el instante exacto del plazo. Toma el mismo lock de la empresa que la reserva, así dos pedidos simultáneos no cancelan el mismo turno dos veces. No publica `NotificationRequestedEvent`: el aviso pasa a Click to Chat (`docs/contratos-api.md`, Paso 10).
+
 ### Horarios disponibles
 
 `GET /api/public/companies/{slug}/services/{serviceId}/availability?date=AAAA-MM-DD` no pide sesión y responde `200` con `{ date, starts }`: los horarios de inicio libres de ese servicio en esa fecha local de la empresa, ordenados y en UTC. Aplica el horario semanal o la excepción de esa fecha, la anticipación mínima y máxima, y los turnos ya ocupados. Si no queda ninguno, o la fecha ya pasó o está fuera de la anticipación máxima, `starts` viene vacío: el front muestra que no hay horarios para ese día.
@@ -203,6 +216,18 @@ Pendiente para US-10.4: la fila no guarda el mensaje, así que el reintento lo t
 No dice qué turnos están libres, eso es [Horarios disponibles](#horarios-disponibles). Tampoco incluye las excepciones de calendario, que solo se reflejan en los horarios disponibles de esa fecha.
 
 Un slug inexistente responde `404 COMPANY_NOT_FOUND` y una empresa desactivada, `403 COMPANY_INACTIVE`.
+
+### Clientes de la empresa
+
+`GET /api/company/clients?q=&page=&size=` lista los clientes de la empresa de la sesión, ordenados por apellido y nombre. Solo lo puede usar `COMPANY_ADMIN`, y es de solo lectura.
+
+| Parámetro | Por defecto | Qué hace |
+| :--- | :--- | :--- |
+| `q` | Vacío: trae todos | Busca en el nombre completo, el email y el teléfono. No distingue mayúsculas, pero sí acentos |
+| `page` | `0` | Número de página, desde 0 |
+| `size` | `20` | Elementos por página, de 1 a 100 |
+
+Responde `200` con `{ content, page, size, totalElements, totalPages }`, y cada elemento trae `id`, `firstName`, `lastName`, `email` y `phone`. Un `page` o un `size` inválidos responden `400 VALIDATION_ERROR`.
 
 ### Desactivar y reactivar una empresa
 
@@ -572,6 +597,6 @@ Los datos de demo para la presentación (más empresas y turnos en distintos est
 - Documentación de la API (Swagger / OpenAPI).
 - Proveedor de la API de WhatsApp Business.
 - Storage externo para los logos de empresa (`company.logoUrl`).
-- Frecuencia concreta de los jobs de reintento de notificaciones y de purga de tokens. El cierre de turnos ya quedó en cada 5 minutos: se cambia con `app.jobs.complete-appointments.cron`, y `app.jobs.enabled=false` apaga todos los jobs. A confirmar en el despliegue final (T-14.1): un job tan seguido podría impedir que Neon suspenda la base y consumir horas de cómputo. Todavía no se verificó contra el plan de Neon del proyecto; si hace falta, la frecuencia se ajusta con esa misma propiedad.
+- Frecuencia concreta del job de reintento de notificaciones. La purga de tokens corre todos los días a las 04:00 (`app.jobs.purge-tokens.cron`). El cierre de turnos ya quedó en cada 5 minutos: se cambia con `app.jobs.complete-appointments.cron`, y `app.jobs.enabled=false` apaga todos los jobs. A confirmar en el despliegue final (T-14.1): un job tan seguido podría impedir que Neon suspenda la base y consumir horas de cómputo. Todavía no se verificó contra el plan de Neon del proyecto; si hace falta, la frecuencia se ajusta con esa misma propiedad.
 - Mostrar el link de activación en la UI del superadmin mientras no exista el envío por WhatsApp. Hoy el alta de empresa y el reenvío solo lo escriben en el log, y quien prueba el despliegue sin acceso a Render no puede activar al admin de una empresa nueva. Propuesta: que `POST /api/superadmin/companies` y `POST .../resend-activation` devuelvan el link en la respuesta (solo mientras `NotificationService` sea el de log) y que el frontend lo muestre para copiarlo. PR aparte, back y front.
 - Paginación del listado de empresas (`GET /api/superadmin/companies`). Por el tamaño del MVP devuelve todas juntas; se puede agregar después del MVP si la cantidad de empresas lo pide.
