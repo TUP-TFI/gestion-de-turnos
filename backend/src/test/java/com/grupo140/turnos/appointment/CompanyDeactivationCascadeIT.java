@@ -123,7 +123,10 @@ class CompanyDeactivationCascadeIT {
         // Quedan afuera: uno pendiente que ya pasó, y uno que el cliente había cancelado antes de la baja.
         save(companyId, serviceId, now.minus(Duration.ofDays(1)), AppointmentStatus.PENDING, null);
         Appointment cancelledByClient =
-                save(companyId, serviceId, now.plus(Duration.ofDays(4)), AppointmentStatus.CANCELLED, clientId);
+                save(companyId, serviceId, now.plus(Duration.ofDays(4)), AppointmentStatus.PENDING, clientId);
+        // Se guarda PENDING y después se cancela: un INSERT en CANCELLED, sin cancelled_by ni cancelled_at, viola
+        // chk_appointment_cancellation.
+        cancelledByClient.setStatus(AppointmentStatus.CANCELLED);
         cancelledByClient.setCancelledBy(CancelledBy.CLIENT);
         cancelledByClient.setCancelledAt(now);
         appointmentRepository.save(cancelledByClient);
@@ -137,12 +140,14 @@ class CompanyDeactivationCascadeIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.timezone").value("America/Argentina/Cordoba"))
                 .andExpect(jsonPath("$.notices.length()").value(2))
-                .andExpect(jsonPath("$.notices[0].appointmentId").value(manual.getId().toString()))
+                .andExpect(jsonPath("$.notices[0].appointmentId")
+                        .value(manual.getId().toString()))
                 .andExpect(jsonPath("$.notices[0].clientName").value("Cliente de prueba"))
                 .andExpect(jsonPath("$.notices[0].phone").value("+5493510000123"))
                 .andExpect(jsonPath("$.notices[0].serviceName").value("Corte de pelo"))
                 .andExpect(jsonPath("$.notices[0].startDateTime").isNotEmpty())
-                .andExpect(jsonPath("$.notices[1].appointmentId").value(online.getId().toString()))
+                .andExpect(jsonPath("$.notices[1].appointmentId")
+                        .value(online.getId().toString()))
                 .andExpect(jsonPath("$.notices[1].clientName").value("Lucía Pérez"))
                 .andExpect(jsonPath("$.notices[1].phone").value("+5493510000004"));
 

@@ -9,4 +9,5 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
  * <p>{@code @JsonUnwrapped} deja todo al mismo nivel en el JSON, igual que en {@link CompanyDetailResponse}.
  */
 public record CreatedCompanyResponse(
-        @JsonUnwrapped CompanyResponse company, @JsonUnwrapped ActivationLinkResponse activation) {}
+        @JsonUnwrapped CompanyResponse company,
+        @JsonUnwrapped ActivationLinkResponse activation) {}

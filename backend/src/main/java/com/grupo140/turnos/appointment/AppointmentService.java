@@ -274,9 +274,10 @@ public class AppointmentService {
     @Transactional(readOnly = true)
     public CancellationNoticesResponse listCancellationNotices(UUID companyId) {
         ZoneId zone = companyService.zoneOf(companyId);
-        List<Appointment> cancelled = appointmentRepository
-                .findAllByCompanyIdAndStatusAndCancellationReasonAndStartDateTimeAfterOrderByStartDateTimeAsc(
-                        companyId, AppointmentStatus.CANCELLED, COMPANY_DEACTIVATED_REASON, Instant.now(clock));
+        List<Appointment> cancelled =
+                appointmentRepository
+                        .findAllByCompanyIdAndStatusAndCancellationReasonAndStartDateTimeAfterOrderByStartDateTimeAsc(
+                                companyId, AppointmentStatus.CANCELLED, COMPANY_DEACTIVATED_REASON, Instant.now(clock));
         Map<UUID, String> serviceNames = catalogService.list(companyId).stream()
                 .collect(Collectors.toMap(ServiceResponse::id, ServiceResponse::name));
         Set<UUID> clientIds = cancelled.stream()
@@ -289,9 +290,8 @@ public class AppointmentService {
         List<CancellationNoticesResponse.Notice> notices = new ArrayList<>();
         for (Appointment appointment : cancelled) {
             ClientResponse client = clients.get(appointment.getClientId());
-            String clientName = client != null
-                    ? client.firstName() + " " + client.lastName()
-                    : appointment.getManualClientName();
+            String clientName =
+                    client != null ? client.firstName() + " " + client.lastName() : appointment.getManualClientName();
             String phone = client != null ? client.phone() : appointment.getManualClientPhone();
             notices.add(new CancellationNoticesResponse.Notice(
                     appointment.getId(),
