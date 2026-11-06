@@ -245,17 +245,20 @@ public class AppointmentService {
     }
 
     /**
-     * Cancela todos los turnos pendientes de una empresa que se desactivó (US-04.4). Quedan cancelados por la
-     * empresa, con la fecha y el motivo; al reactivarla no se recuperan (US-04.5). No publica avisos: el superadmin
+     * Cancela los turnos pendientes futuros de una empresa que se desactivó (US-04.4, US-11.2). Quedan cancelados por
+     * la empresa, con la fecha y el motivo; al reactivarla no se recuperan (US-04.5). No publica avisos: el superadmin
      * avisa a cada cliente desde {@link #listCancellationNotices}.
+     *
+     * <p>Un turno pendiente que ya empezó no se cancela: se atendió, y lo pasa a {@code COMPLETED} el job de cierre
+     * (US-11.1). Entre dos corridas del job siempre puede quedar uno así.
      *
      * @return cuántos turnos se cancelaron.
      */
     @Transactional
     public int cancelPendingByCompany(UUID companyId) {
         Instant now = Instant.now(clock);
-        List<Appointment> pending =
-                appointmentRepository.findByCompanyIdAndStatus(companyId, AppointmentStatus.PENDING);
+        List<Appointment> pending = appointmentRepository.findAllByCompanyIdAndStatusAndStartDateTimeAfter(
+                companyId, AppointmentStatus.PENDING, now);
         for (Appointment appointment : pending) {
             markCancelled(appointment, CancelledBy.COMPANY, COMPANY_DEACTIVATED_REASON, now);
         }
