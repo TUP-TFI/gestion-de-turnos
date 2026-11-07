@@ -2,6 +2,7 @@ package com.grupo140.turnos.appointment;
 
 import com.grupo140.turnos.catalog.CatalogService;
 import com.grupo140.turnos.catalog.ServiceResponse;
+import com.grupo140.turnos.common.PageResponse;
 import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.company.CompanyService;
 import com.grupo140.turnos.schedule.BusinessHoursRequest;
@@ -25,6 +26,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -262,6 +265,80 @@ public class AppointmentService {
             markCancelled(appointment, CancelledBy.COMPANY, COMPANY_DEACTIVATED_REASON, now);
         }
         return pending.size();
+    }
+
+    /**
+     * Agenda del admin (US-09.2): todos los turnos de la empresa, del más nuevo al más viejo. Cada filtro es opcional;
+     * {@code rescheduled} separa los turnos con {@code rescheduleCount > 0} de los que nunca se reprogramaron.
+     *
+     * @param companyId empresa de la sesión.
+     */
+    @Transactional(readOnly = true)
+    public PageResponse<AdminAppointmentResponse> listForCompany(
+            UUID companyId,
+            AppointmentStatus status,
+            AppointmentOrigin origin,
+            Boolean rescheduled,
+            int page,
+            int size) {
+        Page<Appointment> appointments = appointmentRepository.searchForCompany(
+                companyId, status, origin, rescheduled, PageRequest.of(page, size));
+        return new PageResponse<>(
+                toAdminResponses(companyId, appointments.getContent()),
+                appointments.getNumber(),
+                appointments.getSize(),
+                appointments.getTotalElements(),
+                appointments.getTotalPages());
+    }
+
+    /**
+     * Resumen del dashboard del admin (US-09.1): los turnos de hoy y los próximos 5, sin cancelados. "Hoy" es la
+     * fecha local de la empresa.
+     *
+     * @param companyId empresa de la sesión.
+     */
+    @Transactional(readOnly = true)
+    public AppointmentSummaryResponse summary(UUID companyId) {
+        ZoneId zone = companyService.zoneOf(companyId);
+        LocalDate today = LocalDate.now(clock.withZone(zone));
+        Instant todayStart = today.atStartOfDay(zone).toInstant();
+        Instant tomorrowStart = today.plusDays(1).atStartOfDay(zone).toInstant();
+        List<Appointment> todays = appointmentRepository.findNotCancelledBetween(companyId, todayStart, tomorrowStart);
+        List<Appointment> upcoming =
+                appointmentRepository
+                        .findFirst5ByCompanyIdAndStatusNotAndStartDateTimeGreaterThanEqualOrderByStartDateTimeAscIdAsc(
+                                companyId, AppointmentStatus.CANCELLED, tomorrowStart);
+        return new AppointmentSummaryResponse(
+                toAdminResponses(companyId, todays), toAdminResponses(companyId, upcoming));
+    }
+
+    // Arma los turnos del admin con el nombre del servicio y los datos del cliente. Servicios y clientes se leen en una
+    // consulta cada uno, no una por turno; los servicios incluyen los inactivos.
+    private List<AdminAppointmentResponse> toAdminResponses(UUID companyId, List<Appointment> appointments) {
+        if (appointments.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, String> serviceNames = catalogService.list(companyId).stream()
+                .collect(Collectors.toMap(ServiceResponse::id, ServiceResponse::name));
+        Set<UUID> clientIds = appointments.stream()
+                .map(Appointment::getClientId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<UUID, ClientResponse> clients = userService.findClients(companyId, clientIds).stream()
+                .collect(Collectors.toMap(ClientResponse::id, Function.identity()));
+
+        List<AdminAppointmentResponse> result = new ArrayList<>();
+        for (Appointment appointment : appointments) {
+            ClientResponse account = clients.get(appointment.getClientId());
+            AdminAppointmentResponse.Client client = account != null
+                    ? new AdminAppointmentResponse.Client(
+                            account.id(), account.firstName() + " " + account.lastName(), account.phone())
+                    : new AdminAppointmentResponse.Client(
+                            null, appointment.getManualClientName(), appointment.getManualClientPhone());
+            result.add(
+                    AdminAppointmentResponse.from(appointment, serviceNames.get(appointment.getServiceId()), client));
+        }
+        return result;
     }
 
     /**
