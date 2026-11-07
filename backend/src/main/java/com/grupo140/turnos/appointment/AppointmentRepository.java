@@ -82,6 +82,9 @@ public interface AppointmentRepository extends Repository<Appointment, UUID> {
     // Un turno del cliente (US-08.1). Lleva los tres ids: el turno de otro cliente o de otra empresa no aparece.
     Optional<Appointment> findByIdAndCompanyIdAndClientId(UUID id, UUID companyId, UUID clientId);
 
+    // Un turno de la empresa, de cualquier cliente o sin cuenta (US-09.3). El de otra empresa no aparece.
+    Optional<Appointment> findByIdAndCompanyId(UUID id, UUID companyId);
+
     // Turnos de la empresa que ocupan algún tramo entre dos instantes, sin los de un estado (CANCELLED). Un turno
     // se superpone con el rango si empieza antes de su fin y termina después de su inicio: el mismo criterio que
     // la constraint excl_appointment_overlap, que cuenta PENDING y COMPLETED. La usa la disponibilidad (US-05.5).
