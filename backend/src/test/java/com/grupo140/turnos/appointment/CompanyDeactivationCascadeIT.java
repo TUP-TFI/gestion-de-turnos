@@ -77,9 +77,11 @@ class CompanyDeactivationCascadeIT {
         Appointment manual = save(companyId, serviceId, now.plus(Duration.ofDays(2)), AppointmentStatus.PENDING, null);
         Appointment online =
                 save(companyId, serviceId, now.plus(Duration.ofDays(3)), AppointmentStatus.PENDING, clientId);
-        // No se toca: ya estaba completado.
+        // No se tocan: uno ya completado, y uno pendiente que ya pasó y todavía no cerró el job (US-11.2).
         Appointment completed =
                 save(companyId, serviceId, now.minus(Duration.ofDays(2)), AppointmentStatus.COMPLETED, null);
+        Appointment pastPending =
+                save(companyId, serviceId, now.minus(Duration.ofDays(1)), AppointmentStatus.PENDING, clientId);
 
         mockMvc.perform(post("/api/superadmin/companies/" + companyId + "/deactivate")
                         .header("Authorization", "Bearer " + tokenOf("superadmin@example.com")))
@@ -92,7 +94,9 @@ class CompanyDeactivationCascadeIT {
         assertThat(manual.getCancelledAt()).isNotNull();
         assertThat(manual.getCancellationReason()).isEqualTo(AppointmentService.COMPANY_DEACTIVATED_REASON);
         assertThat(appointmentRepository.findByCompanyIdAndStatus(companyId, AppointmentStatus.PENDING))
-                .isEmpty();
+                .extracting(Appointment::getId)
+                .containsExactly(pastPending.getId());
+        assertThat(pastPending.getCancelledAt()).isNull();
         assertThat(completed.getStatus()).isEqualTo(AppointmentStatus.COMPLETED);
     }
 

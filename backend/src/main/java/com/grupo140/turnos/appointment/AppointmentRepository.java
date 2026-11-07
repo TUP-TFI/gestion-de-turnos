@@ -29,7 +29,7 @@ public interface AppointmentRepository extends Repository<Appointment, UUID> {
     List<Appointment> findAllByCompanyIdAndStatusAndStartDateTimeAfter(
             UUID companyId, AppointmentStatus status, Instant after);
 
-    // Turnos de una empresa en un estado. La desactivación de la empresa cancela todos los PENDING (US-04.4).
+    // Turnos de una empresa en un estado, sin filtrar por fecha.
     List<Appointment> findByCompanyIdAndStatus(UUID companyId, AppointmentStatus status);
 
     // Agenda del admin (US-09.2). Un filtro nulo no filtra. Ordena del más nuevo al más viejo, y el id desempata para
