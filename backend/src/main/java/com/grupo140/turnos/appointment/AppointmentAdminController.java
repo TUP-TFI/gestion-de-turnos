@@ -54,6 +54,17 @@ public class AppointmentAdminController {
         return appointmentService.summary(session.companyId());
     }
 
+    /** Cancela un turno de la empresa, sin el plazo del cliente y con un motivo opcional (US-09.3). */
+    @PostMapping("/appointments/{id}/cancel")
+    public AdminAppointmentResponse cancel(
+            SessionUser session,
+            @PathVariable UUID id,
+            @Valid @RequestBody(required = false) CancelAppointmentRequest request) {
+        // Sin body es lo mismo que sin motivo.
+        String reason = request != null ? request.reason() : null;
+        return appointmentService.cancelByCompany(session.companyId(), id, reason);
+    }
+
     /** Cantidad de turnos pendientes futuros de un servicio, para avisar antes de desactivarlo (US-05.2). */
     @GetMapping("/services/{id}/future-appointments")
     public AppointmentCountResponse futureAppointments(SessionUser session, @PathVariable UUID id) {

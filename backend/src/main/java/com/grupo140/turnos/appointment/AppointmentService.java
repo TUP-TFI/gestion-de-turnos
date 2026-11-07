@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -413,6 +414,30 @@ public class AppointmentService {
     }
 
     /**
+     * Cancela un turno de la empresa a pedido del admin (US-09.3), sin el plazo del cliente: también uno que ya
+     * empezó y el job de cierre todavía no completó, por ejemplo si el cliente no vino. Usa el mismo lock de la
+     * empresa que la cancelación del cliente, así que los dos no pueden cancelar a la vez el mismo turno. No publica un
+     * aviso: el admin avisa desde su panel (US-10.2).
+     *
+     * @param companyId empresa de la sesión.
+     * @param reason motivo opcional; vacío o en blanco se guarda sin motivo.
+     * @throws ApiException {@code COMPANY_INACTIVE} (403), {@code APPOINTMENT_NOT_FOUND} (404) o
+     *     {@code APPOINTMENT_NOT_PENDING} (409).
+     */
+    @Transactional
+    public AdminAppointmentResponse cancelByCompany(UUID companyId, UUID appointmentId, String reason) {
+        companyService.lockActive(companyId);
+        Appointment appointment = requirePending(appointmentRepository.findByIdAndCompanyId(appointmentId, companyId));
+        markCancelled(appointment, CancelledBy.COMPANY, blankToNull(reason), Instant.now(clock));
+        return toAdminResponses(companyId, List.of(appointment)).getFirst();
+    }
+
+    // Un motivo vacío o con solo espacios se guarda como "sin motivo"; si tiene texto, sin los espacios de los bordes.
+    private static String blankToNull(String text) {
+        return text == null || text.isBlank() ? null : text.strip();
+    }
+
+    /**
      * Horarios a los que el cliente puede reprogramar su turno en esa fecha local de la empresa (US-08.2). No valida
      * el plazo ni el tope: eso lo informa {@code canReschedule} y lo rechaza la reprogramación.
      *
@@ -480,10 +505,14 @@ public class AppointmentService {
 
     // Un turno pendiente del cliente. El de otro cliente o de otra empresa da el mismo 404 que uno inexistente.
     private Appointment requirePendingOfClient(UUID companyId, UUID clientId, UUID appointmentId) {
-        Appointment appointment = appointmentRepository
-                .findByIdAndCompanyIdAndClientId(appointmentId, companyId, clientId)
-                .orElseThrow(
-                        () -> new ApiException(HttpStatus.NOT_FOUND, "APPOINTMENT_NOT_FOUND", "El turno no existe"));
+        return requirePending(
+                appointmentRepository.findByIdAndCompanyIdAndClientId(appointmentId, companyId, clientId));
+    }
+
+    // El turno buscado, si existe y sigue pendiente. Lo usan el cliente y el admin, con los mismos errores.
+    private static Appointment requirePending(Optional<Appointment> found) {
+        Appointment appointment = found.orElseThrow(
+                () -> new ApiException(HttpStatus.NOT_FOUND, "APPOINTMENT_NOT_FOUND", "El turno no existe"));
         if (appointment.getStatus() != AppointmentStatus.PENDING) {
             throw new ApiException(HttpStatus.CONFLICT, "APPOINTMENT_NOT_PENDING", "El turno ya no está pendiente");
         }
