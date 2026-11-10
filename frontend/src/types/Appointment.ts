@@ -4,6 +4,12 @@ export type AppointmentStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED'
 
 export type CancelledBy = 'CLIENT' | 'COMPANY'
 
+// Por qué el cliente no puede reprogramar un turno (RescheduleBlockedReason del backend).
+export type RescheduleBlockedReason =
+  | 'NOT_PENDING'
+  | 'DEADLINE_PASSED'
+  | 'LIMIT_REACHED'
+
 export interface Appointment {
   id: string
   companyId: string
@@ -38,7 +44,13 @@ export type ClientAppointment = Pick<
   | 'rescheduleCount'
   | 'priceSnapshot'
   | 'durationMinutesSnapshot'
-> & { serviceName: string }
+> & {
+  serviceName: string
+  // Los calcula el backend con PlatformSettings: el front no conoce el plazo ni el tope (D1 de contratos-api.md).
+  canCancel: boolean
+  canReschedule: boolean
+  rescheduleBlockedReason: RescheduleBlockedReason | null
+}
 
 // Cuerpo de POST /api/client/appointments. La empresa y el cliente salen de la sesión.
 export type CreateAppointmentRequest = Pick<

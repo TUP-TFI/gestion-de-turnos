@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router'
+import { CancelAppointmentModal } from '../../components/CancelAppointmentModal'
+import { RescheduleModal } from '../../components/RescheduleModal'
+import { useAppointmentActions } from '../../hooks/useAppointmentActions'
 import { useClientAppointments } from '../../hooks/useClientAppointments'
 import { useClientAuth } from '../../hooks/useClientAuth'
 import { usePublicCompany } from '../../hooks/usePublicCompany'
+import { companyThemeStyle } from '../../lib/companyTheme'
 import { formatInCompanyZone } from '../../lib/formatInCompanyZone'
 import {
   BADGE_CLASSES,
@@ -11,13 +15,19 @@ import {
   INPUT_CLASSES,
   LABEL_CLASSES,
   MUTED_TEXT_CLASSES,
+  NOTICE_CLASSES,
   PAGE_TITLE_CLASSES,
   ROW_BUTTON_CLASSES,
+  ROW_DANGER_BUTTON_CLASSES,
+  SUCCESS_CLASSES,
   TABLE_CELL_CLASSES,
   TABLE_HEAD_CLASSES,
   TABLE_WRAPPER_CLASSES,
 } from '../../lib/formStyles'
-import type { AppointmentStatus } from '../../types/Appointment'
+import type {
+  AppointmentStatus,
+  ClientAppointment,
+} from '../../types/Appointment'
 
 const STATUS_LABELS: Record<AppointmentStatus, string> = {
   PENDING: 'Pendiente',
@@ -29,6 +39,27 @@ const STATUS_CLASSES: Record<AppointmentStatus, string> = {
   PENDING: BADGE_VARIANT_CLASSES.warning,
   COMPLETED: BADGE_VARIANT_CLASSES.success,
   CANCELLED: BADGE_VARIANT_CLASSES.neutral,
+}
+
+// Por qué no se puede cancelar o reprogramar un turno pendiente. El front no calcula plazos: los informa el back.
+function blockedReasons(appointment: ClientAppointment): string[] {
+  const reasons: string[] = []
+  const deadlinePassed = appointment.rescheduleBlockedReason === 'DEADLINE_PASSED'
+
+  if (!appointment.canCancel && deadlinePassed) {
+    reasons.push('Pasó el plazo para cancelar y reprogramar')
+    return reasons
+  }
+  if (!appointment.canCancel) {
+    reasons.push('Pasó el plazo para cancelar')
+  }
+  if (deadlinePassed) {
+    reasons.push('Pasó el plazo para reprogramar')
+  }
+  if (appointment.rescheduleBlockedReason === 'LIMIT_REACHED') {
+    reasons.push('Llegaste al máximo de reprogramaciones')
+  }
+  return reasons
 }
 
 // Turnos del cliente en esta empresa (US-07.6). Los COMPLETED cumplen la función de historial.
@@ -48,6 +79,7 @@ export function MyAppointmentsPage() {
     error: appointmentsError,
     isLoading: isLoadingAppointments,
   } = useClientAppointments(slug, status || undefined)
+  const actions = useAppointmentActions(slug)
 
   if (!session) {
     return <Navigate to={`/${slug}/login`} replace />
@@ -66,7 +98,11 @@ export function MyAppointmentsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-surface px-4 py-8">
+    // Las variables de color de la empresa las usan el modal de reprogramar y su selector de horarios.
+    <main
+      className="min-h-screen bg-surface px-4 py-8"
+      style={companyThemeStyle(company?.primaryColor ?? null)}
+    >
       <section className="mx-auto max-w-4xl space-y-6">
         <button
           type="button"
@@ -100,6 +136,19 @@ export function MyAppointmentsPage() {
           </select>
         </div>
 
+        {actions.notice && (
+          <p
+            role="status"
+            className={
+              actions.notice.kind === 'success'
+                ? SUCCESS_CLASSES
+                : NOTICE_CLASSES
+            }
+          >
+            {actions.notice.text}
+          </p>
+        )}
+
         {isLoading && <p className={MUTED_TEXT_CLASSES}>Cargando...</p>}
 
         {error && (
@@ -128,6 +177,9 @@ export function MyAppointmentsPage() {
                   </th>
                   <th scope="col" className={`${TABLE_CELL_CLASSES} font-semibold`}>
                     Estado
+                  </th>
+                  <th scope="col" className={`${TABLE_CELL_CLASSES} font-semibold`}>
+                    Acciones
                   </th>
                 </tr>
               </thead>
@@ -159,11 +211,70 @@ export function MyAppointmentsPage() {
                         )}
                       </div>
                     </td>
+                    <td className={TABLE_CELL_CLASSES}>
+                      {/* Los turnos cancelados y completados no tienen acciones. */}
+                      {appointment.status === 'PENDING' && (
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={!appointment.canReschedule}
+                              onClick={() => actions.reschedule.start(appointment)}
+                              className={ROW_BUTTON_CLASSES}
+                            >
+                              Reprogramar
+                            </button>
+                            <button
+                              type="button"
+                              disabled={!appointment.canCancel}
+                              onClick={() => actions.cancel.start(appointment)}
+                              className={ROW_DANGER_BUTTON_CLASSES}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                          {blockedReasons(appointment).map((reason) => (
+                            <p key={reason} className={MUTED_TEXT_CLASSES}>
+                              {reason}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+
+        {company && actions.cancel.target && (
+          <CancelAppointmentModal
+            serviceName={actions.cancel.target.serviceName}
+            startDateTime={actions.cancel.target.startDateTime}
+            timezone={company.timezone}
+            error={actions.cancel.error}
+            isLoading={actions.cancel.isLoading}
+            onConfirm={actions.cancel.confirm}
+            onClose={actions.cancel.close}
+          />
+        )}
+
+        {company && actions.reschedule.target && (
+          <RescheduleModal
+            // Un turno distinto empieza con el selector limpio.
+            key={actions.reschedule.target.id}
+            slug={slug}
+            appointment={actions.reschedule.target}
+            timezone={company.timezone}
+            error={actions.reschedule.error}
+            isSlotRejected={actions.reschedule.isSlotRejected}
+            isLoading={actions.reschedule.isLoading}
+            onConfirm={actions.reschedule.confirm}
+            onClose={actions.reschedule.close}
+            onResetError={actions.reschedule.resetError}
+            onAvailabilityError={actions.reschedule.handleAvailabilityError}
+          />
         )}
       </section>
     </main>

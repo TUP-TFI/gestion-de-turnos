@@ -32,6 +32,8 @@ interface UseBookingFlowResult {
   // Motivo por el que se rechazó el horario, para mostrar en la página con el modal ya cerrado.
   rejection: string | null
   isBooked: boolean
+  // Cuántas reservas salieron bien en esta pantalla. Sirve de `key` del selector para dejarlo como nuevo.
+  bookingCount: number
   isLoading: boolean
 }
 
@@ -47,6 +49,7 @@ export function useBookingFlow(
   const [picked, setPicked] = useState<SlotSelection | null>(null)
   const [rejection, setRejection] = useState<string | null>(null)
   const [isBooked, setIsBooked] = useState(false)
+  const [bookingCount, setBookingCount] = useState(0)
 
   // Al volver del login o del registro, la selección llega en la URL. Si el servicio ya no está, se ignora.
   const returning = session ? readBookingParams(location.search) : null
@@ -81,6 +84,7 @@ export function useBookingFlow(
       refreshAvailability()
       closeModal()
       setIsBooked(true)
+      setBookingCount((count) => count + 1)
     },
     onError: (error) => {
       if (!isRejectedSlot(error)) {
@@ -133,6 +137,7 @@ export function useBookingFlow(
     error: mutation.error ? toErrorMessage(mutation.error) : null,
     rejection,
     isBooked,
+    bookingCount,
     isLoading: mutation.isPending,
   }
 }

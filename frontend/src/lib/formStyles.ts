@@ -22,6 +22,10 @@ export const PRIMARY_BUTTON_CLASSES =
 export const SECONDARY_BUTTON_CLASSES =
   'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-hairline bg-white px-4 text-sm font-semibold text-ink hover:bg-surface-card focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
 
+// Botón principal de las acciones destructivas, como cancelar un turno. Va en un modal de confirmación.
+export const DANGER_BUTTON_CLASSES =
+  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-brand-light focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
+
 // Acciones de una fila de tabla: botón secundario compacto (32px). La variante de peligro es para
 // las acciones destructivas, como desactivar una empresa.
 export const ROW_BUTTON_CLASSES =
@@ -68,6 +72,11 @@ export const COMPANY_BAND_BUTTON_BASE_CLASSES =
   'inline-flex h-8 items-center justify-center rounded-lg border border-(--company-on-accent) bg-transparent px-3 text-sm font-semibold text-(--company-on-accent)'
 
 export const COMPANY_BAND_BUTTON_CLASSES = `${COMPANY_BAND_BUTTON_BASE_CLASSES} cursor-pointer focus:outline-none focus:ring-2 focus:ring-(--company-on-accent)`
+
+// Contador dentro de un botón de la banda, como los turnos pendientes en "Mis turnos". Invierte los colores de la banda:
+// el fondo es el color del texto y el texto es el de la empresa, así que contrasta con cualquier `primaryColor`.
+export const COMPANY_BAND_BADGE_CLASSES =
+  'ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-(--company-on-accent) px-1.5 text-[13px] font-semibold text-(--company-accent)'
 
 // Botón principal con el color de la empresa. Sin hover propio: oscurecer un color cualquiera puede romper el contraste.
 // La base es solo el aspecto, igual que en los botones de la banda.

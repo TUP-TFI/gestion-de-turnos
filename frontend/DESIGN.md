@@ -90,13 +90,13 @@ Sirve de guía para los estados de turnos.
 
 ## 10. Modal de confirmación
 
-Para acciones destructivas (desactivar empresa, cancelar turno). El botón destructivo va en rojo. Todavía no hay modal implementado.
+Para acciones destructivas (desactivar empresa, cancelar turno). El botón destructivo va en rojo (`DANGER_BUTTON_CLASSES`). Implementado en `CancelAppointmentModal` (cancelar turno).
 
 ## 11. Página pública
 
 El color de acción de la página pública `/{slug}` es el `primaryColor` de la empresa; si no tiene, el neutro (`ink`). El wrapper de la página lo aplica con `style`.
 
-El color de texto sobre ese fondo es blanco si su contraste llega a 4.5 (AA de WCAG); si no, el que tenga más contraste entre blanco y negro (`lib/companyTheme.ts`). Los botones sobre la banda son compactos (32px) y transparentes, con borde y texto de ese mismo color (`COMPANY_BAND_BUTTON_CLASSES`). El acento solo va en el botón principal, los elementos elegidos, la acción de elegir de cada tarjeta de servicio y la banda del encabezado. La banda es angosta: logo, nombre y rubro a la izquierda, y las acciones a la derecha, que pasan abajo si no entran. La descripción va debajo de la banda.
+El color de texto sobre ese fondo es blanco si su contraste llega a 4.5 (AA de WCAG); si no, el que tenga más contraste entre blanco y negro (`lib/companyTheme.ts`). Los botones sobre la banda son compactos (32px) y transparentes, con borde y texto de ese mismo color (`COMPANY_BAND_BUTTON_CLASSES`). Un contador dentro de uno de esos botones (turnos pendientes en "Mis turnos") invierte los colores: fondo del color del texto y texto del color de la empresa (`COMPANY_BAND_BADGE_CLASSES`). Sin pendientes, no se muestra. El acento solo va en el botón principal, los elementos elegidos, la acción de elegir de cada tarjeta de servicio y la banda del encabezado. La banda es angosta: logo, nombre y rubro a la izquierda, y las acciones a la derecha, que pasan abajo si no entran. La descripción va debajo de la banda.
 
 ## 12. Cómo usarlo
 
