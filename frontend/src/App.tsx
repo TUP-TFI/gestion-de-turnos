@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { ActivateAccountPage } from './pages/ActivateAccountPage'
 import { LoginPage } from './pages/LoginPage'
+import { AppointmentsPage } from './pages/company/AppointmentsPage'
 import { BrandingPage } from './pages/company/BrandingPage'
 import { BusinessHoursPage } from './pages/company/BusinessHoursPage'
 import { CompanyDashboardPage } from './pages/company/CompanyDashboardPage'
@@ -52,6 +53,7 @@ function App() {
       <Route element={<ProtectedRoute allowedRole="COMPANY_ADMIN" />}>
         <Route element={<CompanyLayout />}>
           <Route path="/company/dashboard" element={<CompanyDashboardPage />} />
+          <Route path="/company/appointments" element={<AppointmentsPage />} />
           <Route path="/company/services" element={<ServicesPage />} />
           <Route path="/company/services/new" element={<CreateServicePage />} />
           <Route path="/company/services/:id/edit" element={<EditServicePage />} />
