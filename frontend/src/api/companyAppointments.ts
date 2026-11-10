@@ -40,3 +40,16 @@ export function listCompanyAppointments(
     `/api/company/appointments?${params.toString()}`,
   )
 }
+
+// Cancela un turno de la empresa del admin logueado (US-09.3). Sin plazo. El motivo es opcional: vacío o en blanco
+// va como `{}`, y el backend lo guarda sin motivo.
+export function cancelCompanyAppointment(
+  id: string,
+  reason: string,
+): Promise<AdminAppointment> {
+  const trimmed = reason.trim()
+  return request<AdminAppointment>(`/api/company/appointments/${id}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify(trimmed ? { reason: trimmed } : {}),
+  })
+}

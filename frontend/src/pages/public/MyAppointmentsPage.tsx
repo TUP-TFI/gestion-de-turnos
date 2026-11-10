@@ -1,16 +1,16 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate, useParams } from 'react-router'
+import { AppointmentStatusBadge } from '../../components/AppointmentStatusBadge'
 import { CancelAppointmentModal } from '../../components/CancelAppointmentModal'
 import { RescheduleModal } from '../../components/RescheduleModal'
 import { useAppointmentActions } from '../../hooks/useAppointmentActions'
 import { useClientAppointments } from '../../hooks/useClientAppointments'
 import { useClientAuth } from '../../hooks/useClientAuth'
 import { usePublicCompany } from '../../hooks/usePublicCompany'
+import { STATUS_LABELS } from '../../lib/appointmentLabels'
 import { companyThemeStyle } from '../../lib/companyTheme'
 import { formatInCompanyZone } from '../../lib/formatInCompanyZone'
 import {
-  BADGE_CLASSES,
-  BADGE_VARIANT_CLASSES,
   ERROR_CLASSES,
   INPUT_CLASSES,
   LABEL_CLASSES,
@@ -28,18 +28,6 @@ import type {
   AppointmentStatus,
   ClientAppointment,
 } from '../../types/Appointment'
-
-const STATUS_LABELS: Record<AppointmentStatus, string> = {
-  PENDING: 'Pendiente',
-  COMPLETED: 'Completado',
-  CANCELLED: 'Cancelado',
-}
-
-const STATUS_CLASSES: Record<AppointmentStatus, string> = {
-  PENDING: BADGE_VARIANT_CLASSES.warning,
-  COMPLETED: BADGE_VARIANT_CLASSES.success,
-  CANCELLED: BADGE_VARIANT_CLASSES.neutral,
-}
 
 // Por qué no se puede cancelar o reprogramar un turno pendiente. El front no calcula plazos: los informa el back.
 function blockedReasons(appointment: ClientAppointment): string[] {
@@ -196,20 +184,7 @@ export function MyAppointmentsPage() {
                       {appointment.serviceName}
                     </td>
                     <td className={TABLE_CELL_CLASSES}>
-                      <div className="flex flex-wrap gap-2">
-                        <span
-                          className={`${BADGE_CLASSES} ${STATUS_CLASSES[appointment.status]}`}
-                        >
-                          {STATUS_LABELS[appointment.status]}
-                        </span>
-                        {appointment.rescheduleCount > 0 && (
-                          <span
-                            className={`${BADGE_CLASSES} ${BADGE_VARIANT_CLASSES.neutral}`}
-                          >
-                            Reprogramado
-                          </span>
-                        )}
-                      </div>
+                      <AppointmentStatusBadge appointment={appointment} />
                     </td>
                     <td className={TABLE_CELL_CLASSES}>
                       {/* Los turnos cancelados y completados no tienen acciones. */}
