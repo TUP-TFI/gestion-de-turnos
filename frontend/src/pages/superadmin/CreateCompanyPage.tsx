@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router'
+import { ActivationLinkPanel } from '../../components/ActivationLinkPanel'
 import { CompanyFields } from '../../components/CompanyFields'
 import { useCreateCompany } from '../../hooks/useCreateCompany'
 import { readCompanyData, toRequired } from '../../lib/companyForm'
@@ -9,7 +10,6 @@ import {
   FIELDSET_CLASSES,
   INPUT_CLASSES,
   LABEL_CLASSES,
-  MUTED_TEXT_CLASSES,
   PAGE_TITLE_CLASSES,
   PRIMARY_BUTTON_CLASSES,
   SECONDARY_BUTTON_CLASSES,
@@ -21,10 +21,13 @@ export function CreateCompanyPage() {
     useCreateCompany()
   // Cambiar la key remonta el form y lo deja vacío.
   const [formKey, setFormKey] = useState(0)
+  // El nombre del admin para el mensaje de activación: la respuesta del alta no lo trae.
+  const [adminFirstName, setAdminFirstName] = useState('')
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
+    setAdminFirstName(toRequired(data.get('adminFirstName')))
 
     createCompany({
       company: readCompanyData(data),
@@ -55,9 +58,14 @@ export function CreateCompanyPage() {
             <dd>/{createdCompany.slug}</dd>
           </div>
         </dl>
-        <p className={`mt-4 ${MUTED_TEXT_CLASSES}`}>
-          Se envió el link de activación al admin
-        </p>
+        <div className="mt-4">
+          <ActivationLinkPanel
+            activationLink={createdCompany.activationLink}
+            adminPhone={createdCompany.adminPhone}
+            companyName={createdCompany.name}
+            adminName={adminFirstName}
+          />
+        </div>
         <Link to="/superadmin/companies" className={`mt-6 w-full ${PRIMARY_BUTTON_CLASSES}`}>
           Ver empresas
         </Link>

@@ -1,11 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toErrorMessage } from '../api/client'
 import { createCompany } from '../api/companies'
-import type { Company, CreateCompanyRequest } from '../types/Company'
+import type { CreatedCompany, CreateCompanyRequest } from '../types/Company'
 
 interface UseCreateCompanyResult {
   createCompany: (request: CreateCompanyRequest) => void
-  createdCompany: Company | null
+  // La empresa y el link de activación del admin.
+  createdCompany: CreatedCompany | null
   error: string | null
   isLoading: boolean
   reset: () => void

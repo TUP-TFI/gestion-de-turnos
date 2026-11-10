@@ -112,6 +112,14 @@ export function CompaniesPage() {
                       >
                         Ver página pública
                       </Link>
+                      {company.status === 'INACTIVE' && (
+                        <Link
+                          to={`/superadmin/companies/${company.id}/cancellation-notices`}
+                          className={ROW_BUTTON_CLASSES}
+                        >
+                          Avisos
+                        </Link>
+                      )}
                       <button
                         type="button"
                         onClick={() => toggleStatus(company)}

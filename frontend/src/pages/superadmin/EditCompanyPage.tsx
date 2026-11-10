@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
+import { ActivationLinkPanel } from '../../components/ActivationLinkPanel'
 import { CompanyFields } from '../../components/CompanyFields'
 import { useCompany } from '../../hooks/useCompany'
 import { useResendActivation } from '../../hooks/useResendActivation'
@@ -45,7 +46,7 @@ function EditCompanyForm({ id }: { id: string }) {
     useUpdateCompany(id)
   const {
     resend,
-    sent: resendSent,
+    activation,
     error: resendError,
     isLoading: isResending,
   } = useResendActivation(id)
@@ -156,7 +157,7 @@ function EditCompanyForm({ id }: { id: string }) {
                 disabled={isResending}
                 className={SECONDARY_BUTTON_CLASSES}
               >
-                {isResending ? 'Reenviando...' : 'Reenviar link de activación'}
+                {isResending ? 'Generando...' : 'Generar link nuevo'}
               </button>
             )}
             {resendError && (
@@ -164,10 +165,13 @@ function EditCompanyForm({ id }: { id: string }) {
                 {resendError}
               </p>
             )}
-            {resendSent && (
-              <p role="status" className={SUCCESS_CLASSES}>
-                Se reenvió el link de activación
-              </p>
+            {activation && (
+              <ActivationLinkPanel
+                activationLink={activation.activationLink}
+                adminPhone={activation.adminPhone}
+                companyName={company.name}
+                replacesPrevious
+              />
             )}
           </>
         ) : (
