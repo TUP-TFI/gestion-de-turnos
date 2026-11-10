@@ -9,12 +9,14 @@ import { CompanyNotFoundCard } from '../../components/CompanyNotFoundCard'
 import { ServiceSlotPicker } from '../../components/ServiceSlotPicker'
 import { useAuth } from '../../hooks/useAuth'
 import { useBookingFlow } from '../../hooks/useBookingFlow'
+import { useClientAppointments } from '../../hooks/useClientAppointments'
 import { useClientAuth } from '../../hooks/useClientAuth'
 import { usePublicBusinessHours } from '../../hooks/usePublicBusinessHours'
 import { usePublicCompany } from '../../hooks/usePublicCompany'
 import { COMPANY_CATEGORY_LABELS } from '../../lib/companyCategories'
 import { companyThemeStyle } from '../../lib/companyTheme'
 import {
+  COMPANY_BAND_BADGE_CLASSES,
   COMPANY_BAND_BUTTON_CLASSES,
   COMPANY_BAND_CLASSES,
   ERROR_CLASSES,
@@ -73,6 +75,8 @@ export function PublicCompanyPage() {
   const { company, services, notFound, error, isLoading } =
     usePublicCompany(slug)
   const booking = useBookingFlow(slug, services)
+  // Con carga o error el conteo queda en 0 y el contador no se muestra.
+  const pendingCount = useClientAppointments(slug, 'PENDING').appointments.length
   const businessHours = usePublicBusinessHours(
     slug,
     company?.status === 'ACTIVE',
@@ -174,8 +178,18 @@ export function PublicCompanyPage() {
               <Link
                 to={`/${slug}/my-appointments`}
                 className={COMPANY_BAND_BUTTON_CLASSES}
+                aria-label={
+                  pendingCount > 0
+                    ? `Mis turnos, ${pendingCount} ${pendingCount === 1 ? 'pendiente' : 'pendientes'}`
+                    : undefined
+                }
               >
                 Mis turnos
+                {pendingCount > 0 && (
+                  <span aria-hidden="true" className={COMPANY_BAND_BADGE_CLASSES}>
+                    {pendingCount}
+                  </span>
+                )}
               </Link>
               <button
                 type="button"
@@ -230,6 +244,8 @@ export function PublicCompanyPage() {
               </p>
             ) : (
               <ServiceSlotPicker
+                // Tras una reserva, el selector vuelve a empezar: sin servicio ni fecha elegidos.
+                key={booking.bookingCount}
                 services={services}
                 timezone={company.timezone}
                 queryKey={(serviceId, date) => [
