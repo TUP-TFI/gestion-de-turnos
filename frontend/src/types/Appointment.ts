@@ -45,3 +45,33 @@ export type CreateAppointmentRequest = Pick<
   Appointment,
   'serviceId' | 'startDateTime'
 >
+
+// Un turno de la agenda del admin (GET /api/company/appointments y /summary). El cliente es el de la cuenta; en un
+// turno manual sin cuenta, id es null y el nombre y el teléfono salen del turno.
+export type AdminAppointment = Pick<
+  Appointment,
+  | 'id'
+  | 'serviceId'
+  | 'startDateTime'
+  | 'endDateTime'
+  | 'status'
+  | 'origin'
+  | 'rescheduleCount'
+  | 'previousStartDateTime'
+  | 'priceSnapshot'
+  | 'durationMinutesSnapshot'
+  | 'cancelledBy'
+  | 'cancellationReason'
+  | 'cancelledAt'
+> & {
+  serviceName: string
+  client: { id: string | null; name: string; phone: string | null }
+}
+
+// Respuesta de GET /api/company/appointments/summary, sin turnos cancelados. Los dos van del más cercano al más lejano.
+export interface AppointmentSummary {
+  // Los de hoy, en la fecha local de la empresa.
+  today: AdminAppointment[]
+  // Los próximos 5 después de hoy.
+  upcoming: AdminAppointment[]
+}
