@@ -119,7 +119,7 @@ Errores: los del `cancel`, cambiando el plazo por `400 RESCHEDULE_DEADLINE_PASSE
 | Endpoint | Respuesta | Errores propios | Historia |
 | :--- | :--- | :--- | :--- |
 | `GET /api/company/appointments/summary` | `{ today: [], upcoming: [] }`, sin cancelados (D4) | — | US-09.1 |
-| `GET /api/company/appointments?status=&origin=&rescheduled=&page=&size=` | Paginado de `AdminAppointment`, ordenado por `startDateTime` descendente | — | US-09.2 |
+| `GET /api/company/appointments?status=&origin=&rescheduled=&page=&size=` | Paginado de `AdminAppointment`, ordenado por `startDateTime` descendente; con `status=PENDING`, ascendente | — | US-09.2 |
 | `POST /api/company/appointments/{id}/cancel` con `{ "reason": "opcional" }` | `200` con `AdminAppointment`, `cancelledBy = COMPANY` | `404 APPOINTMENT_NOT_FOUND`, `409 APPOINTMENT_NOT_PENDING` | US-09.3 |
 | `GET /api/company/clients?q=&page=&size=` | Paginado de `{ id, firstName, lastName, email, phone }`. Sin `q`, todos | — | US-09.4, 09.7 |
 | `GET /api/company/services/{id}/availability?date=` (D3) | `{ date, starts }` | `404 SERVICE_NOT_FOUND` | US-09.5, 09.6 |
@@ -177,6 +177,6 @@ El panel muestra los turnos en hora local de la empresa. `GET /api/company/brand
 | D2 | Disponibilidad al reprogramar | `availableStarts` cuenta el propio turno como ocupado: no se puede correr 30 minutos un turno de 60. Además usa la duración actual del servicio, no la copiada, y rechaza servicios inactivos | Endpoint propio que excluye el turno y usa `durationMinutesSnapshot`. Un servicio inactivo se puede reprogramar, por la regla 23 |
 | D3 | Disponibilidad en el panel | El admin podría usar la ruta pública, pero tendría que conseguir su slug | Ruta propia bajo `/api/company`, con la empresa de la sesión |
 | D4 | "Próximos turnos" | `alcance-mvp.md` lo deja sin definir | `upcoming`: los próximos 5 turnos después de hoy, en hora local de la empresa |
-| D5 | Paginado | US-09.7 lo pide para clientes. US-09.2 no lo menciona, pero la agenda crece sin límite | Paginar agenda y clientes con el mismo DTO. La agenda se ordena por `startDateTime` descendente, sin `from` ni `to` |
+| D5 | Paginado | US-09.7 lo pide para clientes. US-09.2 no lo menciona, pero la agenda crece sin límite | Paginar agenda y clientes con el mismo DTO. La agenda se ordena por `startDateTime` descendente, sin `from` ni `to`. Los pendientes van ascendentes, del más cercano al más lejano, porque son los que hay que atender |
 | D6 | Zona en el panel | Falta el dato | `timezone` en `GET /api/company/branding`. Lo implementa Brune en su PR de US-09.1 |
 | D7 | Datos del reintento | La fila no guarda el mensaje, y `notification` no puede leer el turno para rearmarlo sin dejar de ser hoja del grafo. US-10.4 tampoco define el tope ni cuándo una `PENDING` se considera abandonada | Retirada. Con Click to Chat no hay reintento: sin `V2`, sin columna `message` y sin job |

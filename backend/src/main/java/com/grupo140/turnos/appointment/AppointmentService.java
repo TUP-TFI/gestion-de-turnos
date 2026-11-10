@@ -29,6 +29,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -83,32 +84,73 @@ public class AppointmentService {
      */
     @Transactional
     public ClientAppointmentResponse book(UUID companyId, UUID clientId, BookAppointmentRequest request) {
-        companyService.lockActive(companyId);
+        Appointment appointment = new Appointment();
+        appointment.setClientId(clientId);
+        appointment.setOrigin(AppointmentOrigin.ONLINE);
         com.grupo140.turnos.catalog.Service service =
-                catalogService.requireActiveService(companyId, request.serviceId());
-        ZoneId zone = companyService.zoneOf(companyId);
-        Instant start = request.startDateTime();
-        LocalDate date = start.atZone(zone).toLocalDate();
-        requireWithinBookingWindow(start, date, zone);
-        if (!availabilityService
-                .availableStarts(companyId, request.serviceId(), date)
-                .contains(start)) {
-            throw slotUnavailable();
+                reserve(companyId, request.serviceId(), request.startDateTime(), appointment);
+        return toResponse(appointment, service.getName(), platformSettingsService.get(), Instant.now(clock));
+    }
+
+    /**
+     * Carga un turno a pedido del admin (US-09.5 y US-09.6), con las mismas validaciones y el mismo lock que la reserva
+     * online. Va a nombre de un cliente con cuenta o de alguien sin cuenta, con nombre y teléfono. Un turno con cuenta
+     * le aparece al cliente en "Mis turnos" como cualquier otro. No publica un aviso: el admin avisa desde su panel.
+     *
+     * @param companyId empresa de la sesión.
+     * @throws ApiException {@code INVALID_CLIENT_IDENTITY} (400), {@code CLIENT_NOT_FOUND} (404) y los de
+     *     {@link #book}.
+     */
+    @Transactional
+    public AdminAppointmentResponse bookManual(UUID companyId, ManualAppointmentRequest request) {
+        String name = blankToNull(request.manualClientName());
+        String phone = blankToNull(request.manualClientPhone());
+        boolean hasAccount = request.clientId() != null;
+        // Exactamente una identidad, igual que el CHECK chk_appointment_client_identity: o la cuenta, o nombre y
+        // teléfono.
+        boolean validIdentity = hasAccount ? name == null && phone == null : name != null && phone != null;
+        if (!validIdentity) {
+            throw new ApiException(
+                    HttpStatus.BAD_REQUEST,
+                    "INVALID_CLIENT_IDENTITY",
+                    "El turno lleva un cliente con cuenta, o el nombre y el teléfono de alguien sin cuenta");
+        }
+        if (hasAccount && !userService.isClient(companyId, request.clientId())) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "CLIENT_NOT_FOUND", "El cliente no existe");
         }
 
         Appointment appointment = new Appointment();
+        appointment.setClientId(request.clientId());
+        appointment.setManualClientName(name);
+        appointment.setManualClientPhone(phone);
+        appointment.setOrigin(AppointmentOrigin.MANUAL);
+        reserve(companyId, request.serviceId(), request.startDateTime(), appointment);
+        return toAdminResponses(companyId, List.of(appointment)).getFirst();
+    }
+
+    // Lo común a la reserva online y a la carga manual: quien llama pone el cliente y el origen, y acá se valida el
+    // horario, se copian precio y duración y se guarda ese mismo turno. Devuelve el servicio ya leído, para no volver a
+    // buscarlo al armar la respuesta.
+    private com.grupo140.turnos.catalog.Service reserve(
+            UUID companyId, UUID serviceId, Instant start, Appointment appointment) {
+        companyService.lockActive(companyId);
+        com.grupo140.turnos.catalog.Service service = catalogService.requireActiveService(companyId, serviceId);
+        ZoneId zone = companyService.zoneOf(companyId);
+        LocalDate date = start.atZone(zone).toLocalDate();
+        requireWithinBookingWindow(start, date, zone);
+        if (!availabilityService.availableStarts(companyId, serviceId, date).contains(start)) {
+            throw slotUnavailable();
+        }
+
         appointment.setCompanyId(companyId);
-        appointment.setServiceId(request.serviceId());
-        appointment.setClientId(clientId);
+        appointment.setServiceId(serviceId);
         appointment.setPriceSnapshot(service.getPrice());
         appointment.setDurationMinutesSnapshot(service.getDurationMinutes());
         appointment.setStartDateTime(start);
         appointment.setEndDateTime(start.plus(Duration.ofMinutes(service.getDurationMinutes())));
-        appointment.setOrigin(AppointmentOrigin.ONLINE);
         appointment.setStatus(AppointmentStatus.PENDING);
-        Appointment saved = appointmentRepository.saveAndFlush(appointment);
-
-        return toResponse(saved, service.getName(), platformSettingsService.get(), Instant.now(clock));
+        appointmentRepository.saveAndFlush(appointment);
+        return service;
     }
 
     private static ApiException slotUnavailable() {
@@ -272,7 +314,8 @@ public class AppointmentService {
     }
 
     /**
-     * Agenda del admin (US-09.2): todos los turnos de la empresa, del más nuevo al más viejo. Cada filtro es opcional;
+     * Agenda del admin (US-09.2): todos los turnos de la empresa, del más nuevo al más viejo. Los pendientes van al
+     * revés, del más cercano al más lejano, porque son los que hay que atender. Cada filtro es opcional;
      * {@code rescheduled} separa los turnos con {@code rescheduleCount > 0} de los que nunca se reprogramaron.
      *
      * @param companyId empresa de la sesión.
@@ -285,8 +328,11 @@ public class AppointmentService {
             Boolean rescheduled,
             int page,
             int size) {
+        Sort.Direction direction = status == AppointmentStatus.PENDING ? Sort.Direction.ASC : Sort.Direction.DESC;
+        // El id desempata, para que dos turnos a la misma hora no salten de una página a otra.
+        Sort sort = Sort.by(direction, "startDateTime").and(Sort.by("id"));
         Page<Appointment> appointments = appointmentRepository.searchForCompany(
-                companyId, status, origin, rescheduled, PageRequest.of(page, size));
+                companyId, status, origin, rescheduled, PageRequest.of(page, size, sort));
         return new PageResponse<>(
                 toAdminResponses(companyId, appointments.getContent()),
                 appointments.getNumber(),

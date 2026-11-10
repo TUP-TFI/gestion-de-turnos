@@ -143,6 +143,18 @@ public class UserService {
     }
 
     /**
+     * Indica si el usuario es un cliente de la empresa. La carga manual (US-09.5) lo usa antes de guardar el turno: la
+     * FK del turno solo exige la misma empresa, así que también aceptaría al admin.
+     */
+    @Transactional(readOnly = true)
+    public boolean isClient(UUID companyId, UUID userId) {
+        return userRepository
+                .findByIdAndCompanyId(userId, companyId)
+                .filter(user -> user.getRole() == UserRole.CLIENT)
+                .isPresent();
+    }
+
+    /**
      * Datos de contacto de varios clientes de la empresa, en una sola consulta, para la lista de avisos de la
      * desactivación (US-04.4). Los ids que no existen o son de otra empresa no vienen.
      */

@@ -114,6 +114,16 @@ class CompanyAgendaIT {
     }
 
     @Test
+    void pendingGoNearestFirstAndTheRestNewestFirst() throws Exception {
+        UUID far = saveOnline(at(3, 10), AppointmentStatus.PENDING);
+        UUID near = saveOnline(at(2, 10), AppointmentStatus.PENDING);
+        UUID cancelled = saveManual(at(4, 10), AppointmentStatus.CANCELLED);
+
+        list("?status=PENDING").andExpect(ids(near, far));
+        list("").andExpect(ids(cancelled, far, near));
+    }
+
+    @Test
     void listIsPaginated() throws Exception {
         saveOnline(at(2, 10), AppointmentStatus.PENDING);
         saveOnline(at(3, 10), AppointmentStatus.PENDING);
