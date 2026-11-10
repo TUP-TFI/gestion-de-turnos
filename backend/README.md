@@ -247,7 +247,7 @@ Un slug inexistente responde `404 COMPANY_NOT_FOUND` y una empresa desactivada, 
 
 | Parámetro | Por defecto | Qué hace |
 | :--- | :--- | :--- |
-| `q` | Vacío: trae todos | Busca en el nombre completo, el email y el teléfono. No distingue mayúsculas, pero sí acentos |
+| `q` | Vacío: trae todos | Busca en el nombre completo, el email y el teléfono. No distingue mayúsculas ni acentos: `lucia` encuentra a "Lucía" |
 | `page` | `0` | Número de página, desde 0 |
 | `size` | `20` | Elementos por página, de 1 a 100 |
 

@@ -80,6 +80,14 @@ class CompanyClientsIT {
     }
 
     @Test
+    void searchIgnoresAccentsInNameAndQuery() throws Exception {
+        assertOnlyMatch("lucia", LUCIA);
+        assertOnlyMatch("LUCIA PEREZ", LUCIA);
+        assertOnlyMatch("martin", MARTIN);
+        assertOnlyMatch("Lucía", LUCIA);
+    }
+
+    @Test
     void searchWithoutMatchesReturnsEmptyPage() throws Exception {
         listAsAdmin("nadie", "0", "20")
                 .andExpect(status().isOk())

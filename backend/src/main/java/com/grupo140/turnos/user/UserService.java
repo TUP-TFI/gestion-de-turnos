@@ -2,6 +2,7 @@ package com.grupo140.turnos.user;
 
 import com.grupo140.turnos.common.PageResponse;
 import com.grupo140.turnos.common.error.ApiException;
+import java.text.Normalizer;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
@@ -181,9 +182,11 @@ public class UserService {
                 .map(ClientResponse::from));
     }
 
-    // Lo que escribe el admin se busca como texto: sin esto, un % o un _ funcionarían como comodines del like.
+    // Lo que escribe el admin se busca como texto: sin esto, un % o un _ funcionarían como comodines del like. Va sin
+    // acentos, igual que el nombre en searchClients: NFD separa cada letra de su tilde y \p{M} borra las tildes.
     private static String toLikePattern(String query) {
-        String text = query.strip()
+        String text = Normalizer.normalize(query.strip(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
                 .toLowerCase(Locale.ROOT)
                 .replace("\\", "\\\\")
                 .replace("%", "\\%")
