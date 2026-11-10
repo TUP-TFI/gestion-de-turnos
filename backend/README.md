@@ -274,6 +274,8 @@ Responde `200` con `{ content, page, size, totalElements, totalPages }`, igual q
 - `today`: los turnos que empiezan hoy, en la fecha local de la empresa, incluidos los que ya terminaron.
 - `upcoming`: los próximos 5 turnos desde mañana (D4 de `docs/contratos-api.md`).
 
+`POST /api/company/appointments/{id}/cancel` cancela un turno de la empresa, con cuenta o manual. El body `{ "reason": "..." }` es opcional; sin body, o con un motivo vacío, se guarda sin motivo, y si tiene texto se guarda sin los espacios de los bordes. Responde `200` con el `AdminAppointment` en `CANCELLED` y `cancelledBy = COMPANY`, y el horario queda libre. No tiene el plazo del cliente: también cancela un turno que ya empezó y que el job de cierre todavía no completó. Errores: `404 APPOINTMENT_NOT_FOUND` (no existe o es de otra empresa), `409 APPOINTMENT_NOT_PENDING` (ya cancelado o completado) y `400 VALIDATION_ERROR` (motivo de más de 200 caracteres). No avisa al cliente: lo avisa el admin por WhatsApp (US-10.2).
+
 ### Desactivar y reactivar una empresa
 
 `POST /api/superadmin/companies/{id}/deactivate` y `POST /api/superadmin/companies/{id}/reactivate`, sin body. Responden `200` con la empresa actualizada, o `404 COMPANY_NOT_FOUND`. Si la empresa ya estaba en ese estado, responden `200` igual y no hacen nada.
