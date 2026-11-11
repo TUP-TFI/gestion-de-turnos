@@ -45,6 +45,17 @@ export interface CompanyAdminSummary {
 // Detalle de una empresa. admin es null si la empresa no tiene administrador.
 export type CompanyDetail = Company & { admin: CompanyAdminSummary | null }
 
+// Link para que el admin active su cuenta (POST .../companies y .../resend-activation). Lleva el token: solo lo ve el
+// superadmin. El teléfono es obligatorio en el alta, así que siempre viene; que sirva para WhatsApp lo decide
+// buildWhatsAppUrl.
+export interface ActivationLink {
+  activationLink: string
+  adminPhone: string
+}
+
+// Respuesta del alta (POST /api/superadmin/companies): la empresa y el link, al mismo nivel.
+export type CreatedCompany = Company & ActivationLink
+
 // Datos editables de la empresa: el cuerpo de PUT /api/superadmin/companies/{id}. El slug y el status no se editan.
 export type CompanyData = Pick<
   Company,

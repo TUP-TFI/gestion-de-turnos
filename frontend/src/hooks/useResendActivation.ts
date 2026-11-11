@@ -1,10 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toErrorMessage } from '../api/client'
 import { resendActivation } from '../api/companies'
+import type { ActivationLink } from '../types/Company'
 
 interface UseResendActivationResult {
   resend: () => void
-  sent: boolean
+  // El link nuevo y el teléfono del admin, o null si todavía no se generó.
+  activation: ActivationLink | null
   error: string | null
   isLoading: boolean
 }
@@ -20,7 +22,7 @@ export function useResendActivation(id: string): UseResendActivationResult {
 
   return {
     resend: mutation.mutate,
-    sent: mutation.isSuccess,
+    activation: mutation.data ?? null,
     error: mutation.error ? toErrorMessage(mutation.error) : null,
     isLoading: mutation.isPending,
   }

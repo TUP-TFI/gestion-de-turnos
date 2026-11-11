@@ -17,6 +17,7 @@ import { ClientLoginPage } from './pages/public/ClientLoginPage'
 import { ClientRegisterPage } from './pages/public/ClientRegisterPage'
 import { MyAppointmentsPage } from './pages/public/MyAppointmentsPage'
 import { PublicCompanyPage } from './pages/public/PublicCompanyPage'
+import { CancellationNoticesPage } from './pages/superadmin/CancellationNoticesPage'
 import { CompaniesPage } from './pages/superadmin/CompaniesPage'
 import { CreateCompanyPage } from './pages/superadmin/CreateCompanyPage'
 import { EditCompanyPage } from './pages/superadmin/EditCompanyPage'
@@ -46,6 +47,10 @@ function App() {
           <Route path="/superadmin/companies" element={<CompaniesPage />} />
           <Route path="/superadmin/companies/new" element={<CreateCompanyPage />} />
           <Route path="/superadmin/companies/:id/edit" element={<EditCompanyPage />} />
+          <Route
+            path="/superadmin/companies/:id/cancellation-notices"
+            element={<CancellationNoticesPage />}
+          />
           <Route path="/superadmin/settings" element={<SettingsPage />} />
         </Route>
       </Route>
