@@ -87,6 +87,15 @@ class CompanyClientsIT {
         assertOnlyMatch("Lucía", LUCIA);
     }
 
+    // Java y la base sacan las mismas tildes: "João" se encuentra escrito con y sin la ã.
+    @Test
+    void searchFindsNamesWithOtherAccents() throws Exception {
+        registerClient("barberia-central", "joao@example.com", "João");
+
+        assertOnlyMatch("joão", "joao@example.com");
+        assertOnlyMatch("joao", "joao@example.com");
+    }
+
     @Test
     void searchWithoutMatchesReturnsEmptyPage() throws Exception {
         listAsAdmin("nadie", "0", "20")
@@ -115,7 +124,7 @@ class CompanyClientsIT {
 
     @Test
     void clientOfAnotherCompanyIsNotListed() throws Exception {
-        registerClient("estetica-pendiente", "forastera@example.com");
+        registerClient("estetica-pendiente", "forastera@example.com", "Ana");
 
         listAsAdmin("forastera", "0", "20")
                 .andExpect(jsonPath("$.totalElements").value(0));
@@ -168,12 +177,12 @@ class CompanyClientsIT {
                 .param("size", size));
     }
 
-    private void registerClient(String slug, String email) throws Exception {
-        String json = "{\"firstName\":\"Ana\",\"lastName\":\"Gil\",\"email\":\"%s\","
+    private void registerClient(String slug, String email, String firstName) throws Exception {
+        String json = "{\"firstName\":\"%s\",\"lastName\":\"Gil\",\"email\":\"%s\","
                 + "\"phone\":\"+5493510000099\",\"password\":\"Clave.nueva.2026\"}";
         mockMvc.perform(post("/api/public/companies/" + slug + "/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(json.formatted(email)))
+                        .content(json.formatted(firstName, email)))
                 .andExpect(status().isCreated());
     }
 

@@ -62,16 +62,17 @@ public interface UserRepository extends Repository<User, UUID> {
     List<User> findPanelUsersByEmail(@Param("email") String email);
 
     // Clientes de la empresa (US-09.4 y US-09.7). pattern es un patrón de like en minúsculas y sin acentos: '%' trae
-    // todos. El nombre se compara sin acentos con translate, que trae PostgreSQL: "lucia" encuentra a "Lucía". El cast
-    // es porque Hibernate no conoce translate y sin él no sabe que devuelve texto. El id desempata el orden, para que
-    // un
-    // cliente no se repita ni falte entre dos páginas.
+    // todos. El nombre se compara sin acentos con translate, que trae PostgreSQL: "lucia" encuentra a "Lucía". Las
+    // letras tienen que ser las mismas que en UserService.toLikePattern. El cast es porque Hibernate no conoce
+    // translate y sin él no sabe que devuelve texto. El id desempata el orden, para que un cliente no se repita ni
+    // falte entre dos páginas.
     @Query("""
             select u from User u
             where u.companyId = :companyId
               and u.role = com.grupo140.turnos.user.UserRole.CLIENT
-              and (cast(function('translate', lower(concat(u.firstName, ' ', u.lastName)), 'áéíóúüñ', 'aeiouun')
-                       as String) like :pattern escape '\\'
+              and (cast(function('translate', lower(concat(u.firstName, ' ', u.lastName)),
+                                 'áéíóúüñàèìòùâêîôûãõç', 'aeiouunaeiouaeiouaoc') as String)
+                       like :pattern escape '\\'
                    or lower(u.email) like :pattern escape '\\'
                    or u.phone like :pattern escape '\\')
             order by u.lastName, u.firstName, u.id

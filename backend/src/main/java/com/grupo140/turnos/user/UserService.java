@@ -25,6 +25,9 @@ public class UserService {
 
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
+    private static final String ACCENTED = "áéíóúüñàèìòùâêîôûãõç";
+    private static final String UNACCENTED = "aeiouunaeiouaeiouaoc";
+
     private final UserRepository userRepository;
 
     public UserService(UserRepository userRepository) {
@@ -183,15 +186,25 @@ public class UserService {
     }
 
     // Lo que escribe el admin se busca como texto: sin esto, un % o un _ funcionarían como comodines del like. Va sin
-    // acentos, igual que el nombre en searchClients: NFD separa cada letra de su tilde y \p{M} borra las tildes.
+    // acentos, igual que el nombre en searchClients.
     private static String toLikePattern(String query) {
-        String text = Normalizer.normalize(query.strip(), Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", "")
-                .toLowerCase(Locale.ROOT)
+        String text = withoutAccents(query.strip().toLowerCase(Locale.ROOT))
                 .replace("\\", "\\\\")
                 .replace("%", "\\%")
                 .replace("_", "\\_");
         return "%" + text + "%";
+    }
+
+    // Cambia cada letra de ACCENTED por la de UNACCENTED en la misma posición. Son las mismas letras que el translate
+    // de UserRepository.searchClients: si los dos lados sacaran tildes distintas, un nombre como "João" dejaría de
+    // encontrarse. NFC junta la letra y su tilde en un solo carácter, por si el texto llega con la tilde separada.
+    private static String withoutAccents(String text) {
+        StringBuilder result = new StringBuilder();
+        for (char letter : Normalizer.normalize(text, Normalizer.Form.NFC).toCharArray()) {
+            int index = ACCENTED.indexOf(letter);
+            result.append(index >= 0 ? UNACCENTED.charAt(index) : letter);
+        }
+        return result.toString();
     }
 
     private static CompanyAdmin toCompanyAdmin(User admin) {
