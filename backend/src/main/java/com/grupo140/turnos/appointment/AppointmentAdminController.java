@@ -6,6 +6,7 @@ import com.grupo140.turnos.common.security.SessionUser;
 import com.grupo140.turnos.schedule.BusinessHoursRequest;
 import com.grupo140.turnos.schedule.ScheduleExceptionRequest;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -27,9 +29,27 @@ public class AppointmentAdminController {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final AppointmentService appointmentService;
+    private final AvailabilityService availabilityService;
 
-    public AppointmentAdminController(AppointmentService appointmentService) {
+    public AppointmentAdminController(AppointmentService appointmentService, AvailabilityService availabilityService) {
         this.appointmentService = appointmentService;
+        this.availabilityService = availabilityService;
+    }
+
+    /** Carga manual de un turno, para un cliente con cuenta o sin cuenta (US-09.5 y US-09.6). */
+    @PostMapping("/appointments")
+    @ResponseStatus(HttpStatus.CREATED)
+    public AdminAppointmentResponse create(SessionUser session, @Valid @RequestBody ManualAppointmentRequest request) {
+        return appointmentService.bookManual(session.companyId(), request);
+    }
+
+    /**
+     * Horarios libres de un servicio en una fecha local de la empresa, para la carga manual (D3 de
+     * {@code contratos-api.md}). Son los mismos que ve la página pública, con la empresa de la sesión en vez del slug.
+     */
+    @GetMapping("/services/{id}/availability")
+    public AvailabilityResponse availability(SessionUser session, @PathVariable UUID id, @RequestParam LocalDate date) {
+        return new AvailabilityResponse(date, availabilityService.availableStarts(session.companyId(), id, date));
     }
 
     /** Agenda: todos los turnos de la empresa, paginados y con filtros opcionales (US-09.2). */

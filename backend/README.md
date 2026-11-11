@@ -247,7 +247,7 @@ Un slug inexistente responde `404 COMPANY_NOT_FOUND` y una empresa desactivada, 
 
 | Parámetro | Por defecto | Qué hace |
 | :--- | :--- | :--- |
-| `q` | Vacío: trae todos | Busca en el nombre completo, el email y el teléfono. No distingue mayúsculas, pero sí acentos |
+| `q` | Vacío: trae todos | Busca en el nombre completo, el email y el teléfono. No distingue mayúsculas ni acentos: `lucia` encuentra a "Lucía" |
 | `page` | `0` | Número de página, desde 0 |
 | `size` | `20` | Elementos por página, de 1 a 100 |
 
@@ -255,9 +255,9 @@ Responde `200` con `{ content, page, size, totalElements, totalPages }`, y cada 
 
 ### Agenda del admin
 
-Las dos rutas usan la empresa de la sesión y solo las puede usar `COMPANY_ADMIN`. Cada turno trae la forma `AdminAppointment` de `docs/contratos-api.md`, con las fechas en UTC. `client` tiene `{ id, name, phone }`: con cuenta, salen de la cuenta del cliente; en un turno manual sin cuenta, salen del propio turno, y `id` es `null`.
+Todas las rutas usan la empresa de la sesión y solo las puede usar `COMPANY_ADMIN`. Cada turno trae la forma `AdminAppointment` de `docs/contratos-api.md`, con las fechas en UTC. `client` tiene `{ id, name, phone }`: con cuenta, salen de la cuenta del cliente; en un turno manual sin cuenta, salen del propio turno, y `id` es `null`.
 
-`GET /api/company/appointments?status=&origin=&rescheduled=&page=&size=` lista todos los turnos de la empresa, del más nuevo al más viejo.
+`GET /api/company/appointments?status=&origin=&rescheduled=&page=&size=` lista todos los turnos de la empresa, del más nuevo al más viejo. Con `status=PENDING` van al revés, del más cercano al más lejano, porque son los que hay que atender.
 
 | Parámetro | Por defecto | Qué hace |
 | :--- | :--- | :--- |
@@ -275,6 +275,10 @@ Responde `200` con `{ content, page, size, totalElements, totalPages }`, igual q
 - `upcoming`: los próximos 5 turnos desde mañana (D4 de `docs/contratos-api.md`).
 
 `POST /api/company/appointments/{id}/cancel` cancela un turno de la empresa, con cuenta o manual. El body `{ "reason": "..." }` es opcional; sin body, o con un motivo vacío, se guarda sin motivo, y si tiene texto se guarda sin los espacios de los bordes. Responde `200` con el `AdminAppointment` en `CANCELLED` y `cancelledBy = COMPANY`, y el horario queda libre. No tiene el plazo del cliente: también cancela un turno que ya empezó y que el job de cierre todavía no completó. Errores: `404 APPOINTMENT_NOT_FOUND` (no existe o es de otra empresa), `409 APPOINTMENT_NOT_PENDING` (ya cancelado o completado) y `400 VALIDATION_ERROR` (motivo de más de 200 caracteres). No avisa al cliente: lo avisa el admin por WhatsApp (US-10.2).
+
+`POST /api/company/appointments` carga un turno manual (US-09.5 y US-09.6). El body lleva `serviceId`, `startDateTime` y una sola identidad: `clientId` de un cliente de la empresa, o `manualClientName` y `manualClientPhone` de alguien sin cuenta. Al nombre y al teléfono se les sacan los espacios de los bordes, y vacíos cuentan como que no llegaron. Pasa por las mismas validaciones y el mismo lock que la reserva online, porque las dos usan el mismo método interno de `AppointmentService`; cambian el origen y el cliente. Responde `201` con el `AdminAppointment` en `PENDING` y `origin = MANUAL`. Un turno con cuenta le aparece al cliente en "Mis turnos" y lo puede cancelar o reprogramar; uno sin cuenta solo lo gestiona el admin. Errores: los de la reserva (`404 SERVICE_NOT_FOUND`, `400 BOOKING_TOO_SOON`, `400 BOOKING_TOO_FAR`, `409 SLOT_UNAVAILABLE`), más `400 INVALID_CLIENT_IDENTITY` (las dos identidades, ninguna o solo una parte) y `404 CLIENT_NOT_FOUND` (el `clientId` no es un cliente de la empresa: tampoco vale el del admin). No avisa al cliente.
+
+`GET /api/company/services/{id}/availability?date=AAAA-MM-DD` devuelve los horarios libres para la carga manual: `200` con `{ date, starts }`, los mismos que ve la página pública, pero con la empresa de la sesión en vez del slug (D3 de `docs/contratos-api.md`). Un servicio inexistente, de otra empresa o inactivo responde `404 SERVICE_NOT_FOUND`.
 
 ### Desactivar y reactivar una empresa
 

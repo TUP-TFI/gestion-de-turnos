@@ -32,8 +32,8 @@ public interface AppointmentRepository extends Repository<Appointment, UUID> {
     // Turnos de una empresa en un estado, sin filtrar por fecha.
     List<Appointment> findByCompanyIdAndStatus(UUID companyId, AppointmentStatus status);
 
-    // Agenda del admin (US-09.2). Un filtro nulo no filtra. Ordena del más nuevo al más viejo, y el id desempata para
-    // que dos turnos a la misma hora no salten de una página a otra.
+    // Agenda del admin (US-09.2). Un filtro nulo no filtra. El orden llega en el Pageable: depende del filtro de estado
+    // (ver AppointmentService.listForCompany).
     @Query("""
             select a from Appointment a
             where a.companyId = :companyId
@@ -42,7 +42,6 @@ public interface AppointmentRepository extends Repository<Appointment, UUID> {
               and (:rescheduled is null
                    or (:rescheduled = true and a.rescheduleCount > 0)
                    or (:rescheduled = false and a.rescheduleCount = 0))
-            order by a.startDateTime desc, a.id
             """)
     Page<Appointment> searchForCompany(
             @Param("companyId") UUID companyId,
