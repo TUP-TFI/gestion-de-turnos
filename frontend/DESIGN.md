@@ -90,7 +90,7 @@ Sirve de guía para los estados de turnos.
 
 ## 10. Modal de confirmación
 
-Para acciones destructivas (desactivar empresa, cancelar turno). El botón destructivo va en rojo (`DANGER_BUTTON_CLASSES`). Implementado en `CancelAppointmentModal` (cancelar turno).
+Para acciones destructivas (desactivar empresa, cancelar turno). El botón destructivo va en rojo (`DANGER_BUTTON_CLASSES`). Implementado en `CancelAppointmentModal` (cancelar turno, cliente) y `AdminCancelAppointmentModal` (cancelar turno, admin, con motivo opcional).
 
 ## 11. Página pública
 

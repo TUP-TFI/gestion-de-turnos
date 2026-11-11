@@ -1,8 +1,11 @@
 import { useEffect } from 'react'
 import { useSearchParams } from 'react-router'
+import { AdminCancelAppointmentModal } from '../../components/AdminCancelAppointmentModal'
 import { AppointmentStatusBadge } from '../../components/AppointmentStatusBadge'
+import { DismissibleNotice } from '../../components/DismissibleNotice'
 import { Pagination } from '../../components/Pagination'
 import { useBranding } from '../../hooks/useBranding'
+import { useCancelCompanyAppointment } from '../../hooks/useCancelCompanyAppointment'
 import { useCompanyAppointments } from '../../hooks/useCompanyAppointments'
 import type { AppointmentFilters } from '../../api/companyAppointments'
 import {
@@ -17,6 +20,7 @@ import {
   LABEL_CLASSES,
   MUTED_TEXT_CLASSES,
   PAGE_TITLE_CLASSES,
+  ROW_DANGER_BUTTON_CLASSES,
   SECONDARY_BUTTON_CLASSES,
   TABLE_CELL_CLASSES,
   TABLE_HEAD_CLASSES,
@@ -89,6 +93,7 @@ export function AppointmentsPage() {
     isLoading: isLoadingAppointments,
     isFetching,
   } = useCompanyAppointments(filters, page)
+  const cancel = useCancelCompanyAppointment()
 
   // La respuesta es de una página que ya no existe, por ejemplo porque se borraron turnos o se editó la URL. Con una
   // respuesta así no se muestra la tabla, ni el paginado, ni el estado vacío.
@@ -119,6 +124,7 @@ export function AppointmentsPage() {
 
   // Cambiar un filtro vuelve a la primera página. Sin valor, el filtro sale de la URL.
   function changeFilter(name: string, value: string) {
+    cancel.dismissNotice()
     const next = new URLSearchParams(params)
     // La URL de la vista por defecto no lleva el filtro.
     if (value && !(name === 'status' && value === DEFAULT_STATUS)) {
@@ -131,6 +137,7 @@ export function AppointmentsPage() {
   }
 
   function changePage(newPage: number) {
+    cancel.dismissNotice()
     const next = new URLSearchParams(params)
     if (newPage > 0) {
       next.set('page', String(newPage))
@@ -222,12 +229,26 @@ export function AppointmentsPage() {
         <div>
           <button
             type="button"
-            onClick={() => setParams(new URLSearchParams())}
+            onClick={() => {
+              cancel.dismissNotice()
+              setParams(new URLSearchParams())
+            }}
             className={SECONDARY_BUTTON_CLASSES}
           >
             Limpiar filtros
           </button>
         </div>
+      )}
+
+      {/* Arriba de la tabla y no en la fila: al cancelar, la agenda abre en Pendientes y el turno ya no está. */}
+      {cancel.notice && (
+        <DismissibleNotice
+          key={cancel.notice.id}
+          kind={cancel.notice.kind}
+          onDismiss={cancel.dismissNotice}
+        >
+          {cancel.notice.text}
+        </DismissibleNotice>
       )}
 
       {(isLoading || isOutOfRange) && (
@@ -283,6 +304,9 @@ export function AppointmentsPage() {
                 </th>
                 <th scope="col" className={`${TABLE_CELL_CLASSES} font-semibold`}>
                   Precio
+                </th>
+                <th scope="col" className={`${TABLE_CELL_CLASSES} font-semibold`}>
+                  Acciones
                 </th>
               </tr>
             </thead>
@@ -341,11 +365,37 @@ export function AppointmentsPage() {
                   <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
                     {PRICE_FORMAT.format(appointment.priceSnapshot)}
                   </td>
+                  <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
+                    {/* Sin plazo: el admin cancela en cualquier momento. Solo los pendientes tienen acción. */}
+                    {appointment.status === 'PENDING' && (
+                      <button
+                        type="button"
+                        onClick={() => cancel.start(appointment)}
+                        className={ROW_DANGER_BUTTON_CLASSES}
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+
+      {branding && cancel.target && (
+        <AdminCancelAppointmentModal
+          serviceName={cancel.target.serviceName}
+          clientName={cancel.target.client.name}
+          clientPhone={cancel.target.client.phone}
+          startDateTime={cancel.target.startDateTime}
+          timezone={branding.timezone}
+          error={cancel.error}
+          isLoading={cancel.isLoading}
+          onConfirm={cancel.confirm}
+          onClose={cancel.close}
+        />
       )}
 
       {appointments && !isOutOfRange && (

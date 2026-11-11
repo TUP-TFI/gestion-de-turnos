@@ -5,8 +5,6 @@ import type {
   CancelledBy,
 } from '../types/Appointment'
 
-// Deuda: STATUS_LABELS y STATUS_CLASSES también están en MyAppointmentsPage. Se mueven acá y se usan desde las dos
-// pantallas cuando se mergee el #94, que todavía toca esa página.
 export const STATUS_LABELS: Record<AppointmentStatus, string> = {
   PENDING: 'Pendiente',
   COMPLETED: 'Completado',
