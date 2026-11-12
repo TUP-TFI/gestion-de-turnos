@@ -8,6 +8,7 @@ import {
   ERROR_CLASSES,
   INPUT_CLASSES,
   LABEL_CLASSES,
+  LINK_CLASSES,
   MUTED_TEXT_CLASSES,
   PAGE_TITLE_CLASSES,
   SECONDARY_BUTTON_CLASSES,
@@ -86,7 +87,10 @@ export function ClientsPage() {
   }
 
   const rows = clients?.content ?? []
+  // Se escribió algo que todavía no llegó a la URL: la tabla es de la búsqueda anterior.
+  const isSearching = text.trim() !== q
   const isRefreshing = isFetching && !isLoading
+  const isStale = isSearching || isRefreshing
   const showResults = clients !== null && !error && !isOutOfRange
 
   return (
@@ -106,7 +110,8 @@ export function ClientsPage() {
         <div className="flex flex-wrap gap-2">
           <input
             id="client-search"
-            type="search"
+            type="text"
+            enterKeyHint="search"
             value={text}
             onChange={(event) => setText(event.target.value)}
             autoComplete="off"
@@ -123,8 +128,8 @@ export function ClientsPage() {
           )}
         </div>
         <p className={MUTED_TEXT_CLASSES}>
-          El nombre se busca sin importar mayúsculas ni tildes. El email, solo
-          sin importar mayúsculas.
+          El nombre se busca sin importar mayúsculas ni tildes; el email, sin
+          importar mayúsculas, y el teléfono, tal como lo cargó el cliente.
         </p>
       </div>
 
@@ -146,23 +151,34 @@ export function ClientsPage() {
               : `${clients.totalElements} clientes`}
           </p>
           <p className={MUTED_TEXT_CLASSES} aria-live="polite">
-            {isRefreshing ? 'Actualizando...' : ''}
+            {isSearching ? 'Buscando...' : isRefreshing ? 'Actualizando...' : ''}
           </p>
         </div>
       )}
 
       {!isLoading && !error && !isOutOfRange && rows.length === 0 && (
-        <p className={`${MUTED_TEXT_CLASSES} text-center`}>
-          {q
-            ? `No hay clientes que coincidan con "${q}"`
-            : 'Todavía no hay clientes registrados'}
-        </p>
+        <div className="space-y-3 text-center">
+          <p className={MUTED_TEXT_CLASSES}>
+            {q
+              ? `No hay clientes que coincidan con "${q}"`
+              : 'Todavía no hay clientes registrados'}
+          </p>
+          {q && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className={SECONDARY_BUTTON_CLASSES}
+            >
+              Limpiar búsqueda
+            </button>
+          )}
+        </div>
       )}
 
       {rows.length > 0 && !isOutOfRange && (
         <div
-          aria-busy={isRefreshing}
-          className={`${TABLE_WRAPPER_CLASSES} transition-opacity ${isRefreshing ? 'opacity-60' : ''}`}
+          aria-busy={isStale}
+          className={`${TABLE_WRAPPER_CLASSES} transition-opacity ${isStale ? 'opacity-60' : ''}`}
         >
           <table className="w-full text-left text-sm text-body">
             <thead className={TABLE_HEAD_CLASSES}>
@@ -184,9 +200,18 @@ export function ClientsPage() {
                   <td className={`${TABLE_CELL_CLASSES} font-medium text-ink`}>
                     {client.lastName}, {client.firstName}
                   </td>
-                  <td className={TABLE_CELL_CLASSES}>{client.email}</td>
+                  <td className={TABLE_CELL_CLASSES}>
+                    <a href={`mailto:${client.email}`} className={LINK_CLASSES}>
+                      {client.email}
+                    </a>
+                  </td>
                   <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
-                    {client.phone}
+                    <a
+                      href={`tel:${client.phone.replace(/[^\d+]/g, '')}`}
+                      className={LINK_CLASSES}
+                    >
+                      {client.phone}
+                    </a>
                   </td>
                 </tr>
               ))}
