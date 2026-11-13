@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -150,7 +151,7 @@ public class ScheduleService {
         }
         ScheduleException exception = new ScheduleException(companyId, request.exceptionDate());
         applyShape(exception, request);
-        return ScheduleExceptionResponse.from(scheduleExceptionRepository.saveAndFlush(exception));
+        return save(exception);
     }
 
     /**
@@ -170,7 +171,17 @@ public class ScheduleService {
         }
         exception.setExceptionDate(request.exceptionDate());
         applyShape(exception, request);
-        return ScheduleExceptionResponse.from(scheduleExceptionRepository.saveAndFlush(exception));
+        return save(exception);
+    }
+
+    // Dos pedidos a la vez con la misma fecha pasan los dos el chequeo de arriba: el segundo lo frena la constraint
+    // uq_exception_company_date, y se responde el mismo 409 que si la fecha ya estuviera cargada.
+    private ScheduleExceptionResponse save(ScheduleException exception) {
+        try {
+            return ScheduleExceptionResponse.from(scheduleExceptionRepository.saveAndFlush(exception));
+        } catch (DataIntegrityViolationException ex) {
+            throw dateTaken();
+        }
     }
 
     /**
@@ -267,9 +278,9 @@ public class ScheduleService {
         exception.setReason(blankToNull(request.reason()));
     }
 
-    // Un motivo vacío o con solo espacios se guarda como "sin motivo".
+    // Un motivo vacío o con solo espacios se guarda como "sin motivo"; si tiene texto, sin los espacios de los bordes.
     private static String blankToNull(String text) {
-        return text == null || text.isBlank() ? null : text;
+        return text == null || text.isBlank() ? null : text.strip();
     }
 
     private static ApiException invalid(String message) {

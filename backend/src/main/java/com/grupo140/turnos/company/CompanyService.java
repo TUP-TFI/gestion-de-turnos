@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -123,7 +124,8 @@ public class CompanyService implements CompanyStatusChecker {
      * todo en una sola transacción. Si algo falla, no queda nada guardado. Devuelve el link de activación para que el
      * superadmin se lo mande al admin por WhatsApp: no se escribe en el log.
      *
-     * @throws ApiException {@code EMAIL_ALREADY_IN_USE} (409) o {@code VALIDATION_ERROR} (400).
+     * @throws ApiException {@code EMAIL_ALREADY_IN_USE} (409), {@code COMPANY_SLUG_TAKEN} (409) o
+     *     {@code VALIDATION_ERROR} (400).
      */
     @Transactional
     public CreatedCompanyResponse create(CreateCompanyRequest request) {
@@ -138,7 +140,16 @@ public class CompanyService implements CompanyStatusChecker {
 
         Company company = new Company(data.name(), slugGenerator.generate(data.name()), data.category());
         applyData(company, data);
-        company = companyRepository.saveAndFlush(company);
+        try {
+            company = companyRepository.saveAndFlush(company);
+        } catch (DataIntegrityViolationException ex) {
+            // Dos altas a la vez con nombres parecidos reciben el mismo slug libre: la segunda la frena el UNIQUE de
+            // company.slug.
+            throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "COMPANY_SLUG_TAKEN",
+                    "Se creó otra empresa con un nombre parecido al mismo tiempo. Probá de nuevo");
+        }
 
         UUID adminId = userService.createPendingAdmin(
                 company.getId(), admin.firstName(), admin.lastName(), admin.email(), admin.phone());
