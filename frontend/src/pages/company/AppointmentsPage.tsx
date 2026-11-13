@@ -1,12 +1,15 @@
 import { useEffect } from 'react'
 import { useSearchParams } from 'react-router'
 import { AdminCancelAppointmentModal } from '../../components/AdminCancelAppointmentModal'
+import { CancelNoticeContent } from '../../components/CancelNoticeContent'
 import { AppointmentStatusBadge } from '../../components/AppointmentStatusBadge'
 import { DismissibleNotice } from '../../components/DismissibleNotice'
 import { Pagination } from '../../components/Pagination'
+import { WhatsAppLink } from '../../components/WhatsAppLink'
 import { useBranding } from '../../hooks/useBranding'
 import { useCancelCompanyAppointment } from '../../hooks/useCancelCompanyAppointment'
 import { useCompanyAppointments } from '../../hooks/useCompanyAppointments'
+import { usePublicCompany } from '../../hooks/usePublicCompany'
 import type { AppointmentFilters } from '../../api/companyAppointments'
 import {
   CANCELLED_BY_LABELS,
@@ -14,6 +17,10 @@ import {
   STATUS_LABELS,
 } from '../../lib/appointmentLabels'
 import { formatInCompanyZone } from '../../lib/formatInCompanyZone'
+import {
+  APPOINTMENT_NOTICE_LABELS,
+  appointmentNotice,
+} from '../../lib/whatsappMessages'
 import {
   ERROR_CLASSES,
   INPUT_CLASSES,
@@ -93,6 +100,8 @@ export function AppointmentsPage() {
     isLoading: isLoadingAppointments,
     isFetching,
   } = useCompanyAppointments(filters, page)
+  // El nombre de la empresa sale de la página pública: sin él no hay mensajes de WhatsApp, pero la tabla funciona.
+  const { company } = usePublicCompany(branding?.slug)
   const cancel = useCancelCompanyAppointment()
 
   // La respuesta es de una página que ya no existe, por ejemplo porque se borraron turnos o se editó la URL. Con una
@@ -247,7 +256,11 @@ export function AppointmentsPage() {
           kind={cancel.notice.kind}
           onDismiss={cancel.dismissNotice}
         >
-          {cancel.notice.text}
+          <CancelNoticeContent
+            notice={cancel.notice}
+            companyName={company?.name}
+            timezone={branding?.timezone}
+          />
         </DismissibleNotice>
       )}
 
@@ -311,74 +324,96 @@ export function AppointmentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-hairline">
-              {rows.map((appointment) => (
-                <tr key={appointment.id}>
-                  <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
-                    {formatInCompanyZone(
-                      appointment.startDateTime,
+              {rows.map((appointment) => {
+                const notice = company
+                  ? appointmentNotice(
+                      appointment,
+                      company.name,
                       branding.timezone,
-                    )}
-                  </td>
-                  <td className={`${TABLE_CELL_CLASSES} font-medium text-ink`}>
-                    {appointment.serviceName}
-                  </td>
-                  <td className={TABLE_CELL_CLASSES}>
-                    <p>{appointment.client.name}</p>
-                    {appointment.client.phone && (
-                      <p className={MUTED_TEXT_CLASSES}>
-                        {appointment.client.phone}
-                      </p>
-                    )}
-                  </td>
-                  <td className={TABLE_CELL_CLASSES}>
-                    {ORIGIN_LABELS[appointment.origin]}
-                  </td>
-                  <td className={TABLE_CELL_CLASSES}>
-                    <div className="space-y-1">
-                      <AppointmentStatusBadge appointment={appointment} />
-                      {appointment.rescheduleCount > 0 &&
-                        appointment.previousStartDateTime && (
-                          <p className={MUTED_TEXT_CLASSES}>
-                            Antes:{' '}
-                            {formatInCompanyZone(
-                              appointment.previousStartDateTime,
-                              branding.timezone,
-                            )}
-                          </p>
-                        )}
-                      {appointment.status === 'CANCELLED' && (
-                        <>
-                          {appointment.cancelledBy && (
-                            <p className={MUTED_TEXT_CLASSES}>
-                              Canceló: {CANCELLED_BY_LABELS[appointment.cancelledBy]}
-                            </p>
-                          )}
-                          {appointment.cancellationReason && (
-                            <p className={MUTED_TEXT_CLASSES}>
-                              Motivo: {appointment.cancellationReason}
-                            </p>
-                          )}
-                        </>
+                    )
+                  : null
+                return (
+                  <tr key={appointment.id}>
+                    <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
+                      {formatInCompanyZone(
+                        appointment.startDateTime,
+                        branding.timezone,
                       )}
-                    </div>
-                  </td>
-                  <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
-                    {PRICE_FORMAT.format(appointment.priceSnapshot)}
-                  </td>
-                  <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
-                    {/* Sin plazo: el admin cancela en cualquier momento. Solo los pendientes tienen acción. */}
-                    {appointment.status === 'PENDING' && (
-                      <button
-                        type="button"
-                        onClick={() => cancel.start(appointment)}
-                        className={ROW_DANGER_BUTTON_CLASSES}
-                      >
-                        Cancelar
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className={`${TABLE_CELL_CLASSES} font-medium text-ink`}>
+                      {appointment.serviceName}
+                    </td>
+                    <td className={TABLE_CELL_CLASSES}>
+                      <p>{appointment.client.name}</p>
+                      {appointment.client.phone && (
+                        <p className={MUTED_TEXT_CLASSES}>
+                          {appointment.client.phone}
+                        </p>
+                      )}
+                    </td>
+                    <td className={TABLE_CELL_CLASSES}>
+                      {ORIGIN_LABELS[appointment.origin]}
+                    </td>
+                    <td className={TABLE_CELL_CLASSES}>
+                      <div className="space-y-1">
+                        <AppointmentStatusBadge appointment={appointment} />
+                        {appointment.rescheduleCount > 0 &&
+                          appointment.previousStartDateTime && (
+                            <p className={MUTED_TEXT_CLASSES}>
+                              Antes:{' '}
+                              {formatInCompanyZone(
+                                appointment.previousStartDateTime,
+                                branding.timezone,
+                              )}
+                            </p>
+                          )}
+                        {appointment.status === 'CANCELLED' && (
+                          <>
+                            {appointment.cancelledBy && (
+                              <p className={MUTED_TEXT_CLASSES}>
+                                Canceló: {CANCELLED_BY_LABELS[appointment.cancelledBy]}
+                              </p>
+                            )}
+                            {appointment.cancellationReason && (
+                              <p className={MUTED_TEXT_CLASSES}>
+                                Motivo: {appointment.cancellationReason}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </td>
+                    <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
+                      {PRICE_FORMAT.format(appointment.priceSnapshot)}
+                    </td>
+                    <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
+                      <div className="flex gap-2">
+                        {/* Sin aviso que dar (o sin nombre de empresa) no hay botón. */}
+                        {notice && (
+                          <WhatsAppLink
+                            phone={appointment.client.phone}
+                            text={notice.text}
+                            label="WhatsApp"
+                            ariaLabel={`Avisar a ${appointment.client.name} por WhatsApp: ${APPOINTMENT_NOTICE_LABELS[notice.kind]}`}
+                            missingPhoneText="Sin teléfono"
+                          />
+                        )}
+                        {/* Sin plazo: el admin cancela en cualquier momento. Solo los pendientes se cancelan. */}
+                        {appointment.status === 'PENDING' && (
+                          <button
+                            type="button"
+                            aria-label={`Cancelar el turno de ${appointment.client.name}`}
+                            onClick={() => cancel.start(appointment)}
+                            className={ROW_DANGER_BUTTON_CLASSES}
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

@@ -15,6 +15,9 @@ export interface CancelNotice {
   id: number
   kind: 'success' | 'info'
   text: string
+  // El turno cancelado, tal como lo devolvió el backend, para armar el aviso por WhatsApp. Solo en el éxito: con un
+  // 404 o 409 no hay nada que avisar.
+  appointment: AdminAppointment | null
 }
 
 interface UseCancelCompanyAppointmentResult {
@@ -68,13 +71,14 @@ export function useCancelCompanyAppointment(): UseCancelCompanyAppointmentResult
   const mutation = useMutation({
     mutationFn: (variables: { appointment: AdminAppointment; reason: string }) =>
       cancelCompanyAppointment(variables.appointment.id, variables.reason),
-    onSuccess: (_data, variables) => {
+    onSuccess: (cancelled, variables) => {
       refreshAppointments()
       setTarget(null)
       setNotice({
         id: ++nextNoticeId,
         kind: 'success',
         text: `Cancelaste el turno de ${variables.appointment.client.name}.`,
+        appointment: cancelled,
       })
     },
     onError: (error) => {
@@ -90,6 +94,7 @@ export function useCancelCompanyAppointment(): UseCancelCompanyAppointmentResult
         id: ++nextNoticeId,
         kind: 'info',
         text: toErrorMessage(error),
+        appointment: null,
       })
     },
   })
