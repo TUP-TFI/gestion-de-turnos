@@ -809,6 +809,8 @@ Roles invertidos respecto al Paso 7: backend lo lidera Brune, frontend lo hace N
 
 Listo cuando (del paso completo): el admin puede ver su dashboard, su agenda completa, el listado de clientes de su empresa, cancelar cualquier turno, y cargar un turno manual (con cliente existente o cliente sin cuenta).
 
+Fuera del MVP: el admin no reprograma turnos. Para mover uno, lo cancela (US-09.3) y carga uno nuevo (US-09.5 o US-09.6), como indica la regla 16 de `reglas-negocio.md`. Reprogramar desde el panel queda como mejora post-MVP.
+
 #### US-09.1 — Admin ve turnos de hoy y próximos turnos en su dashboard
 Como admin de empresa, quiero ver en mi dashboard los turnos de hoy y los próximos turnos, para tener una visión rápida de mi agenda sin entrar al turnero completo.
 
@@ -943,7 +945,7 @@ Dependencias: US-09.2.
 Como admin o superadmin, quiero avisarle al cliente que su turno se canceló, para que no se presente.
 
 Criterios de aceptación:
-- Un turno `CANCELLED` de la agenda tiene "Avisar por WhatsApp", con el motivo en el mensaje.
+- Un turno `CANCELLED` por la empresa (`cancelledBy = COMPANY`) tiene "Avisar por WhatsApp", con el motivo en el mensaje. Los que canceló el cliente no lo tienen: el cliente ya lo sabe.
 - Al desactivar una empresa (US-04.4), el superadmin ve la lista de los turnos cancelados por la baja que todavía no pasaron, con un link por cliente. La lista no registra a quién ya se avisó.
 - La cancelación del cliente (US-08.1) no avisa al admin: queda fuera del MVP.
 
