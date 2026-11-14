@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { useSearchParams } from 'react-router'
 import { AdminCancelAppointmentModal } from '../../components/AdminCancelAppointmentModal'
 import { CancelNoticeContent } from '../../components/CancelNoticeContent'
@@ -104,32 +103,8 @@ export function AppointmentsPage() {
   const { company } = usePublicCompany(branding?.slug)
   const cancel = useCancelCompanyAppointment()
 
-  // La respuesta es de una página que ya no existe, por ejemplo porque se borraron turnos o se editó la URL. Con una
-  // respuesta así no se muestra la tabla, ni el paginado, ni el estado vacío.
-  const isOutOfRange =
-    appointments !== null &&
-    appointments.page > 0 &&
-    appointments.page >= appointments.totalPages
-  const lastPage = appointments ? appointments.totalPages - 1 : 0
-  // Solo se corrige la URL si la respuesta es de la página que la URL pide. Después de corregirla, keepPreviousData
-  // sigue mostrando la respuesta vieja (`?page=99`) hasta que llega la nueva. Cada setParams crea una ubicación nueva
-  // aunque la URL sea la misma, y eso cambia `params` y vuelve a correr el efecto: sin esta condición se repetiría la
-  // navegación durante toda la consulta.
-  const shouldRedirect = isOutOfRange && appointments?.page === page
-
-  // Se reemplaza la URL, sin sumar una entrada al historial, por la última página, o por la primera si no hay turnos.
-  useEffect(() => {
-    if (!shouldRedirect) {
-      return
-    }
-    const next = new URLSearchParams(params)
-    if (lastPage > 0) {
-      next.set('page', String(lastPage))
-    } else {
-      next.delete('page')
-    }
-    setParams(next, { replace: true })
-  }, [shouldRedirect, lastPage, params, setParams])
+  // Corrige la URL si pide una página que ya no existe.
+  const isOutOfRange = usePageInRange(appointments, page)
 
   // Cambiar un filtro vuelve a la primera página. Sin valor, el filtro sale de la URL.
   function changeFilter(name: string, value: string) {
