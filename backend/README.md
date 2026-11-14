@@ -152,7 +152,7 @@ Una excepción de calendario (`ScheduleException`) es una fecha puntual en la qu
 | `DELETE /api/company/schedule-exceptions/{id}` | `204`. Es un borrado físico: la fecha vuelve a regirse por el horario semanal. |
 | `POST /api/company/schedule-exceptions/affected-appointments` | `200` con `{ count }`: los turnos `PENDING` futuros de esa fecha que quedarían fuera de la excepción. Si el día queda cerrado, cuentan todos. No guarda nada. |
 
-El body del alta, la edición y el conteo es `{ exceptionDate, isClosed, startTime, endTime, intervalMinutes, reason }`. Si `isClosed` es `true`, las tres horas van vacías; si es `false`, son obligatorias y el fin tiene que ser posterior al inicio. `reason` es opcional, de hasta 200 caracteres. La fecha no puede ser anterior a hoy, calculado en `company.timezone` y no en la zona del servidor. Guardar una excepción nunca cancela turnos: el aviso de turnos afectados sirve para que el admin decida antes de guardar.
+El body del alta, la edición y el conteo es `{ exceptionDate, isClosed, startTime, endTime, intervalMinutes, reason }`. Si `isClosed` es `true`, las tres horas van vacías; si es `false`, son obligatorias y el fin tiene que ser posterior al inicio. `reason` es opcional, de hasta 200 caracteres, y se guarda sin los espacios de los bordes. La fecha no puede ser anterior a hoy, calculado en `company.timezone` y no en la zona del servidor. Guardar una excepción nunca cancela turnos: el aviso de turnos afectados sirve para que el admin decida antes de guardar.
 
 El aviso de turnos fuera de rango del horario semanal (`POST /api/company/business-hours/out-of-range-appointments`) no cuenta los turnos de fechas con excepción, porque esas fechas se rigen por la excepción.
 
@@ -322,6 +322,7 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | `INVALID_ACTIVATION_TOKEN` | 400 | El token de activación no existe, ya se usó o la cuenta ya no está pendiente |
 | `ACTIVATION_TOKEN_EXPIRED` | 400 | El token de activación venció: hay que pedir el reenvío al superadmin |
 | `EMAIL_ALREADY_IN_USE` | 409 | El email del admin de la empresa nueva ya es de otro admin o de un superadmin, o el cliente que se registra ya tiene cuenta en esa empresa |
+| `COMPANY_SLUG_TAKEN` | 409 | Dos altas de empresa a la vez con nombres parecidos recibieron el mismo slug: la segunda se rechaza y se puede reintentar |
 | `COMPANY_NOT_FOUND` | 404 | La empresa pedida no existe: el detalle o la edición del superadmin, o el slug de la página pública y del registro y el login de clientes |
 | `ADMIN_ALREADY_ACTIVE` | 409 | Se pidió reenviar el link de activación, pero el admin ya activó su cuenta |
 | `COMPANY_WITHOUT_ADMIN` | 409 | Se pidió reenviar el link de activación, pero la empresa no tiene un administrador |
@@ -331,7 +332,7 @@ Toda respuesta de error tiene el cuerpo `{ "code": "...", "message": "..." }`. E
 | `SLOT_UNAVAILABLE` | 409 | El horario pedido no está disponible: ya está ocupado o no se ofrece para ese servicio |
 | `INVALID_BUSINESS_HOURS` | 400 | El horario semanal tiene una franja que termina antes de empezar, o dos franjas del mismo día superpuestas |
 | `INVALID_SCHEDULE_EXCEPTION` | 400 | La excepción de calendario tiene una fecha pasada, un día cerrado con horario, o un día abierto sin las tres horas o con el fin antes del inicio |
-| `SCHEDULE_EXCEPTION_DATE_TAKEN` | 409 | Ya hay una excepción de calendario cargada para esa fecha |
+| `SCHEDULE_EXCEPTION_DATE_TAKEN` | 409 | Ya hay una excepción de calendario cargada para esa fecha, también si se guardan dos con la misma fecha a la vez |
 | `SCHEDULE_EXCEPTION_NOT_FOUND` | 404 | La excepción de calendario pedida no existe o es de otra empresa |
 | `UNAUTHORIZED` | 401 | Falta el token o es inválido |
 | `FORBIDDEN` | 403 | El rol no alcanza para la ruta |

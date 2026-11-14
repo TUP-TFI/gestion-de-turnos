@@ -1,9 +1,12 @@
 package com.grupo140.turnos.schedule;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
+import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.company.CompanyService;
 import java.time.Clock;
 import java.time.DayOfWeek;
@@ -19,10 +22,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 
 /**
  * {@code windowsFor} (US-05.5): qué franjas rigen en una fecha, con la excepción de calendario por encima del
- * horario semanal.
+ * horario semanal. También el guardado de excepciones (US-05.6) cuando la base rechaza una fecha repetida.
  */
 @ExtendWith(MockitoExtension.class)
 class ScheduleServiceTest {
@@ -99,6 +104,48 @@ class ScheduleServiceTest {
         givenNoException(TUESDAY);
 
         assertThat(scheduleService.windowsFor(companyId, TUESDAY)).containsExactly(window("10:00", "12:00", 30));
+    }
+
+    // Dos altas a la vez con la misma fecha: las dos pasan el chequeo previo y la segunda la frena la constraint.
+    @Test
+    void createWithDateTakenByConcurrentRequestReturnsConflict() {
+        when(companyService.zoneOf(companyId)).thenReturn(ZoneOffset.UTC);
+        when(scheduleExceptionRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("dup"));
+
+        assertThatThrownBy(() -> scheduleService.createException(companyId, closedDay(MONDAY, null)))
+                .isInstanceOfSatisfying(ApiException.class, ex -> {
+                    assertThat(ex.getStatus()).isEqualTo(HttpStatus.CONFLICT);
+                    assertThat(ex.getCode()).isEqualTo("SCHEDULE_EXCEPTION_DATE_TAKEN");
+                });
+    }
+
+    @Test
+    void updateWithDateTakenByConcurrentRequestReturnsConflict() {
+        ScheduleException existing = new ScheduleException(companyId, MONDAY);
+        UUID exceptionId = UUID.randomUUID();
+        when(companyService.zoneOf(companyId)).thenReturn(ZoneOffset.UTC);
+        when(scheduleExceptionRepository.findByIdAndCompanyId(exceptionId, companyId))
+                .thenReturn(Optional.of(existing));
+        when(scheduleExceptionRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("dup"));
+
+        assertThatThrownBy(() -> scheduleService.updateException(companyId, exceptionId, closedDay(TUESDAY, null)))
+                .isInstanceOfSatisfying(
+                        ApiException.class, ex -> assertThat(ex.getCode()).isEqualTo("SCHEDULE_EXCEPTION_DATE_TAKEN"));
+    }
+
+    @Test
+    void reasonIsSavedWithoutSurroundingSpaces() {
+        when(companyService.zoneOf(companyId)).thenReturn(ZoneOffset.UTC);
+        when(scheduleExceptionRepository.saveAndFlush(any())).thenAnswer(call -> call.getArgument(0));
+
+        assertThat(scheduleService
+                        .createException(companyId, closedDay(MONDAY, "  Feriado nacional  "))
+                        .reason())
+                .isEqualTo("Feriado nacional");
+    }
+
+    private static ScheduleExceptionRequest closedDay(LocalDate date, String reason) {
+        return new ScheduleExceptionRequest(date, true, null, null, null, reason);
     }
 
     private void givenNoException(LocalDate date) {
