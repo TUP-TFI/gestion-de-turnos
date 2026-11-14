@@ -132,8 +132,8 @@ Reglas duras:
 Los E2E corren **solo en local**, contra el back y la base de la compu: en el CI harían falta la base, el back y el front levantados. Nunca apuntan a producción. Para correrlos:
 
 1. Una sola vez, descargar el navegador: `npx playwright install chromium` (se borra con `npx playwright uninstall`).
-2. Levantar la base y el back con el seed (`APP_SEED_ENABLED=true`, ver el [README del backend](../backend/README.md)). El `.env` del front tiene que apuntar a ese back: `VITE_API_URL=http://localhost:8080`.
-3. `npm run test:e2e`. Si el front no está corriendo, Playwright lo levanta con `npm run dev`.
+2. Levantar la base y el back con el seed (`APP_SEED_ENABLED=true`, ver el [README del backend](../backend/README.md)).
+3. `npm run test:e2e`, sin un `npm run dev` corriendo. Playwright levanta su propio front con `VITE_API_URL=http://localhost:8080`, que tiene prioridad sobre el `.env`: así nunca le pega a otra API.
 
 El test de la reserva registra un cliente nuevo en cada corrida (`e2e-<hora>@example.com`) y reserva el primer horario libre desde mañana, así que no depende de datos anteriores. Cada corrida deja ese cliente y su turno en la base local.
 

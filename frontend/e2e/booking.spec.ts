@@ -29,6 +29,10 @@ test('un cliente nuevo reserva un turno y lo ve en Mis turnos', async ({ page })
       break
     }
   }
+  await expect(
+    slots.first(),
+    'No hay horarios libres en los próximos 14 días',
+  ).toBeVisible()
   await slots.first().click()
   await page.getByRole('button', { name: 'Reservar' }).click()
 
