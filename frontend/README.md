@@ -25,8 +25,7 @@ npm run dev
 | `npm run build` | Chequeo de tipos (`tsc -b`) y build de producción en `dist/`. |
 | `npm run lint` | ESLint sobre todo el proyecto. |
 | `npm run preview` | Sirve el build de producción en local. |
-
-Tests: todavía no hay ninguna herramienta instalada (ver [Testing](#testing)).
+| `npm run test:e2e` | Tests de punta a punta con Playwright, contra el back local (ver [Testing](#testing)). |
 
 ### Variables de entorno
 
@@ -118,9 +117,7 @@ Reglas duras:
 
 ## Testing
 
-> ⏳ *Herramientas a confirmar; la estrategia ya está definida. Hoy no hay ninguna instalada: ni Vitest ni Playwright figuran en `package.json`.*
-
-**Unitarios / de componente** — Vitest + Testing Library. Foco en lo que tiene lógica real, no en renderizar todo:
+**Unitarios / de componente** — Vitest + Testing Library, todavía sin instalar. Foco en lo que tiene lógica real, no en renderizar todo:
 
 - Selector de horarios disponibles.
 - Formularios de reserva y sus validaciones.
@@ -129,15 +126,22 @@ Reglas duras:
 
 **E2E** — recorridos completos sobre la aplicación real, con **Playwright**. Los dos flujos que sí o sí conviene cubrir:
 
-1. Cliente reserva un turno desde la página pública de una empresa (T-12.1).
+1. Cliente reserva un turno desde la página pública de una empresa (T-12.1): `e2e/booking.spec.ts`.
 2. Admin cancela un turno desde su turnero (T-12.2).
 
-**Pendiente:** definir si los E2E corren en CI o solo en local. Los unitarios se suman al workflow de [CI](#ci) cuando se instale Vitest.
+Los E2E corren **solo en local**, contra el back y la base de la compu: en el CI harían falta la base, el back y el front levantados. Nunca apuntan a producción. Para correrlos:
+
+1. Una sola vez, descargar el navegador: `npx playwright install chromium` (se borra con `npx playwright uninstall`).
+2. Levantar la base y el back con el seed (`APP_SEED_ENABLED=true`, ver el [README del backend](../backend/README.md)). El `.env` del front tiene que apuntar a ese back: `VITE_API_URL=http://localhost:8080`.
+3. `npm run test:e2e`. Si el front no está corriendo, Playwright lo levanta con `npm run dev`.
+
+El test de la reserva registra un cliente nuevo en cada corrida (`e2e-<hora>@example.com`) y reserva el primer horario libre desde mañana, así que no depende de datos anteriores. Cada corrida deja ese cliente y su turno en la base local.
+
+Los unitarios se suman al workflow de [CI](#ci) cuando se instale Vitest.
 
 ## Pendiente de definir
 
 - Librería de componentes, si hiciera falta alguna además de Tailwind.
 - Prettier, para sumar al workflow de CI. ESLint ya está configurado (`npm run lint`).
-- Si los E2E corren en CI o solo en local.
 
 Tres puntos que estaban acá ya dejaron de ser decisiones abiertas y pasaron a ser trabajo planificado en [`docs/alcance-mvp.md`](../docs/alcance-mvp.md): las rutas protegidas por rol (US-03.3), la personalización por empresa (US-05.7 la carga, US-06.1 la aplica) y el autocomplete de clientes del turnero manual (US-09.4, US-09.7).
