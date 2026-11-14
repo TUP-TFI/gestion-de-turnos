@@ -8,6 +8,7 @@ import { WhatsAppLink } from '../../components/WhatsAppLink'
 import { useBranding } from '../../hooks/useBranding'
 import { useCancelCompanyAppointment } from '../../hooks/useCancelCompanyAppointment'
 import { useCompanyAppointments } from '../../hooks/useCompanyAppointments'
+import { usePageInRange } from '../../hooks/usePageInRange'
 import { usePublicCompany } from '../../hooks/usePublicCompany'
 import type { AppointmentFilters } from '../../api/companyAppointments'
 import {
