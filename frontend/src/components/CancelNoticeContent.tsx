@@ -1,10 +1,5 @@
-import { appointmentMessage } from '../lib/whatsappMessages'
-import { LINK_CLASSES } from '../lib/formStyles'
 import type { CancelNotice } from '../hooks/useCancelCompanyAppointment'
-import { WhatsAppLink } from './WhatsAppLink'
-
-// Subrayado siempre: dentro del párrafo verde, solo el color no alcanza para distinguir un link del texto.
-const NOTICE_LINK_CLASSES = `${LINK_CLASSES} underline`
+import { NoticeWhatsAppLink } from './NoticeWhatsAppLink'
 
 interface CancelNoticeContentProps {
   notice: CancelNotice
@@ -14,31 +9,20 @@ interface CancelNoticeContentProps {
 }
 
 // Contenido del aviso de la agenda y del dashboard después de cancelar: el texto y, si el turno canceló el negocio y
-// ya se conoce la empresa, el link para avisarle al cliente por WhatsApp. Va dentro del <p> de DismissibleNotice, por
-// eso solo lleva elementos en línea.
+// ya se conoce la empresa, el link para avisarle al cliente por WhatsApp.
 export function CancelNoticeContent({
   notice,
   companyName,
   timezone,
 }: CancelNoticeContentProps) {
-  const message =
-    notice.appointment && companyName && timezone
-      ? appointmentMessage(notice.appointment, companyName, timezone)
-      : null
-
   return (
     <>
       {notice.text}
-      {message && notice.appointment && (
-        <>
-          {' '}
-          <WhatsAppLink
-            phone={notice.appointment.client.phone}
-            text={message}
-            className={NOTICE_LINK_CLASSES}
-          />
-        </>
-      )}
+      <NoticeWhatsAppLink
+        appointment={notice.appointment}
+        companyName={companyName}
+        timezone={timezone}
+      />
     </>
   )
 }

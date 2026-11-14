@@ -4,6 +4,8 @@ import { Pagination } from '../../components/Pagination'
 import { useCompanyClients } from '../../hooks/useCompanyClients'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { usePageInRange } from '../../hooks/usePageInRange'
+import { formatPageTotal } from '../../lib/pageRange'
+import { telHref } from '../../lib/phoneLink'
 import {
   ERROR_CLASSES,
   INPUT_CLASSES,
@@ -146,9 +148,7 @@ export function ClientsPage() {
       {clients && showResults && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className={MUTED_TEXT_CLASSES}>
-            {clients.totalElements === 1
-              ? '1 cliente'
-              : `${clients.totalElements} clientes`}
+            {formatPageTotal(clients, 'cliente', 'clientes')}
           </p>
           <p className={MUTED_TEXT_CLASSES} aria-live="polite">
             {isSearching ? 'Buscando...' : isRefreshing ? 'Actualizando...' : ''}
@@ -207,7 +207,7 @@ export function ClientsPage() {
                   </td>
                   <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
                     <a
-                      href={`tel:${client.phone.replace(/[^\d+]/g, '')}`}
+                      href={telHref(client.phone)}
                       className={LINK_CLASSES}
                     >
                       {client.phone}

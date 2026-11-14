@@ -15,6 +15,7 @@ import {
   ERROR_CLASSES,
   LINK_CLASSES,
   MUTED_TEXT_CLASSES,
+  PRIMARY_BUTTON_CLASSES,
   ROW_DANGER_BUTTON_CLASSES,
   TABLE_CELL_CLASSES,
   TABLE_HEAD_CLASSES,
@@ -138,7 +139,12 @@ export function CompanyDashboardPage() {
 
   return (
     <section className="space-y-6">
-      <p className={MUTED_TEXT_CLASSES}>Hola, {session?.user.firstName}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className={MUTED_TEXT_CLASSES}>Hola, {session?.user.firstName}</p>
+        <Link to="/company/appointments/new" className={PRIMARY_BUTTON_CLASSES}>
+          Nuevo turno
+        </Link>
+      </div>
 
       {cancel.notice && (
         <DismissibleNotice
