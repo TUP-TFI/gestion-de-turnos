@@ -19,10 +19,14 @@ function isNotFoundError(error: Error | null): boolean {
   return error instanceof ApiRequestError && error.code === 'COMPANY_NOT_FOUND'
 }
 
-export function usePublicCompany(slug: string): UsePublicCompanyResult {
+// Sin slug no consulta: el panel del admin lo recibe del branding, y llega después.
+export function usePublicCompany(
+  slug: string | undefined,
+): UsePublicCompanyResult {
   const query = useQuery({
     queryKey: ['public-company', slug],
-    queryFn: () => getPublicCompany(slug),
+    queryFn: () => getPublicCompany(slug ?? ''),
+    enabled: Boolean(slug),
     retry: (failureCount, error) =>
       !isApiResponseError(error) && failureCount < 3,
   })

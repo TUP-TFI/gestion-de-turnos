@@ -1,11 +1,13 @@
 import { Link } from 'react-router'
 import { AdminCancelAppointmentModal } from '../../components/AdminCancelAppointmentModal'
+import { CancelNoticeContent } from '../../components/CancelNoticeContent'
 import { AppointmentStatusBadge } from '../../components/AppointmentStatusBadge'
 import { DismissibleNotice } from '../../components/DismissibleNotice'
 import { useAppointmentSummary } from '../../hooks/useAppointmentSummary'
 import { useAuth } from '../../hooks/useAuth'
 import { useBranding } from '../../hooks/useBranding'
 import { useCancelCompanyAppointment } from '../../hooks/useCancelCompanyAppointment'
+import { usePublicCompany } from '../../hooks/usePublicCompany'
 import { formatTimeInZone } from '../../lib/companyTime'
 import { formatInCompanyZone } from '../../lib/formatInCompanyZone'
 import {
@@ -127,6 +129,8 @@ export function CompanyDashboardPage() {
     isLoading: isLoadingSummary,
   } = useAppointmentSummary()
 
+  // El nombre de la empresa sale de la página pública. Sin él, el aviso de cancelación no trae el link de WhatsApp.
+  const { company } = usePublicCompany(branding?.slug)
   const cancel = useCancelCompanyAppointment()
 
   const error = brandingError ?? summaryError
@@ -142,7 +146,11 @@ export function CompanyDashboardPage() {
           kind={cancel.notice.kind}
           onDismiss={cancel.dismissNotice}
         >
-          {cancel.notice.text}
+          <CancelNoticeContent
+            notice={cancel.notice}
+            companyName={company?.name}
+            timezone={branding?.timezone}
+          />
         </DismissibleNotice>
       )}
 
