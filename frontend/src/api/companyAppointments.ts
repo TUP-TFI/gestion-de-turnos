@@ -1,5 +1,7 @@
+import type { Availability } from '../types/PublicCompany'
 import type {
   AdminAppointment,
+  ManualAppointmentRequest,
   AppointmentOrigin,
   AppointmentStatus,
   AppointmentSummary,
@@ -52,4 +54,26 @@ export function cancelCompanyAppointment(
     method: 'POST',
     body: JSON.stringify(trimmed ? { reason: trimmed } : {}),
   })
+}
+
+// Carga un turno manual en la empresa del admin logueado (US-09.5 y 09.6). Pasa por las mismas validaciones que la
+// reserva online y responde 201 con el turno en PENDING y origin MANUAL.
+export function createManualAppointment(
+  body: ManualAppointmentRequest,
+): Promise<AdminAppointment> {
+  return request<AdminAppointment>('/api/company/appointments', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+// Horarios libres de un servicio de la empresa del admin logueado en una fecha local de la empresa, con formato
+// YYYY-MM-DD. Los mismos que ve la página pública, pero con la empresa de la sesión.
+export function getCompanyAvailability(
+  serviceId: string,
+  date: string,
+): Promise<Availability> {
+  return request<Availability>(
+    `/api/company/services/${serviceId}/availability?date=${date}`,
+  )
 }

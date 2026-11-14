@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router'
+import { Link, useSearchParams } from 'react-router'
 import { AdminCancelAppointmentModal } from '../../components/AdminCancelAppointmentModal'
 import { CancelNoticeContent } from '../../components/CancelNoticeContent'
 import { AppointmentStatusBadge } from '../../components/AppointmentStatusBadge'
@@ -17,6 +17,8 @@ import {
   STATUS_LABELS,
 } from '../../lib/appointmentLabels'
 import { formatInCompanyZone } from '../../lib/formatInCompanyZone'
+import { formatPageTotal } from '../../lib/pageRange'
+import { telHref } from '../../lib/phoneLink'
 import {
   APPOINTMENT_NOTICE_LABELS,
   appointmentNotice,
@@ -25,8 +27,10 @@ import {
   ERROR_CLASSES,
   INPUT_CLASSES,
   LABEL_CLASSES,
+  LINK_CLASSES,
   MUTED_TEXT_CLASSES,
   PAGE_TITLE_CLASSES,
+  PRIMARY_BUTTON_CLASSES,
   ROW_DANGER_BUTTON_CLASSES,
   SECONDARY_BUTTON_CLASSES,
   TABLE_CELL_CLASSES,
@@ -121,6 +125,11 @@ export function AppointmentsPage() {
     setParams(next)
   }
 
+  function clearFilters() {
+    cancel.dismissNotice()
+    setParams(new URLSearchParams())
+  }
+
   function changePage(newPage: number) {
     cancel.dismissNotice()
     const next = new URLSearchParams(params)
@@ -155,7 +164,12 @@ export function AppointmentsPage() {
 
   return (
     <section className="space-y-6">
-      <h2 className={PAGE_TITLE_CLASSES}>Turnos</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className={PAGE_TITLE_CLASSES}>Turnos</h2>
+        <Link to="/company/appointments/new" className={PRIMARY_BUTTON_CLASSES}>
+          Nuevo turno
+        </Link>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div>
@@ -210,14 +224,12 @@ export function AppointmentsPage() {
         </div>
       </div>
 
-      {hasChangedView && (
+      {/* Con la consulta fallida no hay fila de total, y el botón no puede quedar sin salida. Si no, vive en el total. */}
+      {hasChangedView && error && (
         <div>
           <button
             type="button"
-            onClick={() => {
-              cancel.dismissNotice()
-              setParams(new URLSearchParams())
-            }}
+            onClick={clearFilters}
             className={SECONDARY_BUTTON_CLASSES}
           >
             Limpiar filtros
@@ -253,13 +265,22 @@ export function AppointmentsPage() {
       {appointments && showResults && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className={MUTED_TEXT_CLASSES}>
-            {appointments.totalElements === 1
-              ? '1 turno'
-              : `${appointments.totalElements} turnos`}
+            {formatPageTotal(appointments, 'turno', 'turnos')}
           </p>
-          <p className={MUTED_TEXT_CLASSES} aria-live="polite">
-            {isRefreshing ? 'Actualizando...' : ''}
-          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className={MUTED_TEXT_CLASSES} aria-live="polite">
+              {isRefreshing ? 'Actualizando...' : ''}
+            </p>
+            {hasChangedView && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className={SECONDARY_BUTTON_CLASSES}
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -291,7 +312,10 @@ export function AppointmentsPage() {
                 <th scope="col" className={`${TABLE_CELL_CLASSES} font-semibold`}>
                   Estado
                 </th>
-                <th scope="col" className={`${TABLE_CELL_CLASSES} font-semibold`}>
+                <th
+                  scope="col"
+                  className={`${TABLE_CELL_CLASSES} text-right font-semibold`}
+                >
                   Precio
                 </th>
                 <th scope="col" className={`${TABLE_CELL_CLASSES} font-semibold`}>
@@ -323,7 +347,12 @@ export function AppointmentsPage() {
                       <p>{appointment.client.name}</p>
                       {appointment.client.phone && (
                         <p className={MUTED_TEXT_CLASSES}>
-                          {appointment.client.phone}
+                          <a
+                            href={telHref(appointment.client.phone)}
+                            className={LINK_CLASSES}
+                          >
+                            {appointment.client.phone}
+                          </a>
                         </p>
                       )}
                     </td>
@@ -359,7 +388,9 @@ export function AppointmentsPage() {
                         )}
                       </div>
                     </td>
-                    <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
+                    <td
+                      className={`${TABLE_CELL_CLASSES} whitespace-nowrap text-right`}
+                    >
                       {PRICE_FORMAT.format(appointment.priceSnapshot)}
                     </td>
                     <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>

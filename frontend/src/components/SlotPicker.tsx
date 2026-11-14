@@ -33,6 +33,9 @@ interface SlotPickerProps {
   // Para que quien lo usa reaccione a un error de los horarios, por ejemplo recargando sus datos.
   onAvailabilityError?: (error: Error) => void
   dateInputRef?: Ref<HTMLInputElement>
+  // Con recuadro propio (borde, relleno y sombra) por defecto. En false va sin recuadro, para ponerlo dentro de un paso
+  // de formulario que ya tiene el suyo.
+  framed?: boolean
 }
 
 // Elige fecha y horario entre los que devuelve fetchAvailability (US-06.2). Lo comparten la reserva y la
@@ -50,6 +53,7 @@ export function SlotPicker({
   onSelect,
   onAvailabilityError,
   dateInputRef,
+  framed = true,
 }: SlotPickerProps) {
   const today = todayInZone(timezone)
   const [date, setDate] = useState(today)
@@ -86,7 +90,7 @@ export function SlotPicker({
       : null
 
   return (
-    <div className={FIELDSET_CLASSES}>
+    <div className={framed ? FIELDSET_CLASSES : 'space-y-4'}>
       <div className="grid gap-6 md:grid-cols-[14rem_1fr]">
         <div>
           <label htmlFor="slot-date" className={LABEL_CLASSES}>

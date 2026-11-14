@@ -80,6 +80,23 @@ export type AdminAppointment = Pick<
   client: { id: string | null; name: string; phone: string | null }
 }
 
+// Cuerpo de POST /api/company/appointments, la carga manual del admin (US-09.5 y 09.6). Lleva una sola identidad: un
+// cliente con cuenta (`clientId`) o uno sin cuenta (nombre y teléfono). El tipo no deja mandar las dos ni ninguna.
+export type ManualAppointmentRequest = Pick<
+  Appointment,
+  'serviceId' | 'startDateTime'
+> &
+  (
+    | { clientId: string; manualClientName?: never; manualClientPhone?: never }
+    | {
+        clientId?: never
+        // 160 caracteres como máximo.
+        manualClientName: string
+        // 30 caracteres como máximo.
+        manualClientPhone: string
+      }
+  )
+
 // Respuesta de GET /api/company/appointments/summary, sin turnos cancelados. Los dos van del más cercano al más lejano.
 export interface AppointmentSummary {
   // Los de hoy, en la fecha local de la empresa.

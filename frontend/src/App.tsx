@@ -12,6 +12,7 @@ import { CreateScheduleExceptionPage } from './pages/company/CreateScheduleExcep
 import { CreateServicePage } from './pages/company/CreateServicePage'
 import { EditScheduleExceptionPage } from './pages/company/EditScheduleExceptionPage'
 import { EditServicePage } from './pages/company/EditServicePage'
+import { NewAppointmentPage } from './pages/company/NewAppointmentPage'
 import { ScheduleExceptionsPage } from './pages/company/ScheduleExceptionsPage'
 import { ServicesPage } from './pages/company/ServicesPage'
 import { ClientLoginPage } from './pages/public/ClientLoginPage'
@@ -60,6 +61,7 @@ function App() {
         <Route element={<CompanyLayout />}>
           <Route path="/company/dashboard" element={<CompanyDashboardPage />} />
           <Route path="/company/appointments" element={<AppointmentsPage />} />
+          <Route path="/company/appointments/new" element={<NewAppointmentPage />} />
           <Route path="/company/clients" element={<ClientsPage />} />
           <Route path="/company/services" element={<ServicesPage />} />
           <Route path="/company/services/new" element={<CreateServicePage />} />

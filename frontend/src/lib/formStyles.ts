@@ -100,3 +100,12 @@ export const SLOT_BUTTON_SELECTED_CLASSES =
 
 export const NOTICE_CLASSES =
   'rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700'
+
+// Link dentro de un aviso de color (verde): siempre subrayado, porque ahí solo el color no lo distingue del texto
+// (WCAG 1.4.1).
+export const NOTICE_LINK_CLASSES = `${LINK_CLASSES} underline`
+
+// Resultado de un buscador que se elige con un clic: un botón de ancho completo con el dato principal y, debajo, los
+// secundarios (ClientSearch).
+export const LIST_OPTION_BUTTON_CLASSES =
+  'flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-lg border border-hairline bg-white px-3 py-2 text-left text-sm text-ink hover:bg-surface-card focus:outline-none focus:ring-2 focus:ring-brand-light'
