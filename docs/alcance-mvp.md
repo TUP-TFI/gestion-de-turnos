@@ -645,7 +645,7 @@ Dependencias: US-06.1, US-05.5.
 
 Vuelve el esquema del Paso 3: backend lo lidera Nico, frontend lo hace Brune.
 
-Listo cuando (del paso completo): un cliente puede reservar un turno de punta a punta y le llega la notificación.
+Listo cuando (del paso completo): un cliente puede reservar un turno de punta a punta y lo ve en "Mis turnos". El aviso de confirmación lo manda el admin por WhatsApp (Paso 10).
 
 #### US-07.1 — Cliente inicia sesión antes de confirmar una reserva
 Como cliente sin sesión iniciada en la empresa cuyo turno quiero reservar, quiero que se me pida login o registro al intentar confirmar, para poder asociar el turno a mi cuenta.
@@ -847,7 +847,7 @@ Como admin de empresa, quiero cancelar cualquier turno (reservado online o carga
 Criterios de aceptación:
 - No aplica el límite de 3hs que tiene el cliente — el admin puede cancelar en cualquier momento.
 - El turno pasa a `CANCELLED`, con `cancelledBy=COMPANY` y un motivo en texto libre opcional.
-- El cliente recibe notificación del cambio, si tiene forma de recibirla.
+- El sistema no avisa solo: el admin le avisa al cliente por WhatsApp desde la agenda (US-10.2).
 - Al cancelar, el horario queda liberado para otra persona.
 
 Tareas técnicas:
@@ -875,7 +875,7 @@ Como admin de empresa, quiero cargar un turno manual vinculado a un cliente exis
 Criterios de aceptación:
 - El turno queda vinculado al `clientId` del cliente seleccionado y con `origin = MANUAL`.
 - Pasa por el mismo cálculo de disponibilidad y las mismas validaciones que una reserva online (anticipación mínima, no superposición, lock pesimista, copia de precio y duración).
-- Se dispara la misma notificación de confirmación que en una reserva online.
+- El sistema no avisa solo: el admin puede avisarle la confirmación por WhatsApp, igual que en una reserva online (US-10.1).
 - El cliente puede después autogestionar ese turno desde "Mis turnos" como cualquier otro.
 
 Tareas técnicas:
@@ -891,14 +891,14 @@ Criterios de aceptación:
 - El turno queda con `clientId` nulo, `manualClientName` y `manualClientPhone` cargados, y `origin = MANUAL`.
 - El `CHECK` de la base exige exactamente una de las dos identidades: o `clientId`, o nombre + teléfono. Nunca ninguna, nunca las dos ([regla 21](negocio/reglas-negocio.md)).
 - Pasa por las mismas validaciones de disponibilidad, anticipación mínima y superposición.
-- Se dispara la notificación de confirmación al teléfono cargado.
+- El admin puede avisarle la confirmación por WhatsApp al teléfono cargado (US-10.1).
 - Ese turno no es autogestionable por el cliente — si necesita cancelarlo, debe contactar al negocio y es el admin quien lo cancela desde el turnero (US-09.3). El mensaje de confirmación no lleva ningún link de autogestión (decisión explícita para el MVP, según `detalles-flujos.md`).
 
 Tareas técnicas:
 - Backend (Brune): endpoint de carga manual sin `clientId`, con `manualClientName`/`manualClientPhone`.
 - Frontend (Nico): mismo formulario de carga manual, rama "sin cuenta" (datos sueltos en vez de buscador).
 
-Dependencias: US-09.5 (comparten formulario y validaciones), Paso 10 para el canal real de notificación.
+Dependencias: US-09.5 (comparten formulario y validaciones), Paso 10 para el aviso por WhatsApp.
 
 #### US-09.7 — Admin ve el listado de clientes de su empresa
 Como admin de empresa, quiero una pantalla con los clientes registrados en mi negocio, buscable por nombre, teléfono o email, para consultarlos sin tener que abrir el formulario de turno manual.
@@ -1000,7 +1000,7 @@ Como superadmin, quiero que al desactivar una empresa (US-04.4) la cancelación 
 Criterios de aceptación:
 - La cascada de US-04.4 cubre todos los turnos `PENDING` futuros de esa empresa (incluidos los reprogramados, que siguen siendo `PENDING`).
 - Los turnos `PENDING` cuyo horario ya pasó no se cancelan ni se avisan: se atendieron, y los pasa a `COMPLETED` el job de US-11.1. La versión de #52 busca con `findByCompanyIdAndStatus`, sin filtrar por fecha. Hoy no tiene efecto porque todavía no hay reservas reales, pero sin el filtro una baja cancelaría el historial y avisaría a clientes por turnos viejos. Además, entre dos corridas del job siempre puede quedar un turno vencido en `PENDING`. Se resuelve usando `findAllByCompanyIdAndStatusAndStartDateTimeAfter(..., now)` y sumando al test un turno `PENDING` en el pasado.
-- Cada cliente afectado recibe su notificación correspondiente (o queda registrado si el envío falla).
+- El sistema no avisa solo: el superadmin ve la lista de los turnos cancelados por la baja y le avisa a cada cliente por WhatsApp (US-10.2).
 - La reactivación (US-04.5) no revive los turnos cancelados durante la baja.
 
 Tareas técnicas:

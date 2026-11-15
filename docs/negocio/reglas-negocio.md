@@ -6,11 +6,11 @@
 3. La unicidad del email dentro de una empresa **no distingue el rol**. En consecuencia, el admin de una empresa no puede tener además una cuenta de cliente en su propia empresa con ese mismo email; si quiere reservarse un turno, lo carga como reserva manual desde su turnero.
 4. La página pública de cada empresa es visible sin login (consulta de servicios y horarios), pero reservar un turno requiere estar logueado como cliente de esa empresa puntual.
 5. El JWT no tiene refresh token y expira a las 8 horas; pasado ese tiempo el usuario (de cualquiera de los dos sistemas de login) debe volver a loguearse.
-6. Los links de activación de cuenta y de recuperación de contraseña son **de un solo uso** y tienen vencimiento (48 hs para activación, 1 hora para recuperación). Del token se persiste únicamente su hash, nunca el valor en claro. Reenviar un link de activación invalida los anteriores de ese usuario.
+6. Los links de activación de cuenta y de recuperación de contraseña son **de un solo uso** y tienen vencimiento (48 hs para activación, 1 hora para recuperación). Del token se persiste únicamente su hash, nunca el valor en claro. Reenviar un link de activación invalida los anteriores de ese usuario. La recuperación de contraseña quedó fuera del MVP.
 
 ### Empresas
 
-7. Dar de baja una empresa significa desactivarla, nunca eliminar el registro. Al desactivar: se bloquea el login de su admin, la página pública muestra un estado de "no disponible", los turnos pendientes se cancelan automáticamente, el superadmin avisa a cada cliente afectado por WhatsApp desde una lista (ver regla 28), y el historial se conserva por si se reactiva.
+7. Dar de baja una empresa significa desactivarla, nunca eliminar el registro. Al desactivar: se bloquea el login de su admin, la página pública muestra un estado de "no disponible", los turnos pendientes futuros se cancelan automáticamente, el superadmin avisa a cada cliente afectado por WhatsApp desde una lista (ver regla 28), y el historial se conserva por si se reactiva.
 8. El bloqueo del login del admin al desactivar la empresa **se deriva de `company.status`** en el filtro de autenticación; no se modifica el `status` del usuario. De lo contrario, un admin que ya estaba inactivo antes de la baja quedaría reactivado por error al reactivar la empresa.
 9. Reactivar una empresa es lo inverso: vuelve a estado `ACTIVE`, se desbloquea el login del admin (sin necesitar un nuevo link de activación si ya tenía contraseña definida) y la página pública vuelve a aceptar reservas con la configuración de servicios/horarios que ya tenía cargada. Los turnos cancelados durante la baja quedan cancelados — no se recrean automáticamente.
 10. Cada empresa tiene una **zona horaria** propia (`timezone`, formato IANA). Toda conversión entre las horas de pared de la configuración de agenda y los instantes UTC de los turnos usa esa zona, nunca la zona horaria del servidor. La zona horaria es obligatoria en el alta de la empresa, con `America/Argentina/Cordoba` como valor por defecto en el formulario.
@@ -20,14 +20,14 @@
 
 ### Parámetros configurables
 
-12. Tres parámetros de negocio son **globales de la plataforma** y los edita el superadmin desde su panel (no viven en el archivo de configuración, para no requerir un redeploy al ajustarlos):
+12. Cuatro parámetros de negocio son **globales de la plataforma** y los edita el superadmin desde su panel (no viven en el archivo de configuración, para no requerir un redeploy al ajustarlos):
 
 | Parámetro | Valor inicial | Qué controla |
 | :--- | :--- | :--- |
 | Anticipación mínima para reservar | 30 minutos | Regla 14 |
 | Plazo máximo de cancelación/reprogramación | 3 horas | Regla 16 |
 | Máximo de reprogramaciones por turno | 2 | Regla 18 |
-| Máximo de anticipación para reservar | *A definir (en días)* | Regla 15 |
+| Máximo de anticipación para reservar | 90 días | Regla 15 |
 
 ### Disponibilidad y concurrencia
 13. Un turno reservado no puede superponerse con otro del mismo negocio en la misma franja horaria (validado por rango, no por horario exacto, dado que los servicios tienen duración variable).
@@ -36,7 +36,7 @@
 
 ### Cancelación y reprogramación
 16. El cliente puede cancelar o reprogramar su turno hasta el plazo configurado antes del mismo. Pasado ese plazo, debe contactar al negocio por fuera del sistema; el admin puede cancelar ese turno desde su turnero sin restricción horaria, liberando el horario para otra persona. En el MVP el admin **no reprograma**: para mover un turno lo cancela y carga uno nuevo (turno manual). El turno nuevo no cuenta como reprogramación (no conserva la fecha anterior ni suma al contador) y queda con origen `MANUAL`. Reprogramar desde el panel del admin queda como mejora post-MVP.
-17. El admin de empresa puede cancelar cualquier turno de su negocio sin restricción horaria, dejando registrado quién lo canceló (`CLIENT` o `COMPANY`), cuándo, y un motivo en texto libre opcional.
+17. El admin de empresa puede cancelar cualquier turno pendiente de su negocio sin restricción horaria, dejando registrado quién lo canceló (`CLIENT` o `COMPANY`), cuándo, y un motivo en texto libre opcional.
 18. Reprogramar un turno actualiza el mismo registro (nueva fecha/hora, se conserva la fecha anterior, se incrementa el contador de reprogramaciones), en vez de crear un turno nuevo y cancelar el anterior. **El turno sigue en estado `PENDING`**: reprogramar no es un estado del ciclo de vida, es un evento que se contabiliza. Alcanzado el máximo configurado de reprogramaciones, el botón queda deshabilitado y el cliente debe contactar al negocio.
 19. Un turno cancelado no puede reactivarse desde "Mis turnos" del cliente; si quiere el mismo horario debe reservarlo de nuevo (sujeto a disponibilidad).
 

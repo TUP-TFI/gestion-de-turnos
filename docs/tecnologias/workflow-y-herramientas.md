@@ -65,8 +65,6 @@ npm run lint
 npm run build
 ```
 
-> ⚠️ `frontend.yml` todavía no está alineado con el backend: sus actions no están fijadas por SHA y el workflow no corre en push a `main`. Ver [#48](https://github.com/TUP-TFI/gestion-de-turnos/issues/48).
-
 ## 3. Dependencias: Dependabot
 
 **Dependabot** es el bot de GitHub que detecta dependencias desactualizadas o vulnerables y abre PRs para actualizarlas.
@@ -88,7 +86,7 @@ Se complementa con dos controles más del CI: **Dependency review** frena una de
 | Backend | **Render** (free tier, Docker) | Automático al llegar un commit a `main`, pero solo cuando los checks del CI de ese commit terminan en verde (*Auto-Deploy: After CI Checks Pass*). | [README del backend](../../backend/README.md#deploy) |
 | Base de datos | **Neon** (PostgreSQL 18) | Las migraciones de Flyway se aplican al arrancar el backend. | [README del backend](../../backend/README.md#base-de-datos-y-migraciones) |
 
-El repositorio está en la organización `TUP-TFI` justamente para que cada integrante conecte su propia cuenta de despliegue: el frontend se despliega desde una cuenta y el backend desde otra (ver [§7 del README](../../README.md#7-repositorio)).
+El repositorio está en la organización `TUP-TFI` justamente para que cada integrante conecte su propia cuenta de despliegue: el frontend se despliega desde una cuenta y el backend desde otra (ver [§10 del README](../../README.md#10-repositorio)).
 
 Por eso `backend-ci.yml` también corre en cada push a `main`: Render espera a que esos checks pasen antes de desplegar. Si el CI falla después de un merge, producción se queda en la versión anterior.
 
