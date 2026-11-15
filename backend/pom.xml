@@ -133,6 +133,9 @@
 				<configuration>
 					<systemPropertyVariables>
 						<spring.profiles.default>dev</spring.profiles.default>
+						<!-- Los datos de demo apagados aunque la terminal tenga APP_SEED_DEMO_DATA=true: los tests cuentan
+						     con el seed sin turnos. Solo PresentationDataSeedIT los prende, en su propia anotación -->
+						<app.seed.demo-data>false</app.seed.demo-data>
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>
