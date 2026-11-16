@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -56,6 +57,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>El token de activación tiene un valor conocido y no uno aleatorio, para poder probar la
  *       activación aunque la base se haya cargado hace días. Por lo mismo vence en un año y no en 48 horas.
  *   <li>No toca {@code platform_settings}: esa fila la inserta la migración V1.
+ *   <li>Los turnos de demo y la segunda empresa activa se cargan aparte, solo con {@code app.seed.demo-data=true}
+ *       ({@link PresentationDataSeeder}). Los tests usan este seed sin turnos.
  * </ul>
  */
 @Component
@@ -87,6 +90,8 @@ public class DemoDataSeeder implements CommandLineRunner {
     private final TokenGenerator tokenGenerator;
     private final String password;
     private final String activationToken;
+    // Solo existe con app.seed.demo-data=true (ver PresentationDataSeeder).
+    private final ObjectProvider<PresentationDataSeeder> presentationDataSeeder;
 
     public DemoDataSeeder(
             CompanyRepository companyRepository,
@@ -97,7 +102,8 @@ public class DemoDataSeeder implements CommandLineRunner {
             PasswordEncoder passwordEncoder,
             TokenGenerator tokenGenerator,
             @Value("${app.seed.password}") String password,
-            @Value("${app.seed.activation-token}") String activationToken) {
+            @Value("${app.seed.activation-token}") String activationToken,
+            ObjectProvider<PresentationDataSeeder> presentationDataSeeder) {
         if (password.length() < MIN_PASSWORD_LENGTH) {
             throw new IllegalStateException(
                     "app.seed.password tiene que tener al menos " + MIN_PASSWORD_LENGTH + " caracteres");
@@ -114,6 +120,7 @@ public class DemoDataSeeder implements CommandLineRunner {
         this.tokenGenerator = tokenGenerator;
         this.password = password;
         this.activationToken = activationToken;
+        this.presentationDataSeeder = presentationDataSeeder;
     }
 
     @Override
@@ -122,6 +129,8 @@ public class DemoDataSeeder implements CommandLineRunner {
         seedSuperadmin();
         seedBarberiaCentral();
         seedPendingCompany();
+        // Al final, porque usa la empresa y los clientes de arriba.
+        presentationDataSeeder.ifAvailable(PresentationDataSeeder::seed);
         log.info("Seed de demo revisado: se creó solo lo que faltaba.");
     }
 

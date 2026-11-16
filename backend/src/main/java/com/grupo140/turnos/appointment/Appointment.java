@@ -99,6 +99,16 @@ public class Appointment {
         // JPA
     }
 
+    // Turno de un servicio, con su precio y su duración ya copiados. El horario, el cliente y el estado se completan
+    // con
+    // los setters. Lo usa el seed de demo, que está en otro paquete.
+    public Appointment(UUID companyId, UUID serviceId, BigDecimal priceSnapshot, Integer durationMinutesSnapshot) {
+        this.companyId = companyId;
+        this.serviceId = serviceId;
+        this.priceSnapshot = priceSnapshot;
+        this.durationMinutesSnapshot = durationMinutesSnapshot;
+    }
+
     public UUID getId() {
         return id;
     }

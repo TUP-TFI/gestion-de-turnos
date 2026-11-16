@@ -41,6 +41,7 @@ El perfil `dev` trae valores por defecto que coinciden con el `docker-compose.ym
 | `APP_SEED_ENABLED` | ambos | `true` carga el seed de demo al arrancar (ver [Seeds y datos de prueba](#seeds-y-datos-de-prueba)). Sin la variable, el seed no corre. |
 | `SEED_PASSWORD` | prod | Contraseña de los usuarios activos del seed. Obligatoria solo con `APP_SEED_ENABLED=true`; al menos 8 caracteres. Nunca la de dev. En dev hay un valor fijo. |
 | `SEED_ACTIVATION_TOKEN` | prod | Token del link de activación del admin pendiente del seed. Obligatorio solo con `APP_SEED_ENABLED=true`. En dev hay un valor fijo. |
+| `APP_SEED_DEMO_DATA` | ambos | `true`, junto con `APP_SEED_ENABLED=true`, suma los datos de demo para la presentación (ver [Datos de demo](#datos-de-demo-para-la-presentación)). Sin la variable, no se cargan. |
 
 Para correr en local contra la base de producción, creá un `backend/.env` con esas variables: el perfil `prod` lo importa si existe (`spring.config.import: optional:file:.env[.properties]`).
 
@@ -625,7 +626,30 @@ Cada empresa tiene un solo admin, igual que las que crea el alta.
 
 Los usuarios activos entran directo con la contraseña del seed, sin pasar por el link de activación. El admin pendiente se activa en `{FRONTEND_URL}/activate?token=<token del seed>`; el token sirve una sola vez.
 
-Los datos de demo para la presentación (más empresas y turnos en distintos estados) se suman a este mismo seed más adelante, antes del despliegue final.
+### Datos de demo para la presentación
+
+`seed/PresentationDataSeeder` (T-14.2) suma turnos y una segunda empresa activa, para mostrar el sistema con datos. Corre al final de `DemoDataSeeder`, en la misma transacción, y solo si además está `app.seed.demo-data=true`:
+
+```bash
+APP_SEED_ENABLED=true APP_SEED_DEMO_DATA=true ./mvnw spring-boot:run
+```
+
+En Windows (PowerShell):
+
+```powershell
+$env:APP_SEED_ENABLED='true'; $env:APP_SEED_DEMO_DATA='true'; .\mvnw.cmd spring-boot:run
+```
+
+Va aparte porque los tests de integración usan el seed sin turnos y con dos clientes en Barbería Central: si lo cargaran, sus cuentas y los horarios libres cambiarían. Por eso ningún test lo prende, salvo `PresentationDataSeedIT`, que levanta su propia base. En Render queda apagado mientras no se agregue `APP_SEED_DEMO_DATA=true`.
+
+| Dato | Detalle |
+| :--- | :--- |
+| Barbería Central | Dos clientes más (`cliente3@example.com` y `cliente4@example.com`) y turnos en todos los estados: pendientes de hoy y de los próximos días, uno reprogramado, manuales con y sin cuenta, cancelados por el cliente y por la empresa, y completados |
+| Estética Lumina (`/estetica-lumina`) | Rubro `BEAUTY_CENTER`, activa. Limpieza facial, Manicura y Masaje descontracturante; abre de martes a sábado de 10 a 18. Admin `admin.estetica@example.com`, clientas `sofia@example.com` y `valentina@example.com`, y cuatro turnos |
+
+Todos entran con la contraseña del seed. Las fechas son relativas al día en que se cargan, salteando los días que cada empresa cierra, y cada día tiene sus propios horarios, así los turnos no se superponen.
+
+Se carga **una sola vez**: si Estética Lumina ya existe, no hace nada. Con el tiempo, los turnos "de hoy" quedan en el pasado y el job de cierre los completa. Para volver a tenerlos al día, recreá la base local como se explica arriba y arrancá con las dos variables.
 
 > La fila única de `platform_settings` **no es parte del seed**: la inserta la migración inicial, porque la aplicación la asume siempre presente.
 
