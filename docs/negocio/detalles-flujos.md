@@ -13,7 +13,7 @@ El admin de empresa **no se autoregistra**: su cuenta la crea el superadmin al d
 
 Al abrirlo, el admin ve un formulario de "definí tu contraseña"; al confirmarla, el `User` pasa de `PENDING_ACTIVATION` a `ACTIVE`, el token se sella con `usedAt` (garantizando el uso único) y ya puede loguearse normalmente. Si el token vence sin usarse, el superadmin puede reenviarlo desde el detalle de la empresa: eso invalida los tokens de activación anteriores de ese usuario y emite uno nuevo.
 
-El mismo mecanismo, con `type = PASSWORD_RESET` y vencimiento de 1 hora, cubre el flujo de "olvidé mi contraseña" que el propio usuario dispara desde el login. Se manda por el mismo canal definido para los avisos (ver 7.6).
+El mismo mecanismo, con `type = PASSWORD_RESET` y vencimiento de 1 hora, cubriría el flujo de "olvidé mi contraseña" que el propio usuario dispara desde el login. *Quedó fuera del MVP (pospuesto): mientras tanto, un admin sin acceso pide ayuda al superadmin.*
 
 **Login/registro por empresa** (dentro de `plataforma.com/{slug}`): exclusivo para el cliente que quiere sacar un turno en esa empresa — no lo usa nadie del lado del negocio. El cliente se registra o inicia sesión con email y contraseña, siempre en el contexto de esa empresa puntual. El JWT que recibe incluye `companyId` fijo a esa empresa — ese token solo sirve para operar dentro de esa página pública. Si el mismo email ya está registrado como cliente de otra empresa, no hay conflicto: son cuentas independientes, la unicidad de email es por empresa, no global.
 
@@ -31,6 +31,8 @@ Al loguearse ve `/superadmin/dashboard` con:
 - Altas de empresas por mes.
 - Ranking de empresas por cantidad de turnos generados.
 - Distribución por rubro.
+
+> **En el MVP**, el dashboard muestra solo las empresas activas e inactivas y el total de turnos de la plataforma. Las altas por mes, el ranking y la distribución por rubro quedaron como mejora post-MVP; lo que sigue explica cómo se calcularían.
 
 **Altas por mes:** se agrupa por `company.createdAt`. Es la razón por la que las tablas llevan columnas de auditoría: sin `createdAt` la métrica directamente no se puede calcular.
 
@@ -61,14 +63,14 @@ Al entrar a "Ver página pública" desde el CRUD, el superadmin la ve como cualq
 
 #### Configuración global de la plataforma
 
-Una pantalla con tres campos, que el superadmin edita y quedan vigentes de inmediato para todas las empresas:
+Una pantalla con cuatro campos, que el superadmin edita y quedan vigentes de inmediato para todas las empresas:
 
 | Parámetro | Valor inicial |
 | :--- | :--- |
 | Anticipación mínima para reservar | 30 minutos |
 | Plazo máximo de cancelación/reprogramación | 3 horas |
 | Máximo de reprogramaciones por turno | 2 |
-| Máximo de anticipación para reservar |  *A definir (en días)* |
+| Máximo de anticipación para reservar | 90 días |
 
 Están en base de datos (`PlatformSettings`, tabla de una sola fila) y no en el archivo de configuración del backend, justamente porque están documentados como ajustables: si vivieran en el `application.yml`, ajustarlos implicaría un redeploy. Cambiarlos no afecta retroactivamente a los turnos ya reservados; rige sobre las validaciones de las operaciones posteriores.
 
@@ -76,7 +78,7 @@ Están en base de datos (`PlatformSettings`, tabla de una sola fila) y no en el 
 
 ### 7.3 ¿Qué ve el admin de empresa?
 
-Al loguearse ve `/company/dashboard`, con navegación a: Dashboard, Servicios, Horarios, Excepciones, Turnos, Clientes, Mi página pública.
+Al loguearse ve `/company/dashboard`, con navegación a: Inicio, Turnos, Clientes, Servicios, Horario, Feriados (excepciones de calendario) y Marca (logo, color y el link a su página pública).
 
 #### CRUD de Servicios y baja con turnos pendientes
 
@@ -156,7 +158,7 @@ El mensaje de confirmación es puramente informativo (tipo *"reservaste tal turn
 
 #### Mi página pública
 
-El admin no la edita directamente campo por campo; se arma sola a partir de lo que carga en Servicios/Horarios/datos de empresa. Solo tiene un link de acceso para verla como la ve un cliente.
+El admin no la edita directamente campo por campo; se arma sola a partir de lo que carga en Servicios/Horarios/datos de empresa. Desde "Marca" elige el logo y el color, y tiene un link para verla como la ve un cliente.
 
 ---
 
@@ -192,7 +194,7 @@ La página pública (`plataforma.com/{slug}`) es visible sin login: cualquiera v
 
 ### 7.5 Mis turnos, cancelación y reprogramación
 
-"Mis turnos" es una tabla simple: fecha, servicio, empresa, estado. No hay una sección de historial aparte — un job programado pasa los turnos a `COMPLETED` automáticamente una vez que terminaron, es decir cuando su `endDateTime` ya pasó (los `CANCELLED` quedan como están), y la tabla se ordena/filtra por estado; los `COMPLETED` cumplen la función de historial.
+"Mis turnos" es una tabla simple: fecha, servicio, estado y acciones (cancelar y reprogramar). No hay una sección de historial aparte — un job programado pasa los turnos a `COMPLETED` automáticamente una vez que terminaron, es decir cuando su `endDateTime` ya pasó (los `CANCELLED` quedan como están), y la tabla se ordena/filtra por estado; los `COMPLETED` cumplen la función de historial.
 
 - **Cancelar:** disponible hasta el plazo configurado antes del turno (inicialmente 3 horas). El turno pasa a estado `CANCELLED` y se muestra en gris, sin acción de reactivación desde ahí. Queda registrado quién canceló y cuándo.
 - **Reprogramar:** dentro del mismo plazo, el cliente elige un nuevo horario disponible; se actualiza el mismo registro de turno (no se crea uno nuevo), guardando la fecha anterior y sumando uno a su contador de reprogramaciones. **El turno sigue en estado `PENDING`.**
@@ -211,7 +213,7 @@ El canal es **Click to Chat**: un link `https://wa.me/<número>?text=<mensaje>` 
 El back solo da los datos (teléfono, servicio, fecha y zona de la empresa), y el front arma el link.
 
 **Quién avisa y cuándo:**
-- **Admin, desde su panel:** "Avisar por WhatsApp" en cada turno de la agenda. El mensaje cambia según el turno: confirmado, reprogramado (con la fecha nueva) o cancelado (con el motivo).
+- **Admin, desde su panel:** "WhatsApp" en los turnos de la agenda, y "Avisar por WhatsApp" en el aviso que aparece al cancelar o al cargar un turno. El mensaje cambia según el turno: confirmado, reprogramado (con la fecha nueva) o cancelado por la empresa (con el motivo). Los completados y los que canceló el propio cliente no tienen aviso.
 - **Superadmin, al desactivar una empresa:** ve la lista de los turnos cancelados por la baja que todavía no pasaron, con un link por cliente. La lista no registra a quién ya se avisó.
 - **Superadmin, al dar de alta una empresa o reenviar la activación:** manda el link de activación al admin. El link lleva el token: solo lo recibe el superadmin, y no se escribe en el log.
 

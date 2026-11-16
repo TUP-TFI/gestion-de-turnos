@@ -3,25 +3,27 @@
 ### Superadmin
 - Login (panel de sistema).
 - CRUD de empresas (alta, consulta, edición, desactivación — nunca eliminación física).
-- Alta de empresa: formulario único que crea en la misma transacción la `Company` (estado `ACTIVE`) y el `User` admin asociado (estado `PENDING_ACTIVATION`), generando el slug de la URL pública —validado contra la lista de slugs reservados— y disparando el link de activación por WhatsApp.
-- Reenviar el link de activación si el admin no lo usó a tiempo (invalidando el anterior).
+- Alta de empresa: formulario único que crea en la misma transacción la `Company` (estado `ACTIVE`) y el `User` admin asociado (estado `PENDING_ACTIVATION`), generando el slug de la URL pública —validado contra la lista de slugs reservados— y el link de activación, que el superadmin le manda al admin por WhatsApp o copia.
+- Generar un link de activación nuevo si el admin no lo usó a tiempo (invalidando el anterior).
 - **Configurar los parámetros globales de la plataforma:** anticipación mínima para reservar, plazo máximo de cancelación/reprogramación, máximo de reprogramaciones por turno y máximo de anticipación para reservar. Se editan desde el panel, sin necesidad de redeploy.
-- Ver dashboard general de la plataforma (empresas activas/inactivas, altas por mes, ranking de empresas por cantidad de turnos generados, distribución por rubro).
+- Ver dashboard general de la plataforma: empresas activas/inactivas y total de turnos. Las altas por mes, el ranking de empresas por cantidad de turnos y la distribución por rubro quedaron fuera del MVP.
+- Ver la lista de turnos cancelados al desactivar una empresa, para avisarle a cada cliente por WhatsApp.
 - Ver la página pública de cualquier empresa (botón "Ver página pública"), sin poder reservar con esa sesión.
 
 ### Admin de empresa
 - Login (panel de sistema).
 - Definir su contraseña la primera vez, vía link de activación de un solo uso.
-- Recuperar su contraseña vía link con token, disparado desde el propio login.
+- Recuperar su contraseña vía link con token, disparado desde el propio login. *(Fuera del MVP: pospuesto.)*
 - Ver dashboard de su propio negocio (turnos de hoy, próximos turnos).
 - CRUD de servicios (nombre, descripción, precio, duración, estado activo/inactivo). Al desactivar un servicio con turnos futuros, éstos se mantienen y se atienden con normalidad.
 - CRUD de horarios de atención: configuración recurrente por día de la semana (rango horario + intervalo), admitiendo **varias franjas por día** (jornada partida). Se configura una sola vez y es editable cuando haga falta. Al editarla, si hay turnos ya reservados fuera del nuevo rango, el sistema avisa que se mantienen igual (no se cancelan solos).
 - **CRUD de excepciones de calendario:** feriados, vacaciones y jornadas con horario especial, cargados por fecha concreta. Una excepción reemplaza por completo la configuración semanal de esa fecha. Igual que al editar horarios, el sistema avisa cuántos turnos quedan fuera pero no los cancela.
 - Personalización básica de su página pública (logo, color).
-- Ver turnero/agenda de su empresa, filtrable por estado y por origen (reservado online / cargado manualmente).
+- Ver turnero/agenda de su empresa, filtrable por estado, por origen (reservado online / cargado manualmente) y por reprogramados.
+- Avisarle a un cliente por WhatsApp la confirmación, la reprogramación o la cancelación de su turno, con el mensaje ya armado.
 - **Ver el listado de clientes de su empresa**, con búsqueda por nombre, teléfono o email. Es una vista de solo lectura: alimenta el desplegable de vinculación al cargar un turno manual.
 - Reservar un turno manualmente: si el cliente tiene cuenta, vincularlo buscándolo y seleccionándolo desde ese listado; si no tiene cuenta, cargar sus datos sueltos (nombre, teléfono).
-- Cancelar cualquier turno de su empresa (reservado online o cargado manualmente), sin restricción horaria, dejando registrado el motivo.
+- Cancelar cualquier turno pendiente de su empresa (reservado online o cargado manualmente), sin restricción horaria, con un motivo opcional. En el MVP el admin no reprograma: para mover un turno, lo cancela y carga uno nuevo.
 - Ver "Mi página pública" (solo lectura, se arma sola con lo que carga acá).
 
 ### Cliente

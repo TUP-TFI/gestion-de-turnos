@@ -3,7 +3,7 @@
 ### UC1 - Alta de empresa
 **Actor:** Superadmin
 
-El superadmin completa datos de la empresa y del futuro admin. El sistema crea `Company` + `User` admin (estado `PENDING_ACTIVATION`) en una sola transacción, genera el slug de la URL pública —validándolo contra la lista de slugs reservados— y envía un link de activación de un solo uso para que el admin defina su contraseña. La URL pública queda disponible desde el primer momento, mostrando un estado de "todavía sin servicios cargados".
+El superadmin completa datos de la empresa y del futuro admin. El sistema crea `Company` + `User` admin (estado `PENDING_ACTIVATION`) en una sola transacción, genera el slug de la URL pública —validándolo contra la lista de slugs reservados— y genera un link de activación de un solo uso para que el admin defina su contraseña. El superadmin se lo manda por WhatsApp con un toque (Click to Chat) o lo copia: el sistema no lo envía solo. La URL pública queda disponible desde el primer momento, mostrando un estado de "todavía sin servicios cargados".
 
 ### UC2 - Configurar servicios y horarios
 **Actor:** Admin de empresa
@@ -18,7 +18,7 @@ Desde la página pública de una empresa puntual, una persona se registra o inic
 ### UC4 - Reservar un turno
 **Actor:** Cliente
 
-El cliente entra a la página pública de una empresa, elige un servicio, ve los horarios disponibles (ya filtrados por duración, por excepciones de calendario y por la anticipación mínima permitida), confirma la reserva y el turno queda guardado como `PENDING` de inmediato, con el precio y la duración del servicio copiados en el propio turno. Recibe una notificación informativa de confirmación; no necesita confirmar nada más. El turno queda visible en "Mis turnos".
+El cliente entra a la página pública de una empresa, elige un servicio, ve los horarios disponibles (ya filtrados por duración, por excepciones de calendario y por la anticipación mínima permitida), confirma la reserva y el turno queda guardado como `PENDING` de inmediato, con el precio y la duración del servicio copiados en el propio turno. No necesita confirmar nada más, y el turno queda visible en "Mis turnos". El sistema no le manda un aviso: si el negocio quiere confirmárselo, lo hace por WhatsApp desde su panel.
 
 ### UC5 - Cancelar o reprogramar un turno propio
 **Actor:** Cliente
@@ -28,12 +28,12 @@ Desde "Mis turnos", dentro del plazo permitido, el cliente cancela (el turno que
 ### UC6 - El negocio cancela un turno
 **Actor:** Admin de empresa
 
-Desde el turnero de su panel, el admin cancela un turno (reservado online o cargado manualmente) sin restricción horaria, registrando el motivo. El sistema deja asentado quién canceló y cuándo. El cliente recibe notificación del cambio, si tiene forma de recibirla.
+Desde el turnero de su panel, el admin cancela un turno (reservado online o cargado manualmente) sin restricción horaria, registrando el motivo. El sistema deja asentado quién canceló y cuándo, y el horario queda libre. Para que el cliente se entere, el admin le avisa por WhatsApp desde la agenda, con el mensaje ya armado y el motivo incluido.
 
 ### UC7 - Desactivar una empresa
 **Actor:** Superadmin
 
-El superadmin desactiva una empresa. Se bloquea el login de su admin, la página pública deja de ofrecer reservas, y los turnos pendientes se cancelan automáticamente notificando a cada cliente afectado. Cada notificación queda registrada con su estado, de modo que si el proceso se interrumpe se puede reintentar solo sobre las que fallaron, sin volver a avisarle a quien ya recibió el mensaje.
+El superadmin desactiva una empresa. Se bloquea el login de su admin, la página pública deja de ofrecer reservas, y los turnos pendientes futuros se cancelan automáticamente. Después, el superadmin ve la lista de esos turnos y le avisa a cada cliente por WhatsApp, con un link por cliente. El sistema no registra a quién ya se avisó.
 
 ### UC8 - Reservar un turno manualmente
 **Actor:** Admin de empresa
@@ -68,4 +68,6 @@ Desde su panel, el superadmin modifica la anticipación mínima para reservar, e
 ### UC14 - Recuperar la contraseña
 **Actor:** Admin de empresa / Cliente
 
-Desde la pantalla de login, el usuario solicita recuperar su contraseña. El sistema emite un token de un solo uso con vencimiento y lo envía por el canal de notificaciones. Al abrir el link, define una contraseña nueva y el token queda sellado como usado. Un link vencido o ya utilizado no permite el cambio y hay que solicitar uno nuevo.
+> **Fuera del MVP:** quedó pospuesto (US-03.7 y US-03.8 de `docs/alcance-mvp.md`). Mientras tanto, un admin sin acceso pide ayuda al superadmin.
+
+Desde la pantalla de login, el usuario solicita recuperar su contraseña. El sistema emite un token de un solo uso con vencimiento y le llega el link. Al abrir el link, define una contraseña nueva y el token queda sellado como usado. Un link vencido o ya utilizado no permite el cambio y hay que solicitar uno nuevo.
