@@ -82,13 +82,13 @@ export function PublicCompanyPage() {
     company?.status === 'ACTIVE',
   )
 
-  // 'default' es la primera pantalla de la pestaña: no hay adónde volver dentro de la app. Pasa al entrar directo o
-  // desde "Marca", que abre otra pestaña; ahí un admin vuelve a su panel y un visitante no ve el botón.
+  // "Volver" es volver al panel: solo lo ve quien tiene sesión ahí. Con el historial, un cliente que inicia sesión
+  // volvería a esta misma página. 'default' es la primera pantalla de la pestaña: ahí se va al inicio del panel.
   const hasHistory = location.key !== 'default'
   const panelPath = panelSession
     ? getDashboardPath(panelSession.user.role)
     : null
-  const canGoBack = hasHistory || panelPath !== null
+  const canGoBack = panelPath !== null
 
   function handleBack() {
     if (hasHistory) {
@@ -152,7 +152,7 @@ export function PublicCompanyPage() {
                 onClick={handleBack}
                 className={COMPANY_BAND_BUTTON_CLASSES}
               >
-                ← Volver
+                Volver
               </button>
             )}
             {company.logoUrl && (

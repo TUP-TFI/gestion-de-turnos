@@ -129,10 +129,6 @@ export function ClientsPage() {
             </button>
           )}
         </div>
-        <p className={MUTED_TEXT_CLASSES}>
-          El nombre se busca sin importar mayúsculas ni tildes; el email, sin
-          importar mayúsculas, y el teléfono, tal como lo cargó el cliente.
-        </p>
       </div>
 
       {(isLoading || isOutOfRange) && (
@@ -156,23 +152,13 @@ export function ClientsPage() {
         </div>
       )}
 
+      {/* Sin un segundo "Limpiar": el del buscador ya está a la vista. */}
       {!isLoading && !error && !isOutOfRange && rows.length === 0 && (
-        <div className="space-y-3 text-center">
-          <p className={MUTED_TEXT_CLASSES}>
-            {q
-              ? `No hay clientes que coincidan con "${q}"`
-              : 'Todavía no hay clientes registrados'}
-          </p>
-          {q && (
-            <button
-              type="button"
-              onClick={clearSearch}
-              className={SECONDARY_BUTTON_CLASSES}
-            >
-              Limpiar búsqueda
-            </button>
-          )}
-        </div>
+        <p className={`${MUTED_TEXT_CLASSES} text-center`}>
+          {q
+            ? `No hay clientes que coincidan con "${q}"`
+            : 'Todavía no hay clientes registrados'}
+        </p>
       )}
 
       {rows.length > 0 && !isOutOfRange && (

@@ -6,6 +6,9 @@ import {
   BADGE_VARIANT_CLASSES,
   CARD_TITLE_CLASSES,
   COMPANY_BUTTON_CLASSES,
+  INPUT_CLASSES,
+  LABEL_CLASSES,
+  MUTED_TEXT_CLASSES,
   NOTICE_CLASSES,
   PAGE_TITLE_CLASSES,
   SERVICE_CARD_CLASSES,
@@ -22,6 +25,17 @@ const PRICE_FORMAT = new Intl.NumberFormat('es-AR', {
   style: 'currency',
   currency: 'ARS',
 })
+
+// Con pocos servicios se ven todos de un vistazo y el buscador sobra.
+const SEARCH_MIN_SERVICES = 7
+
+// Minúsculas y sin tildes, para que "depilacion" encuentre "Depilación".
+function normalize(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+}
 
 interface ServiceSlotPickerProps {
   services: PublicService[]
@@ -48,11 +62,21 @@ export function ServiceSlotPicker({
   // Cada vez que se elige un servicio, también el que ya estaba elegido, el horario elegido se suelta.
   const [choice, setChoice] = useState(0)
   const [serviceGone, setServiceGone] = useState(false)
+  const [search, setSearch] = useState('')
   const dateSectionRef = useRef<HTMLElement>(null)
   const dateInputRef = useRef<HTMLInputElement>(null)
 
   // Si el servicio dejó de estar en la lista, ya no cuenta como elegido.
   const service = services.find((item) => item.id === serviceId) ?? null
+
+  // Filtra en el navegador: la página ya trae todos los servicios. El elegido sigue elegido aunque quede afuera.
+  const showSearch = services.length >= SEARCH_MIN_SERVICES
+  const query = normalize(search.trim())
+  const visibleServices = query
+    ? services.filter((item) =>
+        normalize(`${item.name} ${item.description ?? ''}`).includes(query),
+      )
+    : services
 
   function handleAvailabilityError(error: Error) {
     onAvailabilityError?.(error)
@@ -94,8 +118,31 @@ export function ServiceSlotPicker({
           </p>
         )}
 
+        {showSearch && (
+          <div className="max-w-md">
+            <label htmlFor="service-search" className={LABEL_CLASSES}>
+              Buscar servicio
+            </label>
+            <input
+              id="service-search"
+              type="text"
+              enterKeyHint="search"
+              autoComplete="off"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className={INPUT_CLASSES}
+            />
+          </div>
+        )}
+
+        {visibleServices.length === 0 && (
+          <p className={MUTED_TEXT_CLASSES}>
+            No hay servicios que coincidan con "{search.trim()}"
+          </p>
+        )}
+
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((item) => {
+          {visibleServices.map((item) => {
             const isSelected = item.id === service?.id
 
             return (
