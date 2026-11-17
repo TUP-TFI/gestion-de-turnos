@@ -5,10 +5,11 @@ import {
   BADGE_CLASSES,
   BADGE_VARIANT_CLASSES,
   ERROR_CLASSES,
-  LINK_CLASSES,
   MUTED_TEXT_CLASSES,
   PAGE_TITLE_CLASSES,
   PRIMARY_BUTTON_CLASSES,
+  ROW_BUTTON_CLASSES,
+  ROW_DANGER_BUTTON_CLASSES,
   TABLE_CELL_CLASSES,
   TABLE_HEAD_CLASSES,
   TABLE_WRAPPER_CLASSES,
@@ -105,10 +106,10 @@ export function ServicesPage() {
                     </span>
                   </td>
                   <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
-                    <div className="flex gap-4">
+                    <div className="flex gap-2">
                       <Link
                         to={`/company/services/${service.id}/edit`}
-                        className={LINK_CLASSES}
+                        className={ROW_BUTTON_CLASSES}
                       >
                         Editar
                       </Link>
@@ -116,7 +117,11 @@ export function ServicesPage() {
                         type="button"
                         onClick={() => toggleStatus(service)}
                         disabled={isChangingStatus}
-                        className={`${LINK_CLASSES} cursor-pointer disabled:cursor-not-allowed disabled:text-muted`}
+                        className={
+                          service.status === 'ACTIVE'
+                            ? ROW_DANGER_BUTTON_CLASSES
+                            : ROW_BUTTON_CLASSES
+                        }
                       >
                         {service.status === 'ACTIVE' ? 'Desactivar' : 'Reactivar'}
                       </button>
