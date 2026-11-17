@@ -5,6 +5,8 @@ import { NOTICE_CLASSES, SUCCESS_CLASSES } from '../lib/formStyles'
 interface DismissibleNoticeProps {
   kind: 'success' | 'info'
   children: ReactNode
+  // Links que siguen al texto, como "Ver en la agenda" o "Avisar por WhatsApp". Van en una fila aparte, debajo.
+  actions?: ReactNode
   onDismiss: () => void
 }
 
@@ -15,6 +17,7 @@ interface DismissibleNoticeProps {
 export function DismissibleNotice({
   kind,
   children,
+  actions,
   onDismiss,
 }: DismissibleNoticeProps) {
   const noticeRef = useRef<HTMLDivElement>(null)
@@ -23,14 +26,24 @@ export function DismissibleNotice({
     noticeRef.current?.focus()
   }, [])
 
+  // focus-visible y no focus: el foco llega por código, y con el mouse el anillo lo haría ver distinto de los otros
+  // avisos. Con teclado sí se ve.
   return (
     <div
       ref={noticeRef}
       role="status"
       tabIndex={-1}
-      className={`flex items-start justify-between gap-3 focus:outline-none focus:ring-2 focus:ring-brand-light ${kind === 'success' ? SUCCESS_CLASSES : NOTICE_CLASSES}`}
+      className={`flex items-start justify-between gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light ${kind === 'success' ? SUCCESS_CLASSES : NOTICE_CLASSES}`}
     >
-      <p>{children}</p>
+      <div className="space-y-2">
+        <p>{children}</p>
+        {/* empty:hidden: una acción puede no mostrar nada, como WhatsApp sin mensaje, y la fila no deja un hueco. */}
+        {actions && (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 empty:hidden">
+            {actions}
+          </div>
+        )}
+      </div>
       <button
         type="button"
         aria-label="Cerrar aviso"

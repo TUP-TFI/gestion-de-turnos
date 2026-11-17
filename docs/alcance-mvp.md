@@ -945,7 +945,7 @@ Dependencias: US-09.2.
 Como admin o superadmin, quiero avisarle al cliente que su turno se canceló, para que no se presente.
 
 Criterios de aceptación:
-- Un turno `CANCELLED` por la empresa (`cancelledBy = COMPANY`) tiene "Avisar por WhatsApp", con el motivo en el mensaje. Los que canceló el cliente no lo tienen: el cliente ya lo sabe.
+- Un turno `CANCELLED` por la empresa (`cancelledBy = COMPANY`) tiene "Avisar por WhatsApp", con el motivo en el mensaje, mientras su fecha no pasó. Los que canceló el cliente no lo tienen: el cliente ya lo sabe.
 - Al desactivar una empresa (US-04.4), el superadmin ve la lista de los turnos cancelados por la baja que todavía no pasaron, con un link por cliente. La lista no registra a quién ya se avisó.
 - La cancelación del cliente (US-08.1) no avisa al admin: queda fuera del MVP.
 

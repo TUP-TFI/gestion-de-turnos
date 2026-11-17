@@ -12,8 +12,7 @@ interface NoticeWhatsAppLinkProps {
 
 // Link "Avisar por WhatsApp" para el final de un aviso de la página (cancelar o cargar un turno). El mensaje sale del
 // estado del turno que devolvió el backend (`appointmentMessage`): sin mensaje, como en un turno cancelado por el
-// cliente, no muestra nada. Va dentro del <p> de DismissibleNotice, por eso es un elemento en línea, con su espacio
-// delante.
+// cliente, no muestra nada. Va en la fila de acciones de DismissibleNotice.
 export function NoticeWhatsAppLink({
   appointment,
   companyName,
@@ -29,13 +28,10 @@ export function NoticeWhatsAppLink({
   }
 
   return (
-    <>
-      {' '}
-      <WhatsAppLink
-        phone={appointment.client.phone}
-        text={message}
-        className={NOTICE_LINK_CLASSES}
-      />
-    </>
+    <WhatsAppLink
+      phone={appointment.client.phone}
+      text={message}
+      className={NOTICE_LINK_CLASSES}
+    />
   )
 }
