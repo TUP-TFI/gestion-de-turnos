@@ -74,7 +74,7 @@ export const COMPANY_BAND_CLASSES =
 export const COMPANY_BAND_BUTTON_BASE_CLASSES =
   'inline-flex h-8 items-center justify-center rounded-lg border border-(--company-on-accent)/40 bg-(--company-on-accent)/10 px-3 text-sm font-semibold text-(--company-on-accent)'
 
-export const COMPANY_BAND_BUTTON_CLASSES = `${COMPANY_BAND_BUTTON_BASE_CLASSES} cursor-pointer hover:bg-(--company-on-accent)/20 focus:outline-none focus:ring-2 focus:ring-(--company-on-accent)`
+export const COMPANY_BAND_BUTTON_CLASSES = `${COMPANY_BAND_BUTTON_BASE_CLASSES} cursor-pointer hover:bg-(--company-on-accent)/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--company-on-accent)`
 
 // Contador dentro de un botón de la banda, como los turnos pendientes en "Mis turnos". Invierte los colores de la banda:
 // el fondo es el color del texto y el texto es el de la empresa, así que contrasta con cualquier `primaryColor`.

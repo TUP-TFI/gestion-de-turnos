@@ -95,7 +95,7 @@ export function SettingsPage() {
             nuevos: "no afectan" haría pensar que un turno conserva el plazo con que se reservó. */}
         <p className={`mt-1 ${MUTED_TEXT_CLASSES}`}>
           Rigen de inmediato para todas las empresas. Los turnos ya reservados no cambian, pero desde ahora
-          cancelarlos o reprogramarlos sigue el nuevo plazo y el nuevo máximo.
+          cancelarlos o reprogramarlos sigue los valores nuevos.
         </p>
       </div>
 
