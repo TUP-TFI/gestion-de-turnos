@@ -421,18 +421,22 @@ export function NewAppointmentPage() {
           key={notice.id}
           kind="success"
           onDismiss={() => setNotice(null)}
+          actions={
+            <>
+              <Link to="/company/appointments" className={NOTICE_LINK_CLASSES}>
+                Ver en la agenda
+              </Link>
+              <NoticeWhatsAppLink
+                appointment={notice.appointment}
+                companyName={company?.name}
+                timezone={branding.timezone}
+              />
+            </>
+          }
         >
           Cargaste el turno de {notice.appointment.client.name} (
           {notice.appointment.serviceName}) para el{' '}
-          {formatInCompanyZone(notice.appointment.startDateTime, branding.timezone)}.{' '}
-          <Link to="/company/appointments" className={NOTICE_LINK_CLASSES}>
-            Ver en la agenda
-          </Link>
-          <NoticeWhatsAppLink
-            appointment={notice.appointment}
-            companyName={company?.name}
-            timezone={branding.timezone}
-          />
+          {formatInCompanyZone(notice.appointment.startDateTime, branding.timezone)}.
         </DismissibleNotice>
       )}
 
@@ -445,9 +449,11 @@ export function NewAppointmentPage() {
       )}
 
       {/* Sin la zona de la empresa no se pueden mostrar horarios: si falla, solo el error. */}
+      {/* Con prefijo: el aviso de arriba es hermano y también usa un número como key. Con la misma key, React lo
+          confunde con el formulario y la "×" no lo cierra. */}
       {branding && (
         <NewAppointmentForm
-          key={formKey}
+          key={`form-${formKey}`}
           timezone={branding.timezone}
           onCreated={handleCreated}
         />

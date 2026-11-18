@@ -110,9 +110,9 @@ export const APPOINTMENT_NOTICE_LABELS: Record<AppointmentNoticeKind, string> = 
   cancellation: 'cancelación',
 }
 
-// El aviso que corresponde al estado del turno (tipo y texto), o null si no hay aviso: los completados y los que
-// canceló el cliente (ya lo sabe) van sin botón. Un pendiente reprogramado avisa la reprogramación; uno sin
-// reprogramar, la confirmación.
+// El aviso que corresponde al estado del turno (tipo y texto), o null si no hay aviso: los completados, los que
+// canceló el cliente (ya lo sabe) y los cancelados cuya fecha ya pasó (avisar no sirve) van sin botón. Un pendiente
+// reprogramado avisa la reprogramación; uno sin reprogramar, la confirmación.
 export function appointmentNotice(
   appointment: AdminAppointment,
   companyName: string,
@@ -137,7 +137,11 @@ export function appointmentNotice(
         }
       : { kind: 'confirmation', text: confirmationMessage(base) }
   }
-  if (appointment.status === 'CANCELLED' && appointment.cancelledBy === 'COMPANY') {
+  if (
+    appointment.status === 'CANCELLED' &&
+    appointment.cancelledBy === 'COMPANY' &&
+    new Date(appointment.startDateTime).getTime() > Date.now()
+  ) {
     return {
       kind: 'cancellation',
       text: cancellationMessage({

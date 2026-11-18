@@ -102,7 +102,7 @@ El color de texto sobre ese fondo es blanco si su contraste llega a 4.5 (AA de W
 
 `ClientSearch` es el patrón para elegir un registro buscando: un input con debounce de 300 ms y, debajo, los resultados como una lista de botones (`LIST_OPTION_BUTTON_CLASSES`) con el dato principal y los secundarios en `muted`. Sin texto no muestra nada, con pocos resultados avisa cuántos hay en total y no es un combobox ARIA: se recorre con Tab. Al elegir, quien lo usa muestra el registro elegido con un botón "Cambiar".
 
-Un link dentro de un aviso de color (verde) va siempre subrayado (`NOTICE_LINK_CLASSES`): ahí solo el color no lo distingue del texto (WCAG 1.4.1).
+Un link dentro de un aviso de color (verde) va siempre subrayado (`NOTICE_LINK_CLASSES`): ahí solo el color no lo distingue del texto (WCAG 1.4.1). En los avisos que se cierran (`DismissibleNotice`), las acciones ("Ver en la agenda", "Avisar por WhatsApp") van en una fila debajo del texto, separadas entre sí, y no pegadas a la frase.
 
 El total sobre una tabla paginada dice "N turnos" con una sola página, y "21–40 de 45 turnos" con más (`lib/pageRange.ts`).
 

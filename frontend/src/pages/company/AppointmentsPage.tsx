@@ -1,8 +1,8 @@
 import { Link, useSearchParams } from 'react-router'
 import { AdminCancelAppointmentModal } from '../../components/AdminCancelAppointmentModal'
-import { CancelNoticeContent } from '../../components/CancelNoticeContent'
 import { AppointmentStatusBadge } from '../../components/AppointmentStatusBadge'
 import { DismissibleNotice } from '../../components/DismissibleNotice'
+import { NoticeWhatsAppLink } from '../../components/NoticeWhatsAppLink'
 import { Pagination } from '../../components/Pagination'
 import { WhatsAppLink } from '../../components/WhatsAppLink'
 import { useBranding } from '../../hooks/useBranding'
@@ -243,12 +243,15 @@ export function AppointmentsPage() {
           key={cancel.notice.id}
           kind={cancel.notice.kind}
           onDismiss={cancel.dismissNotice}
+          actions={
+            <NoticeWhatsAppLink
+              appointment={cancel.notice.appointment}
+              companyName={company?.name}
+              timezone={branding?.timezone}
+            />
+          }
         >
-          <CancelNoticeContent
-            notice={cancel.notice}
-            companyName={company?.name}
-            timezone={branding?.timezone}
-          />
+          {cancel.notice.text}
         </DismissibleNotice>
       )}
 
