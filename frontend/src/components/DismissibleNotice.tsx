@@ -35,7 +35,8 @@ export function DismissibleNotice({
       tabIndex={-1}
       className={`flex items-start justify-between gap-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light ${kind === 'success' ? SUCCESS_CLASSES : NOTICE_CLASSES}`}
     >
-      <div className="space-y-2">
+      {/* gap y no space-y: con la fila de acciones oculta, space-y igual le deja margen al texto. */}
+      <div className="flex flex-col gap-2">
         <p>{children}</p>
         {/* empty:hidden: una acción puede no mostrar nada, como WhatsApp sin mensaje, y la fila no deja un hueco. */}
         {actions && (
@@ -48,7 +49,7 @@ export function DismissibleNotice({
         type="button"
         aria-label="Cerrar aviso"
         onClick={onDismiss}
-        className="-my-0.5 cursor-pointer rounded px-1 text-lg leading-none focus:outline-none focus:ring-2 focus:ring-brand-light"
+        className="-my-0.5 cursor-pointer rounded px-1 text-lg leading-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light"
       >
         ×
       </button>
