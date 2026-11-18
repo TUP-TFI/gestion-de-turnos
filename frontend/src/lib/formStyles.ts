@@ -16,23 +16,25 @@ export const SUCCESS_CLASSES =
 
 // Los botones no traen ancho: se agrega `w-full` donde haga falta. Sumar `w-auto` encima de `w-full` no
 // sirve, porque en Tailwind gana la clase que aparece después en el CSS, no la última del className.
+// El anillo de foco de los botones es focus-visible: con teclado se ve, y con el mouse no queda pegado después del
+// clic, por ejemplo al cerrar un confirm(). Los inputs sí lo muestran siempre, para ver dónde se escribe.
 export const PRIMARY_BUTTON_CLASSES =
-  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-ink px-4 text-sm font-semibold text-white hover:bg-ink-active focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
+  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-ink px-4 text-sm font-semibold text-white hover:bg-ink-active focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
 
 export const SECONDARY_BUTTON_CLASSES =
-  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-hairline bg-white px-4 text-sm font-semibold text-ink hover:bg-surface-card focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
+  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-hairline bg-white px-4 text-sm font-semibold text-ink hover:bg-surface-card focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
 
 // Botón principal de las acciones destructivas, como cancelar un turno. Va en un modal de confirmación.
 export const DANGER_BUTTON_CLASSES =
-  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-brand-light focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
+  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
 
 // Acciones de una fila de tabla: botón secundario compacto (32px). La variante de peligro es para
 // las acciones destructivas, como desactivar una empresa.
 export const ROW_BUTTON_CLASSES =
-  'inline-flex h-8 cursor-pointer items-center justify-center rounded-lg border border-hairline bg-white px-3 text-sm font-semibold text-ink hover:bg-surface-card focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
+  'inline-flex h-8 cursor-pointer items-center justify-center rounded-lg border border-hairline bg-white px-3 text-sm font-semibold text-ink hover:bg-surface-card focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted'
 
 export const ROW_DANGER_BUTTON_CLASSES =
-  'inline-flex h-8 cursor-pointer items-center justify-center rounded-lg border border-red-200 bg-white px-3 text-sm font-semibold text-red-700 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-brand-light disabled:cursor-not-allowed disabled:border-hairline disabled:bg-hairline disabled:text-muted'
+  'inline-flex h-8 cursor-pointer items-center justify-center rounded-lg border border-red-200 bg-white px-3 text-sm font-semibold text-red-700 hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light disabled:cursor-not-allowed disabled:border-hairline disabled:bg-hairline disabled:text-muted'
 
 export const FIELDSET_CLASSES =
   'space-y-4 rounded-xl border border-hairline bg-white p-4 shadow-sm sm:p-6'
@@ -72,7 +74,7 @@ export const COMPANY_BAND_CLASSES =
 export const COMPANY_BAND_BUTTON_BASE_CLASSES =
   'inline-flex h-8 items-center justify-center rounded-lg border border-(--company-on-accent)/40 bg-(--company-on-accent)/10 px-3 text-sm font-semibold text-(--company-on-accent)'
 
-export const COMPANY_BAND_BUTTON_CLASSES = `${COMPANY_BAND_BUTTON_BASE_CLASSES} cursor-pointer hover:bg-(--company-on-accent)/20 focus:outline-none focus:ring-2 focus:ring-(--company-on-accent)`
+export const COMPANY_BAND_BUTTON_CLASSES = `${COMPANY_BAND_BUTTON_BASE_CLASSES} cursor-pointer hover:bg-(--company-on-accent)/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-(--company-on-accent)`
 
 // Contador dentro de un botón de la banda, como los turnos pendientes en "Mis turnos". Invierte los colores de la banda:
 // el fondo es el color del texto y el texto es el de la empresa, así que contrasta con cualquier `primaryColor`.
@@ -84,20 +86,20 @@ export const COMPANY_BAND_BADGE_CLASSES =
 export const COMPANY_BUTTON_BASE_CLASSES =
   'inline-flex h-10 items-center justify-center rounded-lg bg-(--company-accent) px-4 text-sm font-semibold text-(--company-on-accent)'
 
-export const COMPANY_BUTTON_CLASSES = `${COMPANY_BUTTON_BASE_CLASSES} cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-light focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted`
+export const COMPANY_BUTTON_CLASSES = `${COMPANY_BUTTON_BASE_CLASSES} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-hairline disabled:text-muted`
 
 // Tarjeta de servicio que se puede elegir. La elegida suma el borde con el color de la empresa.
 export const SERVICE_CARD_CLASSES =
-  'flex h-full w-full cursor-pointer flex-col gap-3 rounded-xl border bg-white p-4 text-left shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-light sm:p-6'
+  'flex h-full w-full cursor-pointer flex-col gap-3 rounded-xl border bg-white p-4 text-left shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light sm:p-6'
 
 export const SERVICE_CARD_SELECTED_CLASSES =
   'border-(--company-accent) ring-2 ring-(--company-accent)'
 
 export const SLOT_BUTTON_CLASSES =
-  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-hairline bg-white text-sm font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-brand-light'
+  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-hairline bg-white text-sm font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light'
 
 export const SLOT_BUTTON_SELECTED_CLASSES =
-  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-(--company-accent) bg-(--company-accent) text-sm font-semibold text-(--company-on-accent) focus:outline-none focus:ring-2 focus:ring-brand-light focus:ring-offset-2'
+  'inline-flex h-10 cursor-pointer items-center justify-center rounded-lg border border-(--company-accent) bg-(--company-accent) text-sm font-semibold text-(--company-on-accent) focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light focus-visible:ring-offset-2'
 
 export const NOTICE_CLASSES =
   'rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700'
@@ -109,4 +111,4 @@ export const NOTICE_LINK_CLASSES = `${LINK_CLASSES} underline`
 // Resultado de un buscador que se elige con un clic: un botón de ancho completo con el dato principal y, debajo, los
 // secundarios (ClientSearch).
 export const LIST_OPTION_BUTTON_CLASSES =
-  'flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-lg border border-hairline bg-white px-3 py-2 text-left text-sm text-ink hover:bg-surface-card focus:outline-none focus:ring-2 focus:ring-brand-light'
+  'flex w-full cursor-pointer flex-col items-start gap-0.5 rounded-lg border border-hairline bg-white px-3 py-2 text-left text-sm text-ink hover:bg-surface-card focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light'

@@ -91,8 +91,11 @@ export function SettingsPage() {
     >
       <div>
         <h2 className={PAGE_TITLE_CLASSES}>Parámetros</h2>
+        {/* Los turnos no se recalculan, pero cancelar o reprogramar después de guardar ya valida con los valores
+            nuevos: "no afectan" haría pensar que un turno conserva el plazo con que se reservó. */}
         <p className={`mt-1 ${MUTED_TEXT_CLASSES}`}>
-          Rigen de inmediato para todas las empresas. No afectan a los turnos ya reservados.
+          Rigen de inmediato para todas las empresas. Los turnos ya reservados no cambian, pero desde ahora
+          cancelarlos o reprogramarlos sigue los valores nuevos.
         </p>
       </div>
 

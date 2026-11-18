@@ -43,11 +43,6 @@ export function CancellationNoticesPage() {
         </Link>
       </div>
 
-      <p className={MUTED_TEXT_CLASSES}>
-        Son los turnos futuros que se cancelaron al desactivar la empresa. El
-        sistema no registra a quién se avisó.
-      </p>
-
       {isLoading && <p className={MUTED_TEXT_CLASSES}>Cargando...</p>}
 
       {error && (
@@ -56,9 +51,19 @@ export function CancellationNoticesPage() {
         </p>
       )}
 
+      {/* La lista trae solo los que todavía no pasaron: vacía, puede ser que no hubiera turnos o que ya pasaron. */}
       {!isLoading && !error && data && data.notices.length === 0 && (
         <p className={`${MUTED_TEXT_CLASSES} text-center`}>
-          No hay turnos futuros para avisar
+          No hay a quién avisar: la empresa no tenía turnos futuros al
+          desactivarla, o ya pasaron.
+        </p>
+      )}
+
+      {/* La explicación es de la tabla: sin turnos, sobra. */}
+      {data && data.notices.length > 0 && (
+        <p className={MUTED_TEXT_CLASSES}>
+          Son los turnos futuros que se cancelaron al desactivar la empresa. El
+          sistema no registra a quién se avisó.
         </p>
       )}
 

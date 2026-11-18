@@ -5,10 +5,11 @@ import {
   BADGE_CLASSES,
   BADGE_VARIANT_CLASSES,
   ERROR_CLASSES,
-  LINK_CLASSES,
   MUTED_TEXT_CLASSES,
   PAGE_TITLE_CLASSES,
   PRIMARY_BUTTON_CLASSES,
+  ROW_BUTTON_CLASSES,
+  ROW_DANGER_BUTTON_CLASSES,
   TABLE_CELL_CLASSES,
   TABLE_HEAD_CLASSES,
   TABLE_WRAPPER_CLASSES,
@@ -99,10 +100,10 @@ export function ScheduleExceptionsPage() {
                   </td>
                   <td className={TABLE_CELL_CLASSES}>{exception.reason ?? '—'}</td>
                   <td className={`${TABLE_CELL_CLASSES} whitespace-nowrap`}>
-                    <div className="flex gap-4">
+                    <div className="flex gap-2">
                       <Link
                         to={`/company/schedule-exceptions/${exception.id}/edit`}
-                        className={LINK_CLASSES}
+                        className={ROW_BUTTON_CLASSES}
                       >
                         Editar
                       </Link>
@@ -110,7 +111,7 @@ export function ScheduleExceptionsPage() {
                         type="button"
                         onClick={() => deleteException(exception)}
                         disabled={isDeleting}
-                        className={`${LINK_CLASSES} cursor-pointer disabled:cursor-not-allowed disabled:text-muted`}
+                        className={ROW_DANGER_BUTTON_CLASSES}
                       >
                         Borrar
                       </button>
