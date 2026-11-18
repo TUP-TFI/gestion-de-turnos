@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { Link } from 'react-router'
 import { CompanyLogo } from '../../components/CompanyLogo'
 import { useBranding } from '../../hooks/useBranding'
 import { useUpdateBranding } from '../../hooks/useUpdateBranding'
@@ -72,15 +73,18 @@ function BrandingForm({ initial }: { initial: CompanyBranding }) {
       <div className="space-y-1">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className={PAGE_TITLE_CLASSES}>Marca</h2>
-          {/* Se abre en otra pestaña para no perder lo que el admin está editando. */}
-          <a
-            href={`/${initial.slug}`}
-            target="_blank"
-            rel="noreferrer"
+          {/* En la misma pestaña, así "Volver" de la página pública regresa acá. Con cambios sin guardar, pregunta antes. */}
+          <Link
+            to={`/${initial.slug}`}
+            onClick={(event) => {
+              if (hasChanges && !window.confirm('Tenés cambios sin guardar. ¿Salir igual?')) {
+                event.preventDefault()
+              }
+            }}
             className={PRIMARY_BUTTON_CLASSES}
           >
-            Ver mi página pública ↗
-          </a>
+            Ver mi página pública
+          </Link>
         </div>
         <p className={MUTED_TEXT_CLASSES}>
           El logo y el color se muestran en tu página pública. Si los dejás vacíos, se usa el estilo por defecto.

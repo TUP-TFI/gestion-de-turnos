@@ -68,12 +68,13 @@ export const MUTED_TEXT_CLASSES = 'text-sm text-muted'
 export const COMPANY_BAND_CLASSES =
   'bg-(--company-accent) text-(--company-on-accent)'
 
-// Botones sobre la banda: transparentes, con el color de texto que ya contrasta con el de la empresa. La base es solo
-// el aspecto, sin cursor ni foco, para las muestras de la vista previa de "Marca".
+// Botones sobre la banda: borde y fondo translúcidos del color de texto de la banda. Ese color ya contrasta con el de la
+// empresa (blanco sobre oscuro, negro sobre claro), así que el botón se distingue con cualquier `primaryColor`. La base
+// es solo el aspecto, sin cursor, hover ni foco, para las muestras de la vista previa de "Marca".
 export const COMPANY_BAND_BUTTON_BASE_CLASSES =
-  'inline-flex h-8 items-center justify-center rounded-lg border border-(--company-on-accent) bg-transparent px-3 text-sm font-semibold text-(--company-on-accent)'
+  'inline-flex h-8 items-center justify-center rounded-lg border border-(--company-on-accent)/40 bg-(--company-on-accent)/10 px-3 text-sm font-semibold text-(--company-on-accent)'
 
-export const COMPANY_BAND_BUTTON_CLASSES = `${COMPANY_BAND_BUTTON_BASE_CLASSES} cursor-pointer focus:outline-none focus:ring-2 focus:ring-(--company-on-accent)`
+export const COMPANY_BAND_BUTTON_CLASSES = `${COMPANY_BAND_BUTTON_BASE_CLASSES} cursor-pointer hover:bg-(--company-on-accent)/20 focus:outline-none focus:ring-2 focus:ring-(--company-on-accent)`
 
 // Contador dentro de un botón de la banda, como los turnos pendientes en "Mis turnos". Invierte los colores de la banda:
 // el fondo es el color del texto y el texto es el de la empresa, así que contrasta con cualquier `primaryColor`.

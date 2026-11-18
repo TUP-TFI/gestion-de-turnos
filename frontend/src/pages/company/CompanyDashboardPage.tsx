@@ -1,8 +1,8 @@
 import { Link } from 'react-router'
 import { AdminCancelAppointmentModal } from '../../components/AdminCancelAppointmentModal'
-import { CancelNoticeContent } from '../../components/CancelNoticeContent'
 import { AppointmentStatusBadge } from '../../components/AppointmentStatusBadge'
 import { DismissibleNotice } from '../../components/DismissibleNotice'
+import { NoticeWhatsAppLink } from '../../components/NoticeWhatsAppLink'
 import { useAppointmentSummary } from '../../hooks/useAppointmentSummary'
 import { useAuth } from '../../hooks/useAuth'
 import { useBranding } from '../../hooks/useBranding'
@@ -151,12 +151,15 @@ export function CompanyDashboardPage() {
           key={cancel.notice.id}
           kind={cancel.notice.kind}
           onDismiss={cancel.dismissNotice}
+          actions={
+            <NoticeWhatsAppLink
+              appointment={cancel.notice.appointment}
+              companyName={company?.name}
+              timezone={branding?.timezone}
+            />
+          }
         >
-          <CancelNoticeContent
-            notice={cancel.notice}
-            companyName={company?.name}
-            timezone={branding?.timezone}
-          />
+          {cancel.notice.text}
         </DismissibleNotice>
       )}
 

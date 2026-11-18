@@ -76,7 +76,7 @@ export function MyAppointmentsPage() {
   const error = companyError ?? appointmentsError
   const isLoading = isLoadingCompany || isLoadingAppointments
 
-  // Un link a la empresa sumaría una entrada al historial, y su "← Volver" regresaría acá en bucle.
+  // Un link a la empresa sumaría una entrada al historial, y su "Volver" regresaría acá en bucle.
   function handleBack() {
     if (location.key !== 'default') {
       navigate(-1)
@@ -97,7 +97,7 @@ export function MyAppointmentsPage() {
           onClick={handleBack}
           className={ROW_BUTTON_CLASSES}
         >
-          ← Volver
+          Volver
         </button>
 
         <div>
@@ -188,26 +188,31 @@ export function MyAppointmentsPage() {
                     </td>
                     <td className={TABLE_CELL_CLASSES}>
                       {/* Los turnos cancelados y completados no tienen acciones. */}
+                      {/* Solo las acciones que se pueden usar: un botón gris no le sirve al cliente, el motivo sí. */}
                       {appointment.status === 'PENDING' && (
                         <div className="space-y-2">
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              disabled={!appointment.canReschedule}
-                              onClick={() => actions.reschedule.start(appointment)}
-                              className={ROW_BUTTON_CLASSES}
-                            >
-                              Reprogramar
-                            </button>
-                            <button
-                              type="button"
-                              disabled={!appointment.canCancel}
-                              onClick={() => actions.cancel.start(appointment)}
-                              className={ROW_DANGER_BUTTON_CLASSES}
-                            >
-                              Cancelar
-                            </button>
-                          </div>
+                          {(appointment.canReschedule || appointment.canCancel) && (
+                            <div className="flex flex-wrap gap-2">
+                              {appointment.canReschedule && (
+                                <button
+                                  type="button"
+                                  onClick={() => actions.reschedule.start(appointment)}
+                                  className={ROW_BUTTON_CLASSES}
+                                >
+                                  Reprogramar
+                                </button>
+                              )}
+                              {appointment.canCancel && (
+                                <button
+                                  type="button"
+                                  onClick={() => actions.cancel.start(appointment)}
+                                  className={ROW_DANGER_BUTTON_CLASSES}
+                                >
+                                  Cancelar
+                                </button>
+                              )}
+                            </div>
+                          )}
                           {blockedReasons(appointment).map((reason) => (
                             <p key={reason} className={MUTED_TEXT_CLASSES}>
                               {reason}
