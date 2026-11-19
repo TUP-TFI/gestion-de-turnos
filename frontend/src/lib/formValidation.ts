@@ -24,6 +24,10 @@ function getValidationMessage(field: FormField): string {
   if (validity.stepMismatch || validity.badInput) {
     return 'Ingresá un número entero.'
   }
+  // minLength solo existe en input y textarea, como en la contraseña (8 caracteres).
+  if (validity.tooShort && !(field instanceof HTMLSelectElement)) {
+    return `Usá al menos ${field.minLength} caracteres.`
+  }
   if (validity.tooLong) {
     return 'El texto es demasiado largo.'
   }

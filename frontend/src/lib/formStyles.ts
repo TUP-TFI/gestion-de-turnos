@@ -1,8 +1,11 @@
 // Clases de Tailwind compartidas por las pantallas. Los valores salen de DESIGN.md.
 export const LABEL_CLASSES = 'block text-sm font-medium text-ink'
 
-export const INPUT_CLASSES =
-  'mt-1 h-10 w-full rounded-lg border border-hairline bg-white px-3 text-ink focus:border-brand-light focus:outline-none focus:ring-2 focus:ring-brand-light/50'
+// Sin margen arriba, para los inputs que van dentro de un contenedor que ya lo trae (PasswordInput).
+export const INPUT_BASE_CLASSES =
+  'h-10 w-full rounded-lg border border-hairline bg-white px-3 text-ink focus:border-brand-light focus:outline-none focus:ring-2 focus:ring-brand-light/50'
+
+export const INPUT_CLASSES = `mt-1 ${INPUT_BASE_CLASSES}`
 
 // Igual que INPUT_CLASSES pero sin alto fijo, para los textarea.
 export const TEXTAREA_CLASSES =
