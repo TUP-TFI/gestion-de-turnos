@@ -14,11 +14,15 @@ import {
   TABLE_HEAD_CLASSES,
   TABLE_WRAPPER_CLASSES,
 } from '../../lib/formStyles'
+import { FULL_DAY_LABEL, isFullDay } from '../../lib/fullDay'
 import { formatDate } from '../../lib/scheduleExceptionForm'
 import type { ScheduleException } from '../../types/ScheduleException'
 
-// El backend manda '10:00:00': se muestra '10:00 a 14:00'.
+// El backend manda '10:00:00': se muestra '10:00 a 14:00'. De 00:00 a 23:59 es un día abierto las 24 horas.
 function hoursLabel(exception: ScheduleException): string {
+  if (isFullDay(exception.startTime, exception.endTime)) {
+    return FULL_DAY_LABEL
+  }
   return `${exception.startTime?.slice(0, 5)} a ${exception.endTime?.slice(0, 5)}`
 }
 

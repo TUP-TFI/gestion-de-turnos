@@ -5,6 +5,13 @@ import {
   LABEL_CLASSES,
   MUTED_TEXT_CLASSES,
 } from '../lib/formStyles'
+import {
+  FULL_DAY_END,
+  FULL_DAY_HINT,
+  FULL_DAY_LABEL,
+  FULL_DAY_START,
+  isFullDay,
+} from '../lib/fullDay'
 import type { ScheduleExceptionData } from '../types/ScheduleException'
 
 interface ScheduleExceptionFieldsProps {
@@ -18,6 +25,12 @@ interface ScheduleExceptionFieldsProps {
 export function ScheduleExceptionFields({ defaultValues }: ScheduleExceptionFieldsProps) {
   // Un alta arranca como día cerrado, el caso más común (feriado).
   const [isClosed, setIsClosed] = useState(defaultValues?.isClosed ?? true)
+  const wasFullDay = isFullDay(defaultValues?.startTime ?? null, defaultValues?.endTime ?? null)
+  const [isOpenAllDay, setIsOpenAllDay] = useState(wasFullDay)
+  // Si la excepción ya era de 24 horas y se desmarca, los campos arrancan con el horario por defecto y no con
+  // 00:00 a 23:59.
+  const defaultStartTime = wasFullDay ? '09:00' : defaultValues?.startTime?.slice(0, 5) ?? '09:00'
+  const defaultEndTime = wasFullDay ? '18:00' : defaultValues?.endTime?.slice(0, 5) ?? '18:00'
 
   return (
     <fieldset className={FIELDSET_CLASSES}>
@@ -56,33 +69,55 @@ export function ScheduleExceptionFields({ defaultValues }: ScheduleExceptionFiel
           <p className="text-sm font-medium text-ink sm:col-span-3">
             Elegí el horario en el que vas a tomar turnos ese día
           </p>
-          <div>
-            <label htmlFor="startTime" className={LABEL_CLASSES}>
-              Desde *
-            </label>
-            {/* El backend manda '10:00:00' y el input de hora espera '10:00'. */}
+          {/* Sin name: no viaja en el form. El horario de 24 horas sale de los dos campos ocultos de abajo. */}
+          <div className="flex items-center gap-2 sm:col-span-3">
             <input
-              id="startTime"
-              name="startTime"
-              type="time"
-              required
-              defaultValue={defaultValues?.startTime?.slice(0, 5) ?? '09:00'}
-              className={INPUT_CLASSES}
+              id="isOpenAllDay"
+              type="checkbox"
+              checked={isOpenAllDay}
+              onChange={(event) => setIsOpenAllDay(event.target.checked)}
+              className="h-4 w-4"
             />
-          </div>
-          <div>
-            <label htmlFor="endTime" className={LABEL_CLASSES}>
-              Hasta *
+            <label htmlFor="isOpenAllDay" className="text-sm text-ink">
+              {FULL_DAY_LABEL}
             </label>
-            <input
-              id="endTime"
-              name="endTime"
-              type="time"
-              required
-              defaultValue={defaultValues?.endTime?.slice(0, 5) ?? '18:00'}
-              className={INPUT_CLASSES}
-            />
           </div>
+          {isOpenAllDay ? (
+            <>
+              <input type="hidden" name="startTime" value={FULL_DAY_START} />
+              <input type="hidden" name="endTime" value={FULL_DAY_END} />
+            </>
+          ) : (
+            <>
+              <div>
+                <label htmlFor="startTime" className={LABEL_CLASSES}>
+                  Desde *
+                </label>
+                {/* El backend manda '10:00:00' y el input de hora espera '10:00'. */}
+                <input
+                  id="startTime"
+                  name="startTime"
+                  type="time"
+                  required
+                  defaultValue={defaultStartTime}
+                  className={INPUT_CLASSES}
+                />
+              </div>
+              <div>
+                <label htmlFor="endTime" className={LABEL_CLASSES}>
+                  Hasta *
+                </label>
+                <input
+                  id="endTime"
+                  name="endTime"
+                  type="time"
+                  required
+                  defaultValue={defaultEndTime}
+                  className={INPUT_CLASSES}
+                />
+              </div>
+            </>
+          )}
           <div>
             <label htmlFor="intervalMinutes" className={LABEL_CLASSES}>
               Intervalo (min) *
@@ -100,7 +135,8 @@ export function ScheduleExceptionFields({ defaultValues }: ScheduleExceptionFiel
             />
           </div>
           <p className={`sm:col-span-3 ${MUTED_TEXT_CLASSES}`}>
-            Ese día se usa este horario en lugar del semanal. Si cerrás a medianoche, poné 23:59.
+            Ese día se usa este horario en lugar del semanal.{' '}
+            {isOpenAllDay ? FULL_DAY_HINT : 'Si cerrás a medianoche, poné 23:59.'}
           </p>
         </div>
       )}

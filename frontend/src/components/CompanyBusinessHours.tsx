@@ -4,6 +4,7 @@ import {
   MUTED_TEXT_CLASSES,
   PAGE_TITLE_CLASSES,
 } from '../lib/formStyles'
+import { FULL_DAY_LABEL, isFullDay } from '../lib/fullDay'
 import type { PublicBusinessHours } from '../types/PublicCompany'
 
 interface CompanyBusinessHoursProps {
@@ -40,12 +41,14 @@ export function CompanyBusinessHours({
       ) : (
         <dl className="max-w-md divide-y divide-hairline rounded-xl border border-hairline bg-white">
           {DAYS_OF_WEEK.map((day) => {
-            // Las franjas llegan ordenadas por día y hora de inicio: una jornada partida queda en orden.
+            // Las franjas llegan ordenadas por día y hora de inicio: una jornada partida queda en orden. Un día
+            // de 00:00 a 23:59 se muestra como abierto las 24 horas.
             const ranges = hours
               .filter((item) => item.dayOfWeek === day)
-              .map(
-                (item) =>
-                  `${toHourMinute(item.startTime)}–${toHourMinute(item.endTime)}`,
+              .map((item) =>
+                isFullDay(item.startTime, item.endTime)
+                  ? FULL_DAY_LABEL
+                  : `${toHourMinute(item.startTime)}–${toHourMinute(item.endTime)}`,
               )
 
             return (
