@@ -1088,8 +1088,8 @@ Listo cuando: no queda ninguna discrepancia conocida entre la documentación y e
 Responsable: a definir. Se hace si sobra tiempo; no bloquea la defensa.
 
 Ajustes detectados durante el desarrollo que quedaron fuera de los PRs de cada historia:
-- Botón para mostrar/ocultar la contraseña en `LoginPage` y `ActivateAccountPage` (detectado en el QA de US-04.1). Conviene un componente `PasswordInput` en `components/` que usen las dos pantallas.
-- Mensajes de validación en español (`lib/formValidation.ts`, creado en US-04.1) en `LoginPage` y `ActivateAccountPage`, que todavía muestran los mensajes nativos del navegador.
+- **Resuelto:** Botón para mostrar/ocultar la contraseña (detectado en el QA de US-04.1, retomado en #107). Lo resuelve el componente `PasswordInput` en `components/`, usado en las cuatro pantallas con contraseña: `LoginPage`, `ActivateAccountPage`, `ClientLoginPage` y `ClientRegisterPage`.
+- **Resuelto:** Mensajes de validación en español (`lib/formValidation.ts`, creado en US-04.1) en esas mismas cuatro pantallas, que antes mostraban los mensajes nativos del navegador. Se suma el mensaje del mínimo de caracteres de la contraseña.
 
 ---
 

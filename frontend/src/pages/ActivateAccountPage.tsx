@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { AuthCard } from '../components/AuthCard'
+import { PasswordInput } from '../components/PasswordInput'
 import { useActivateAccount } from '../hooks/useActivateAccount'
 import {
   ERROR_CLASSES,
-  INPUT_CLASSES,
   LABEL_CLASSES,
   MUTED_TEXT_CLASSES,
   PRIMARY_BUTTON_CLASSES,
 } from '../lib/formStyles'
+import { handleInvalidField, resetFieldValidity } from '../lib/formValidation'
 
 // Los mismos límites que valida el backend.
 const MIN_PASSWORD_LENGTH = 8
@@ -63,21 +64,21 @@ export function ActivateAccountPage() {
             activateAccount({ token, password })
           }
         }}
+        onInvalidCapture={handleInvalidField}
+        onInputCapture={resetFieldValidity}
       >
         <div>
           <label htmlFor="password" className={LABEL_CLASSES}>
             Contraseña
           </label>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="new-password"
             required
             minLength={MIN_PASSWORD_LENGTH}
             maxLength={MAX_PASSWORD_LENGTH}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className={INPUT_CLASSES}
           />
           <p className={`mt-1 ${MUTED_TEXT_CLASSES}`}>
             Entre {MIN_PASSWORD_LENGTH} y {MAX_PASSWORD_LENGTH} caracteres.
@@ -88,14 +89,12 @@ export function ActivateAccountPage() {
           <label htmlFor="passwordConfirmation" className={LABEL_CLASSES}>
             Repetir contraseña
           </label>
-          <input
+          <PasswordInput
             id="passwordConfirmation"
-            type="password"
             autoComplete="new-password"
             required
             value={passwordConfirmation}
             onChange={(event) => setPasswordConfirmation(event.target.value)}
-            className={INPUT_CLASSES}
           />
         </div>
 

@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, Navigate, useLocation, useParams } from 'react-router'
 import { AuthCard } from '../../components/AuthCard'
 import { CompanyNotFoundCard } from '../../components/CompanyNotFoundCard'
+import { PasswordInput } from '../../components/PasswordInput'
 import { useClientAuth } from '../../hooks/useClientAuth'
 import { useClientRegister } from '../../hooks/useClientRegister'
 import { usePublicCompany } from '../../hooks/usePublicCompany'
@@ -14,6 +15,7 @@ import {
   MUTED_TEXT_CLASSES,
   PRIMARY_BUTTON_CLASSES,
 } from '../../lib/formStyles'
+import { handleInvalidField, resetFieldValidity } from '../../lib/formValidation'
 
 // Los mismos límites que valida el backend.
 const MIN_PASSWORD_LENGTH = 8
@@ -72,6 +74,8 @@ export function ClientRegisterPage() {
       <form
         className="mt-6 grid gap-4 sm:grid-cols-2"
         onSubmit={handleSubmit}
+        onInvalidCapture={handleInvalidField}
+        onInputCapture={resetFieldValidity}
       >
         <div>
           <label htmlFor="firstName" className={LABEL_CLASSES}>
@@ -139,15 +143,13 @@ export function ClientRegisterPage() {
           <label htmlFor="password" className={LABEL_CLASSES}>
             Contraseña
           </label>
-          <input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             autoComplete="new-password"
             required
             minLength={MIN_PASSWORD_LENGTH}
             maxLength={MAX_PASSWORD_LENGTH}
-            className={INPUT_CLASSES}
           />
           <p className={`mt-1 ${MUTED_TEXT_CLASSES}`}>
             Entre {MIN_PASSWORD_LENGTH} y {MAX_PASSWORD_LENGTH} caracteres.
@@ -158,13 +160,11 @@ export function ClientRegisterPage() {
           <label htmlFor="passwordConfirmation" className={LABEL_CLASSES}>
             Repetir contraseña
           </label>
-          <input
+          <PasswordInput
             id="passwordConfirmation"
             name="passwordConfirmation"
-            type="password"
             autoComplete="new-password"
             required
-            className={INPUT_CLASSES}
           />
         </div>
 

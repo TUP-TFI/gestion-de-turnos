@@ -1,6 +1,7 @@
 import { Link, Navigate, useLocation, useParams } from 'react-router'
 import { AuthCard } from '../../components/AuthCard'
 import { CompanyNotFoundCard } from '../../components/CompanyNotFoundCard'
+import { PasswordInput } from '../../components/PasswordInput'
 import { useClientAuth } from '../../hooks/useClientAuth'
 import { useClientLogin } from '../../hooks/useClientLogin'
 import { usePublicCompany } from '../../hooks/usePublicCompany'
@@ -12,6 +13,7 @@ import {
   MUTED_TEXT_CLASSES,
   PRIMARY_BUTTON_CLASSES,
 } from '../../lib/formStyles'
+import { handleInvalidField, resetFieldValidity } from '../../lib/formValidation'
 
 // Login del cliente en la página pública de una empresa (US-03.6). La cuenta sirve solo en esa empresa.
 export function ClientLoginPage() {
@@ -50,6 +52,8 @@ export function ClientLoginPage() {
             password: String(form.get('password')),
           })
         }}
+        onInvalidCapture={handleInvalidField}
+        onInputCapture={resetFieldValidity}
       >
         <div>
           <label htmlFor="email" className={LABEL_CLASSES}>
@@ -69,13 +73,11 @@ export function ClientLoginPage() {
           <label htmlFor="password" className={LABEL_CLASSES}>
             Contraseña
           </label>
-          <input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             autoComplete="current-password"
             required
-            className={INPUT_CLASSES}
           />
         </div>
 

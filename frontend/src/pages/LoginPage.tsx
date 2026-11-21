@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router'
 import { AuthCard } from '../components/AuthCard'
+import { PasswordInput } from '../components/PasswordInput'
 import { useAuth } from '../hooks/useAuth'
 import { useLogin } from '../hooks/useLogin'
 import {
@@ -9,6 +10,7 @@ import {
   LABEL_CLASSES,
   PRIMARY_BUTTON_CLASSES,
 } from '../lib/formStyles'
+import { handleInvalidField, resetFieldValidity } from '../lib/formValidation'
 import { getDashboardPath } from '../lib/panelRoutes'
 
 export function LoginPage() {
@@ -34,6 +36,8 @@ export function LoginPage() {
           event.preventDefault()
           login({ email, password })
         }}
+        onInvalidCapture={handleInvalidField}
+        onInputCapture={resetFieldValidity}
       >
         <div>
           <label htmlFor="email" className={LABEL_CLASSES}>
@@ -54,14 +58,12 @@ export function LoginPage() {
           <label htmlFor="password" className={LABEL_CLASSES}>
             Contraseña
           </label>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="current-password"
             required
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className={INPUT_CLASSES}
           />
         </div>
 
