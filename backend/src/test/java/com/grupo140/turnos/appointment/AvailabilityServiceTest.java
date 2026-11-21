@@ -105,6 +105,27 @@ class AvailabilityServiceTest {
     }
 
     @Test
+    void windowUntil2359CountsUntilMidnight() {
+        givenSettings(30, 90);
+        givenService(30);
+        givenWindows(MONDAY, window("00:00", "23:59", 30));
+
+        // Día abierto las 24 horas: entran los 48 turnos. El de las 23:30 en Córdoba (02:30 UTC del martes) termina
+        // a la medianoche.
+        assertThat(starts(NOW)).hasSize(48).last().isEqualTo(utc("2026-10-13T02:30:00Z"));
+    }
+
+    @Test
+    void windowUntil2358DoesNotCountUntilMidnight() {
+        givenSettings(30, 90);
+        givenService(30);
+        givenWindows(MONDAY, window("00:00", "23:58", 30));
+
+        // Solo 23:59 se toma como medianoche: con 23:58 el de las 23:30 ya no entra.
+        assertThat(starts(NOW)).hasSize(47).last().isEqualTo(utc("2026-10-13T02:00:00Z"));
+    }
+
+    @Test
     void splitShiftUsesBothWindows() {
         givenSettings(30, 90);
         givenService(60);

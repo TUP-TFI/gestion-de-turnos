@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { IntervalField } from '../../components/IntervalField'
 import { useBusinessHours } from '../../hooks/useBusinessHours'
 import { useSaveBusinessHours } from '../../hooks/useSaveBusinessHours'
 import { DAY_OF_WEEK_LABELS, DAYS_OF_WEEK } from '../../lib/daysOfWeek'
@@ -15,6 +16,13 @@ import {
   SUCCESS_CLASSES,
 } from '../../lib/formStyles'
 import { handleInvalidField, resetFieldValidity } from '../../lib/formValidation'
+import {
+  FULL_DAY_END,
+  FULL_DAY_LABEL,
+  FULL_DAY_START,
+  isFullDay,
+} from '../../lib/fullDay'
+import { describeStarts } from '../../lib/slotInterval'
 import type { BusinessHours, DayOfWeek } from '../../types/BusinessHours'
 
 // Franja mientras se edita. La key identifica la fila para React; el intervalo es texto para poder borrarlo
@@ -135,6 +143,37 @@ function BusinessHoursForm({ initialHours }: { initialHours: BusinessHours[] }) 
     setSlots((current) => current.filter((slot) => slot.key !== key))
   }
 
+  // Abrir las 24 horas reemplaza las franjas del día por una sola de 00:00 a 23:59: cualquier otra se superpondría.
+  // Al desmarcarlo vuelve a la franja por defecto. En los dos casos se conserva el intervalo que tenía el día.
+  // Con jornada partida se pide confirmación, porque las franjas no vuelven al desmarcar.
+  function setFullDay(day: DayOfWeek, isOpenAllDay: boolean) {
+    const daySlotCount = slots.filter((slot) => slot.dayOfWeek === day).length
+    if (
+      isOpenAllDay &&
+      daySlotCount > 1 &&
+      !window.confirm(
+        `El ${DAY_OF_WEEK_LABELS[day].toLowerCase()} tiene ${daySlotCount} franjas. Se reemplazan por una de ${FULL_DAY_START} a ${FULL_DAY_END}. ¿Seguir?`,
+      )
+    ) {
+      return
+    }
+    markChanged()
+    setSlots((current) => {
+      const intervalMinutes =
+        current.find((slot) => slot.dayOfWeek === day)?.intervalMinutes ?? '30'
+      return [
+        ...current.filter((slot) => slot.dayOfWeek !== day),
+        {
+          key: crypto.randomUUID(),
+          dayOfWeek: day,
+          startTime: isOpenAllDay ? FULL_DAY_START : '09:00',
+          endTime: isOpenAllDay ? FULL_DAY_END : '18:00',
+          intervalMinutes,
+        },
+      ]
+    })
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const errors = findSlotErrors(slots)
@@ -162,90 +201,115 @@ function BusinessHoursForm({ initialHours }: { initialHours: BusinessHours[] }) 
       <div className="space-y-1">
         <h2 className={PAGE_TITLE_CLASSES}>Horario semanal</h2>
         <p className={MUTED_TEXT_CLASSES}>
-          Un día sin franjas queda cerrado. Si cerrás a medianoche, poné 23:59.
+          Un día sin franjas queda cerrado. Si cerrás a medianoche, poné 23:59. Un servicio que dura más que el
+          tiempo entre turnos usa varios seguidos.
         </p>
       </div>
 
       {DAYS_OF_WEEK.map((day) => {
         const daySlots = slots.filter((slot) => slot.dayOfWeek === day)
+        // Se deduce de las franjas, sin un dato aparte: un día con una sola franja de 00:00 a 23:59 está abierto
+        // las 24 horas, también si se cargó a mano.
+        const fullDaySlot =
+          daySlots.length === 1 && isFullDay(daySlots[0].startTime, daySlots[0].endTime)
+            ? daySlots[0]
+            : null
         return (
           <fieldset key={day} className={FIELDSET_CLASSES}>
             <legend className="px-2 text-sm font-semibold text-ink">
               {DAY_OF_WEEK_LABELS[day]}
             </legend>
 
-            {daySlots.length === 0 && <p className={MUTED_TEXT_CLASSES}>Cerrado</p>}
+            {/* Primero la decisión del día y después el detalle, igual que "Cerrado todo el día" en las excepciones. */}
+            <div className="flex items-center gap-2">
+              <input
+                id={`${day}-full-day`}
+                type="checkbox"
+                checked={fullDaySlot !== null}
+                onChange={(event) => setFullDay(day, event.target.checked)}
+                className="h-4 w-4"
+              />
+              <label htmlFor={`${day}-full-day`} className="text-sm text-ink">
+                {FULL_DAY_LABEL}
+              </label>
+            </div>
 
-            {daySlots.map((slot) => (
-              <div key={slot.key} className="space-y-2">
-                <div className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
-                  <div>
-                    <label htmlFor={`${slot.key}-start`} className={LABEL_CLASSES}>
-                      Desde *
-                    </label>
-                    <input
-                      id={`${slot.key}-start`}
-                      type="time"
-                      required
-                      value={slot.startTime}
-                      onChange={(event) => updateSlot(slot.key, 'startTime', event.target.value)}
-                      className={INPUT_CLASSES}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor={`${slot.key}-end`} className={LABEL_CLASSES}>
-                      Hasta *
-                    </label>
-                    <input
-                      id={`${slot.key}-end`}
-                      type="time"
-                      required
-                      value={slot.endTime}
-                      onChange={(event) => updateSlot(slot.key, 'endTime', event.target.value)}
-                      className={INPUT_CLASSES}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor={`${slot.key}-interval`} className={LABEL_CLASSES}>
-                      Intervalo (min) *
-                    </label>
-                    <input
-                      id={`${slot.key}-interval`}
-                      type="number"
-                      required
-                      min={1}
-                      max={1440}
-                      step={1}
-                      value={slot.intervalMinutes}
-                      onChange={(event) =>
-                        updateSlot(slot.key, 'intervalMinutes', event.target.value)
-                      }
-                      className={INPUT_CLASSES}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeSlot(slot.key)}
-                    className={SECONDARY_BUTTON_CLASSES}
-                  >
-                    Quitar
-                  </button>
+            {fullDaySlot ? (
+              <div className="space-y-2">
+                <div className="sm:w-1/3">
+                  <IntervalField
+                    id={`${fullDaySlot.key}-interval`}
+                    value={fullDaySlot.intervalMinutes}
+                    onChange={(value) => updateSlot(fullDaySlot.key, 'intervalMinutes', value)}
+                  />
                 </div>
-                {slotErrors[slot.key] && (
-                  <p role="alert" className={ERROR_CLASSES}>
-                    {slotErrors[slot.key]}
-                  </p>
-                )}
+                <SlotPreview slot={fullDaySlot} />
               </div>
-            ))}
+            ) : (
+              <>
+                {daySlots.length === 0 && <p className={MUTED_TEXT_CLASSES}>Cerrado</p>}
 
-            <button
-              type="button"
-              onClick={() => addSlot(day)}
-              className={SECONDARY_BUTTON_CLASSES}
-            >
-              Agregar franja
-            </button>
+                {daySlots.map((slot) => (
+                  <div key={slot.key} className="space-y-2">
+                    <div className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                      <div>
+                        <label htmlFor={`${slot.key}-start`} className={LABEL_CLASSES}>
+                          Desde *
+                        </label>
+                        <input
+                          id={`${slot.key}-start`}
+                          type="time"
+                          required
+                          value={slot.startTime}
+                          onChange={(event) => updateSlot(slot.key, 'startTime', event.target.value)}
+                          className={INPUT_CLASSES}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor={`${slot.key}-end`} className={LABEL_CLASSES}>
+                          Hasta *
+                        </label>
+                        <input
+                          id={`${slot.key}-end`}
+                          type="time"
+                          required
+                          value={slot.endTime}
+                          onChange={(event) => updateSlot(slot.key, 'endTime', event.target.value)}
+                          className={INPUT_CLASSES}
+                        />
+                      </div>
+                      <IntervalField
+                        id={`${slot.key}-interval`}
+                        value={slot.intervalMinutes}
+                        onChange={(value) => updateSlot(slot.key, 'intervalMinutes', value)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeSlot(slot.key)}
+                        className={SECONDARY_BUTTON_CLASSES}
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                    {/* Con error, el mensaje ya dice qué corregir: la vista previa no aporta. */}
+                    {!slotErrors[slot.key] && <SlotPreview slot={slot} />}
+                    {slotErrors[slot.key] && (
+                      <p role="alert" className={ERROR_CLASSES}>
+                        {slotErrors[slot.key]}
+                      </p>
+                    )}
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => addSlot(day)}
+                  className={SECONDARY_BUTTON_CLASSES}
+                >
+                  Agregar franja
+                </button>
+              </>
+            )}
           </fieldset>
         )
       })}
@@ -280,4 +344,10 @@ function BusinessHoursForm({ initialHours }: { initialHours: BusinessHours[] }) 
       )}
     </form>
   )
+}
+
+// Horarios de inicio que genera la franja, debajo de sus campos. Se actualiza mientras el admin escribe.
+function SlotPreview({ slot }: { slot: EditableSlot }) {
+  const preview = describeStarts(slot.startTime, slot.endTime, slot.intervalMinutes)
+  return preview ? <p className={MUTED_TEXT_CLASSES}>{preview}</p> : null
 }

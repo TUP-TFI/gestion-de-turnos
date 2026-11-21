@@ -232,6 +232,29 @@ class AppointmentServiceTest {
     }
 
     @Test
+    void appointmentEndingAtMidnightFitsInSlotUntil2359() {
+        // De 23:30 a 00:00 en Córdoba (02:30 a 03:00 UTC del martes), con el lunes abierto las 24 horas.
+        givenFutureAppointments(appointment("2026-10-13T02:30:00Z", 30));
+
+        assertThat(countOutOfRange(slot(DayOfWeek.MONDAY, "00:00", "23:59"))).isZero();
+    }
+
+    @Test
+    void appointmentEndingAtMidnightIsCountedIfSlotClosesEarlier() {
+        givenFutureAppointments(appointment("2026-10-13T02:30:00Z", 30));
+
+        assertThat(countOutOfRange(slot(DayOfWeek.MONDAY, "00:00", "23:58"))).isEqualTo(1);
+    }
+
+    @Test
+    void appointmentEndingAfterMidnightIsCounted() {
+        // De 23:30 a 00:30 en Córdoba: aunque la franja cierre a las 23:59, termina en el día siguiente.
+        givenFutureAppointments(appointment("2026-10-13T02:30:00Z", 60));
+
+        assertThat(countOutOfRange(slot(DayOfWeek.MONDAY, "00:00", "23:59"))).isEqualTo(1);
+    }
+
+    @Test
     void appointmentOnAClosedDayIsCounted() {
         givenFutureAppointments(appointment("2026-10-12T13:00:00Z", 30));
 

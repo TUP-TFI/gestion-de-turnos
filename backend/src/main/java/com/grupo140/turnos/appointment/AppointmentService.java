@@ -6,6 +6,7 @@ import com.grupo140.turnos.common.PageResponse;
 import com.grupo140.turnos.common.error.ApiException;
 import com.grupo140.turnos.company.CompanyService;
 import com.grupo140.turnos.schedule.BusinessHoursRequest;
+import com.grupo140.turnos.schedule.DayWindow;
 import com.grupo140.turnos.schedule.ScheduleExceptionRequest;
 import com.grupo140.turnos.schedule.ScheduleService;
 import com.grupo140.turnos.settings.PlatformSettingsResponse;
@@ -16,6 +17,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -249,18 +251,24 @@ public class AppointmentService {
 
     /**
      * Indica si el turno entra completo en alguna franja del día de la semana en que cae, con el inicio y el
-     * fin pasados a la hora local de la empresa. Un turno que termina en otro día local no entra.
+     * fin pasados a la hora local de la empresa. Un turno que termina en otro día local no entra, salvo uno que
+     * termina justo a la medianoche dentro de una franja que cierra a las 23:59 ({@link DayWindow#END_OF_DAY}),
+     * igual que en el cálculo de disponibilidad.
      */
     static boolean fitsInHours(Appointment appointment, ZoneId zone, List<BusinessHoursRequest.Slot> hours) {
         ZonedDateTime start = appointment.getStartDateTime().atZone(zone);
         ZonedDateTime end = appointment.getEndDateTime().atZone(zone);
-        if (!start.toLocalDate().equals(end.toLocalDate())) {
+        boolean endsAtMidnight = end.toLocalDate().equals(start.toLocalDate().plusDays(1))
+                && end.toLocalTime().equals(LocalTime.MIDNIGHT);
+        if (!endsAtMidnight && !start.toLocalDate().equals(end.toLocalDate())) {
             return false;
         }
         return hours.stream()
                 .filter(slot -> slot.dayOfWeek() == start.getDayOfWeek())
                 .anyMatch(slot -> !start.toLocalTime().isBefore(slot.startTime())
-                        && !end.toLocalTime().isAfter(slot.endTime()));
+                        && (endsAtMidnight
+                                ? DayWindow.endsAtMidnight(slot.endTime())
+                                : !end.toLocalTime().isAfter(slot.endTime())));
     }
 
     /**

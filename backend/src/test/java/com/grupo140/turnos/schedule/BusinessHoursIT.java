@@ -22,6 +22,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,9 @@ class BusinessHoursIT {
 
     @Autowired
     private BusinessHoursRepository businessHoursRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void listReturnsSeedHoursSortedByDayAndStart() throws Exception {
@@ -78,6 +82,21 @@ class BusinessHoursIT {
         mockMvc.perform(asAdmin(get(HOURS)))
                 .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].startTime", startsWith("08:00")));
+    }
+
+    @Test
+    void fullDayIsStoredWithTheSameHours() throws Exception {
+        mockMvc.perform(adminJson(put(HOURS), hours(slot("THURSDAY", "00:00", "23:59"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].startTime", startsWith("00:00")))
+                .andExpect(jsonPath("$[0].endTime", startsWith("23:59")));
+
+        // En la base quedan las mismas horas, sin pasar por la zona del proceso. Corridas a UTC desde -03 serían
+        // 03:00 a 02:59, y la base rechazaría la franja (chk_hours_range).
+        assertThat(jdbcTemplate.queryForList(
+                        "SELECT end_time::text FROM business_hours WHERE day_of_week = 'THURSDAY' AND start_time = '00:00'",
+                        String.class))
+                .containsExactly("23:59:00");
     }
 
     @Test

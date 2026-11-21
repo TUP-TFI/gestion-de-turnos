@@ -113,7 +113,8 @@ public class AvailabilityService {
         // Un TreeSet deja el resultado ordenado y sin repetir: dos franjas podrían generar el mismo instante.
         SortedSet<Instant> available = new TreeSet<>();
         for (DayWindow window : windows) {
-            long windowMinutes = Duration.between(window.start(), window.end()).toMinutes();
+            // Una franja hasta las 23:59 cuenta hasta la medianoche: el último turno puede terminar a las 00:00.
+            long windowMinutes = window.minutes();
             for (long offset = 0; offset + durationMinutes <= windowMinutes; offset += window.intervalMinutes()) {
                 LocalTime time = window.start().plusMinutes(offset);
                 Instant start = LocalDateTime.of(date, time).atZone(zone).toInstant();

@@ -520,6 +520,7 @@ Criterios de aceptación:
 - La configuración es una plantilla recurrente ("todos los lunes de 9 a 18"), no se carga semana a semana.
 - Un día sin configuración se interpreta como cerrado ese día.
 - Se admiten varias franjas por día (jornada partida), siempre que no se superpongan entre sí.
+- Un día se puede marcar como "Abierto las 24 horas" (#107): se guarda como una sola franja de 00:00 a 23:59, porque la base exige que el fin sea posterior al inicio (`chk_hours_range`). Para no perder el último turno, el cálculo de disponibilidad (US-05.5) y el aviso de turnos fuera de rango (US-05.4 y US-05.6) toman cualquier franja que termina a las 23:59 como si terminara a la medianoche: con turnos de 30 minutos, el último empieza a las 23:30 y termina a las 00:00. Vale también para una franja como 18:00–23:59, y para el horario especial de una excepción. Guardar 00:00 como fin, o una franja que cruce la medianoche (por ejemplo, 20:00–02:00), necesita cambiar el modelo de `BusinessHours` y la base (migración V2), y queda como trabajo futuro.
 
 Tareas técnicas:
 - Backend (Nico): CRUD de `BusinessHours` (crear/editar/eliminar filas por día).
@@ -568,6 +569,7 @@ Como admin de empresa, quiero cargar una fecha concreta como excepción a mi hor
 Criterios de aceptación:
 - Una excepción se carga para una fecha concreta (`exceptionDate`), no recurrente, y no puede repetirse la fecha en la misma empresa.
 - Si `isClosed = true`, no se piden horarios; si `isClosed = false`, se piden `startTime`/`endTime`/`intervalMinutes`, igual que `BusinessHours`.
+- Con `isClosed = false`, el día también se puede marcar como "Abierto las 24 horas", igual que en US-05.3 (00:00 a 23:59).
 - La excepción reemplaza por completo la configuración semanal de esa fecha (no se combinan).
 - La fecha de la excepción (`exceptionDate`) debe ser igual o posterior a la fecha actual, calculada en `company.timezone`. Un intento de cargar una fecha pasada se rechaza con un mensaje claro.
 - Antes de guardar, si hay turnos futuros reservados en esa fecha que quedan fuera de la excepción, se informa cuántos son — no se cancelan automáticamente.

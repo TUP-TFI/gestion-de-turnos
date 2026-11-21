@@ -1,15 +1,23 @@
 import { useState } from 'react'
+import { IntervalField } from './IntervalField'
 import {
   FIELDSET_CLASSES,
   INPUT_CLASSES,
   LABEL_CLASSES,
   MUTED_TEXT_CLASSES,
 } from '../lib/formStyles'
+import {
+  FULL_DAY_END,
+  FULL_DAY_LABEL,
+  FULL_DAY_START,
+  isFullDay,
+} from '../lib/fullDay'
+import { describeStarts } from '../lib/slotInterval'
 import type { ScheduleExceptionData } from '../types/ScheduleException'
 
 interface ScheduleExceptionFieldsProps {
-  // Valores iniciales para la edición. Los inputs no son controlados: se leen con readScheduleExceptionData
-  // al enviar.
+  // Valores iniciales para la edición. Al enviar, los campos se leen con readScheduleExceptionData. El horario y
+  // el intervalo además tienen estado, para la vista previa de los turnos.
   defaultValues?: ScheduleExceptionData
 }
 
@@ -18,6 +26,20 @@ interface ScheduleExceptionFieldsProps {
 export function ScheduleExceptionFields({ defaultValues }: ScheduleExceptionFieldsProps) {
   // Un alta arranca como día cerrado, el caso más común (feriado).
   const [isClosed, setIsClosed] = useState(defaultValues?.isClosed ?? true)
+  const wasFullDay = isFullDay(defaultValues?.startTime ?? null, defaultValues?.endTime ?? null)
+  const [isOpenAllDay, setIsOpenAllDay] = useState(wasFullDay)
+  // Si la excepción ya era de 24 horas y se desmarca, los campos arrancan con el horario por defecto y no con
+  // 00:00 a 23:59.
+  const [startTime, setStartTime] = useState(
+    wasFullDay ? '09:00' : (defaultValues?.startTime?.slice(0, 5) ?? '09:00'),
+  )
+  const [endTime, setEndTime] = useState(
+    wasFullDay ? '18:00' : (defaultValues?.endTime?.slice(0, 5) ?? '18:00'),
+  )
+  const [intervalMinutes, setIntervalMinutes] = useState(String(defaultValues?.intervalMinutes ?? 30))
+  const preview = isOpenAllDay
+    ? describeStarts(FULL_DAY_START, FULL_DAY_END, intervalMinutes)
+    : describeStarts(startTime, endTime, intervalMinutes)
 
   return (
     <fieldset className={FIELDSET_CLASSES}>
@@ -56,51 +78,68 @@ export function ScheduleExceptionFields({ defaultValues }: ScheduleExceptionFiel
           <p className="text-sm font-medium text-ink sm:col-span-3">
             Elegí el horario en el que vas a tomar turnos ese día
           </p>
-          <div>
-            <label htmlFor="startTime" className={LABEL_CLASSES}>
-              Desde *
-            </label>
-            {/* El backend manda '10:00:00' y el input de hora espera '10:00'. */}
+          {/* Sin name: no viaja en el form. El horario de 24 horas sale de los dos campos ocultos de abajo. */}
+          <div className="flex items-center gap-2 sm:col-span-3">
             <input
-              id="startTime"
-              name="startTime"
-              type="time"
-              required
-              defaultValue={defaultValues?.startTime?.slice(0, 5) ?? '09:00'}
-              className={INPUT_CLASSES}
+              id="isOpenAllDay"
+              type="checkbox"
+              checked={isOpenAllDay}
+              onChange={(event) => setIsOpenAllDay(event.target.checked)}
+              className="h-4 w-4"
             />
-          </div>
-          <div>
-            <label htmlFor="endTime" className={LABEL_CLASSES}>
-              Hasta *
+            <label htmlFor="isOpenAllDay" className="text-sm text-ink">
+              {FULL_DAY_LABEL}
             </label>
-            <input
-              id="endTime"
-              name="endTime"
-              type="time"
-              required
-              defaultValue={defaultValues?.endTime?.slice(0, 5) ?? '18:00'}
-              className={INPUT_CLASSES}
-            />
           </div>
-          <div>
-            <label htmlFor="intervalMinutes" className={LABEL_CLASSES}>
-              Intervalo (min) *
-            </label>
-            <input
-              id="intervalMinutes"
-              name="intervalMinutes"
-              type="number"
-              required
-              min={1}
-              max={1440}
-              step={1}
-              defaultValue={defaultValues?.intervalMinutes ?? 30}
-              className={INPUT_CLASSES}
-            />
-          </div>
+          {isOpenAllDay ? (
+            <>
+              <input type="hidden" name="startTime" value={FULL_DAY_START} />
+              <input type="hidden" name="endTime" value={FULL_DAY_END} />
+            </>
+          ) : (
+            <>
+              <div>
+                <label htmlFor="startTime" className={LABEL_CLASSES}>
+                  Desde *
+                </label>
+                {/* El backend manda '10:00:00' y el input de hora espera '10:00'. */}
+                <input
+                  id="startTime"
+                  name="startTime"
+                  type="time"
+                  required
+                  value={startTime}
+                  onChange={(event) => setStartTime(event.target.value)}
+                  className={INPUT_CLASSES}
+                />
+              </div>
+              <div>
+                <label htmlFor="endTime" className={LABEL_CLASSES}>
+                  Hasta *
+                </label>
+                <input
+                  id="endTime"
+                  name="endTime"
+                  type="time"
+                  required
+                  value={endTime}
+                  onChange={(event) => setEndTime(event.target.value)}
+                  className={INPUT_CLASSES}
+                />
+              </div>
+            </>
+          )}
+          <IntervalField
+            id="intervalMinutes"
+            name="intervalMinutes"
+            value={intervalMinutes}
+            onChange={setIntervalMinutes}
+          />
+          {preview && <p className={`sm:col-span-3 ${MUTED_TEXT_CLASSES}`}>{preview}</p>}
           <p className={`sm:col-span-3 ${MUTED_TEXT_CLASSES}`}>
-            Ese día se usa este horario en lugar del semanal. Si cerrás a medianoche, poné 23:59.
+            Ese día se usa este horario en lugar del semanal.
+            {!isOpenAllDay && ' Si cerrás a medianoche, poné 23:59.'} Un servicio que dura más que el tiempo
+            entre turnos usa varios seguidos.
           </p>
         </div>
       )}
