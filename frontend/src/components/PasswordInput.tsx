@@ -38,7 +38,8 @@ export function PasswordInput(props: PasswordInputProps) {
       <button
         type="button"
         onClick={() => setIsVisible((visible) => !visible)}
-        aria-label={isVisible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        // Nombre fijo: el estado lo anuncia aria-pressed ("presionado" = contraseña visible).
+        aria-label="Mostrar contraseña"
         aria-pressed={isVisible}
         className="absolute inset-y-0 right-0 flex w-10 cursor-pointer items-center justify-center rounded-r-lg text-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-light"
       >
