@@ -125,12 +125,21 @@
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>
+			<!-- Los tests corren en UTC, igual que TurnosApplication.main y que Render: los *IT no pasan por main -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<argLine>-Duser.timezone=UTC</argLine>
+				</configuration>
+			</plugin>
 			<!-- Corre los *IT en la fase integration-test; surefire se queda con los *Test -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
 				<!-- Los *IT usan dev (base de Testcontainers, valores del seed de application-dev.yml) -->
 				<configuration>
+					<argLine>-Duser.timezone=UTC</argLine>
 					<systemPropertyVariables>
 						<spring.profiles.default>dev</spring.profiles.default>
 						<!-- Los datos de demo apagados aunque la terminal tenga APP_SEED_DEMO_DATA=true: los tests cuentan

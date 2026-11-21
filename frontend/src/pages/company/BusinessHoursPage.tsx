@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { IntervalField } from '../../components/IntervalField'
 import { useBusinessHours } from '../../hooks/useBusinessHours'
 import { useSaveBusinessHours } from '../../hooks/useSaveBusinessHours'
 import { DAY_OF_WEEK_LABELS, DAYS_OF_WEEK } from '../../lib/daysOfWeek'
@@ -17,11 +18,11 @@ import {
 import { handleInvalidField, resetFieldValidity } from '../../lib/formValidation'
 import {
   FULL_DAY_END,
-  FULL_DAY_HINT,
   FULL_DAY_LABEL,
   FULL_DAY_START,
   isFullDay,
 } from '../../lib/fullDay'
+import { describeStarts } from '../../lib/slotInterval'
 import type { BusinessHours, DayOfWeek } from '../../types/BusinessHours'
 
 // Franja mientras se edita. La key identifica la fila para React; el intervalo es texto para poder borrarlo
@@ -200,7 +201,8 @@ function BusinessHoursForm({ initialHours }: { initialHours: BusinessHours[] }) 
       <div className="space-y-1">
         <h2 className={PAGE_TITLE_CLASSES}>Horario semanal</h2>
         <p className={MUTED_TEXT_CLASSES}>
-          Un día sin franjas queda cerrado. Si cerrás a medianoche, poné 23:59.
+          Un día sin franjas queda cerrado. Si cerrás a medianoche, poné 23:59. Un servicio que dura más que el
+          tiempo entre turnos usa varios seguidos.
         </p>
       </div>
 
@@ -235,24 +237,13 @@ function BusinessHoursForm({ initialHours }: { initialHours: BusinessHours[] }) 
             {fullDaySlot ? (
               <div className="space-y-2">
                 <div className="sm:w-1/3">
-                  <label htmlFor={`${fullDaySlot.key}-interval`} className={LABEL_CLASSES}>
-                    Intervalo (min) *
-                  </label>
-                  <input
+                  <IntervalField
                     id={`${fullDaySlot.key}-interval`}
-                    type="number"
-                    required
-                    min={1}
-                    max={1440}
-                    step={1}
                     value={fullDaySlot.intervalMinutes}
-                    onChange={(event) =>
-                      updateSlot(fullDaySlot.key, 'intervalMinutes', event.target.value)
-                    }
-                    className={INPUT_CLASSES}
+                    onChange={(value) => updateSlot(fullDaySlot.key, 'intervalMinutes', value)}
                   />
                 </div>
-                <p className={MUTED_TEXT_CLASSES}>{FULL_DAY_HINT}</p>
+                <SlotPreview slot={fullDaySlot} />
               </div>
             ) : (
               <>
@@ -287,24 +278,11 @@ function BusinessHoursForm({ initialHours }: { initialHours: BusinessHours[] }) 
                           className={INPUT_CLASSES}
                         />
                       </div>
-                      <div>
-                        <label htmlFor={`${slot.key}-interval`} className={LABEL_CLASSES}>
-                          Intervalo (min) *
-                        </label>
-                        <input
-                          id={`${slot.key}-interval`}
-                          type="number"
-                          required
-                          min={1}
-                          max={1440}
-                          step={1}
-                          value={slot.intervalMinutes}
-                          onChange={(event) =>
-                            updateSlot(slot.key, 'intervalMinutes', event.target.value)
-                          }
-                          className={INPUT_CLASSES}
-                        />
-                      </div>
+                      <IntervalField
+                        id={`${slot.key}-interval`}
+                        value={slot.intervalMinutes}
+                        onChange={(value) => updateSlot(slot.key, 'intervalMinutes', value)}
+                      />
                       <button
                         type="button"
                         onClick={() => removeSlot(slot.key)}
@@ -313,6 +291,8 @@ function BusinessHoursForm({ initialHours }: { initialHours: BusinessHours[] }) 
                         Quitar
                       </button>
                     </div>
+                    {/* Con error, el mensaje ya dice qué corregir: la vista previa no aporta. */}
+                    {!slotErrors[slot.key] && <SlotPreview slot={slot} />}
                     {slotErrors[slot.key] && (
                       <p role="alert" className={ERROR_CLASSES}>
                         {slotErrors[slot.key]}
@@ -364,4 +344,10 @@ function BusinessHoursForm({ initialHours }: { initialHours: BusinessHours[] }) 
       )}
     </form>
   )
+}
+
+// Horarios de inicio que genera la franja, debajo de sus campos. Se actualiza mientras el admin escribe.
+function SlotPreview({ slot }: { slot: EditableSlot }) {
+  const preview = describeStarts(slot.startTime, slot.endTime, slot.intervalMinutes)
+  return preview ? <p className={MUTED_TEXT_CLASSES}>{preview}</p> : null
 }
